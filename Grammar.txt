@@ -139,7 +139,7 @@ Comment Line   = '//'
 !    i32 r g b 
 !    RGB color
 ! ===================================================================
-<Type Declaration> ::= type ID EOL INDENT <Type Member Definitions> DEDENT
+<Type Declaration> ::= <Optional Export> type ID EOL INDENT <Type Member Definitions> DEDENT
              
 ! nonempty list of variable type and names
 <Type Member Definitions>  ::= <Variable Type and Names> EOL <Type Member Definitions>
@@ -148,32 +148,36 @@ Comment Line   = '//'
 ! ===================================================================
 ! Variable Declaration
 !
-! export const i32 x y = 0 0 // multiple assignment
-! i32 [4] arr = 0 1 2 3
-! r32 [2,2] mat = 1.0 0.0 0.0 1.0
-! Vec3 a = 0.0 0.0 0.0
-! import i32 a
-! export r32 bob = 1.0
-! RGB color = 0.0 1.0 0.0
-! string [2] txts = "bob" "fred"
+! export const i32 x y = 0 0      // multiple assignment, export constants
+! i32 [4] arr = 0 1 2 3           // array assignment
+! r32 [2,2] mat = 1.0 0.0 0.0 1.0 // multi array
+! Vec3 a = 0.0 0.0 0.0            // fields
+! import i32 a                    // import var name
+! export r32 bob = 1.0            // export
+! RGB color = 0.0 1.0 0.0         //
+! const string [2] txts = "bob" "fred"  // constants
 !
 ! ===================================================================
-<Variable Declaration>    ::= 'import' <Optional Const> <Variable Type and Names> EOL 
-                            | <Optional Export> <Optional Const> <Variable Definition> EOL
-                            
+<Variable Declaration>    ::= 'import' <Import> EOL!'import' <Optional Const> <Variable Type and Names> EOL 
+                            | <Export> EOL !<Optional Export> <Optional Const> <Variable Definition> EOL
+
+<Import> ::= <Variable Type and Names> | 'const' <Variable Type and Names> 
+<Export> ::= <Rest> | 'export' <Rest> | 'export' 'const' <Rest>
+
+<Rest> ::= <Variable Definition>                   
+
 ! deifne a variable, used globally and local to functions
 <Variable Definition>     ::= <Variable Type and Names> <Variable Initializer>
                
-<Variable Type and Names> ::= <Type> <Optional Array> <Variable List> 
-
-<Variable List>           ::= ID <Variable List>  | ID              ! one or more IDs
-<Variable Initializer>    ::= '=' <Initializer List>  |             ! initializer or not
-<Initializer List>        ::=  <Value> <Initializer List> | <Value> ! one or more                      
-
-<Optional Const>          ::= const |                           
-<Optional Export>         ::= export |                               
 ! array can be single or multi dimensional                  
-<Optional Array>          ::= '[' <Expression List> ']' |      ! array or empty TODO - must be constant?
+<Variable Type and Names> ::= <Type> <ID List> 
+                            | <Type> '[' <Expression List> ']' <ID List> 
+
+<Variable Initializer>    ::= '=' <Initializer List>  |             ! initializer or not
+<Initializer List>        ::=  <Value> ',' <Initializer List> | <Value> ! one or more                      
+
+!<Optional Const>          ::= const  | 
+<Optional Export>         ::= export |   otot                            
 
 ! ===================================================================
 ! Function  Declaration
@@ -191,7 +195,7 @@ Comment Line   = '//'
 !    b = t
 !    // how about a b = b a ? can do on stack nicely
 !
-! Vec operator+(Vec a,Vec b)
+! Vec op+(Vec a,Vec b)
 !    r32 x = a.x + b.x
 !    r32 y = a.y + b.y
 !    return Vec(x,y)
@@ -201,7 +205,9 @@ Comment Line   = '//'
 !
 ! ===================================================================
 ! import has no definition block
-<Function Declaration>    ::= 'import' <Function Prototype> | <Optional Export> <Function Prototype> <Block>
+<Function Declaration>    ::= 'import' <Function Prototype> 
+                            | 'export' <Function Prototype> <Block> 
+                            | <Function Prototype> <Block>
 
 ! return type, name, parameters, EOL
 <Function Prototype> ::= <Type> <Function Name> '(' <Function Parameters> ')' EOL
@@ -218,7 +224,7 @@ Comment Line   = '//'
 ! 0 or more parameters
 <Function Parameters>  ::= <Parameter> ',' <Function Parameters> | <Parameter> |   
                             
-! parameter is type and name 
+! parameter is type, optional reference, and name 
 <Parameter>     ::= <Type> <Optional Reference> ID       
 
 ! reference allows passing built in type (i32, r32, etc) by reference
@@ -228,7 +234,7 @@ Comment Line   = '//'
 ! Statements
 ! i32 a b c = 1 2 (3+4)
 ! for i in 1..10
-! for i in a..2..b
+! for i in a..b by 2
 ! for item in array
 ! if a 
 !    clause1
@@ -240,53 +246,49 @@ Comment Line   = '//'
 !    if a = 5
 !       break
 ! ===================================================================
-! one or more statements
-
+! zero or more statements
 <Statements> ::= <Statement> <Statements> |
 
 <Statement>   ::= <Variable Definition> EOL
-               | <Assign Statement> EOL
-               | if <Expression> EOL <Block>
-               | if <Expression> EOL <Block> else EOL <Block>
-               | while <Expression> EOL <Block>
-               | for ID in <For end> <For incr> <For End> EOL <Block>
-               | <Function Call> EOL
-               | <Jump Statement> EOL
-               
-<Function Call> ::= ID '(' <Expression List> ')'
-
-<Assign Statement>  ::= <ID List> '=' <Expression List>
+                | <Assign Statement>    EOL
+                | if <Expression>       EOL <Block>
+                | if <Expression>       EOL <Block> else EOL <Block>
+                | while <Expression>    EOL <Block>
+                | <Function Call>       EOL
+                | <Jump Statement>      EOL
+                | <For Statement>       
+              
+<Assign Statement>  ::= <ID List> <Assign Operator> <Expression List>
+<Assign Operator>   ::= '='
+                     |  '+='
+                     |  '-='
+                     |  '*='
+                     |  '/='
+                     |  '^='
+                     |  '&='
+                     |  '|='
+                     |  '>>='
+                     |  '<<='
+                     |  '>>>='
+                     |  '<<<='
 
 ! one or more IDs
-<ID List> ::= ID <ID List> | ID
-          
-! todo - add these expressions
-!               | <Op If> '+='  <Expr>
-!               | <Op If> '-='  <Expr>
-!               | <Op If> '*='  <Expr>
-!               | <Op If> '/='  <Expr>
-!               | <Op If> '^='  <Expr>
-!               | <Op If> '&='  <Expr>
-!               | <Op If> '|='  <Expr>
-!               | <Op If> '>>=' <Expr>
-!               | <Op If> '<<=' <Expr>
-!               | <Op If> '>>>=' <Expr>
-!               | <Op If> '<<<=' <Expr>
-!               | <Op If> '='   <Expr>
+<ID List> ::= ID ',' <ID List> | ID
 
-
-<Int Literal> ::= DecLiteral | HexLiteral | BinLiteral
-<For end>     ::= ID | <Int Literal>
-<For incr>    ::= '..' | '..' <Int Literal> '..'
+<Function Call> ::= ID '(' <Expression List> ')'
+                
 
 <Jump Statement>  ::= break 
-                   | continue 
-                   | return <Expression>
+                    | continue 
+                    | return <Expression>
 
+<For Statement> ::= for ID in <Expression> '..' <Expression> EOL <Block>
+                  | for ID in <Expression> '..' <Expression> by <Expression> EOL <Block>
+                  | for ID in ID EOL
+
+! a block is an indented collection of statements
 <Block>     ::= INDENT <Statements> DEDENT
-
-
-
+             
 
 ! ===================================================================
 ! Here begins C style levels of operator precedence.
