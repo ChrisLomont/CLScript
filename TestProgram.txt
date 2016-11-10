@@ -1,0 +1,38 @@
+import "include_file.h"
+
+import func1
+import func2 ( i32 a r32 b )
+import int32 stackDepth
+
+type Point
+   r32 x y
+   u8 r g b
+
+enum Bob
+   f1 = 0b000_0001
+   f2 = 0b000_0010
+   f3 = 0b000_0100
+   f4 = 0b001_0000
+
+Point [5] points
+
+u8 func2 (u8 a)
+   return a+1
+
+entryFunc (Point p)
+   bool b = true
+   u8 aa = 0b10
+   i8 bb = 0xFE
+   u32 cc = 0xF00DEEFF
+   i32 dd = 1234567
+   string s = "this is a string"
+   char ch = 'A'
+   if aa == 0
+      aa = 5
+   if bb == 0 
+      bb = aa
+   else
+      bb++
+
+   
+   

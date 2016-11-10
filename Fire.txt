@@ -1,0 +1,95 @@
+// example visualization
+
+import "HypnoLight.cls"
+
+const i32 maxLevel   = 4  // levels 0-4
+const i32 numSamples = (1<<(maxLevel+1))-1 // from each level: 1+2+4+8+16 = 31
+
+type FireState
+    // samples of varying frequencies
+    // 1 of low freq, 2 of next freq, ..., 2^t of highest freq
+    // total number then 2^(t+1)-1
+    Particle samples[31]
+    Particle shift
+
+// compute RGB for a nice fire
+// given value in [0,1] compute fire palette
+// RGB in [0.0,1.0]
+void GetFireRGB(r32 value)
+	r32 r = value, g = 0.0, b = 0.0
+    if value > 0.55 // green kicks in here
+        g = LinearInterpolate(0.0,1.0,value - 0.55,0.45)
+    if value > 0.8 // blue here
+        b = LinearInterpolate(0.0,1.0,value - 0.80,0.20)
+	return RGBColor(r,g,b)
+
+FireState state // persistent state during this script life
+
+// fire based on adding triangular frequency - fractional brownian motion?
+[Vis "Fire"] // attribute
+export void Fire(Visualization vis)
+    // initialize
+    if vis.frame == 0
+        i32 i=0
+        for level in 0..maxLevel
+            for sublevel in 0..(1<<level)-1
+                i32 secsToCycle  = randMod2(75,125)
+                i32 timesToCycle = randMod2(75*(1<<level),125*(1<<level))/3
+                ParticleInit(state.samples[i],0.0,1.0,timesToCycle,secsToCycle,secsToCycle,vis.fps,DIRECTION_RANDOM)
+                i++
+
+        ParticleInit(state.shift,0.0,(r32)NUM_PIXELS,(r32)NUM_PIXELS,22,37,vis.fps,DIRECTION_RANDOM)
+
+    // update 
+	for s in state.samples
+        ParticleUpdate(s,0.0,1.0,ENDPOINT_BOUNCE)
+
+    ParticleUpdate(state.shift,0.0,(r32)NUM_PIXELS,ENDPOINT_WRAP)
+
+    i32 shift = (i32)state.shift.value
+    
+	// draw
+    for i in 0..NUM_PIXELS-1
+        r32 total = 0.0
+
+        r32 scale = 1.0 // amount next level contributes
+        
+        for level in 0..maxLevel
+            // sublevel is index to read in this level
+            sublevel = (i*(1<<level))/NUM_PIXELS; // scales i/NUM onto 2^level
+
+            // excess is amount into sublevel sample, normalized into [0,2)
+            r32 excess = 2.0*(r32)((i*(1<<level))-NUM_PIXELS*sublevel)/(r32)NUM_PIXELS
+
+            // half up, half down, reflect
+            if excess >= 1.0
+                excess = 2.0 - excess
+
+            i23 sampleIndex = ((1<<level)-1)+sublevel
+
+			// debugging
+            // Print("Fire index {i}, level {level} sublevel {sublevel}, sampleIndex {sampleIndex}, excess {excess}"ENDLINE)
+
+            r32 sampleHeight = state.samples[sampleIndex].value
+
+            scale /= 2.0
+            total += scale*excess*sampleHeight
+
+        // make brighter by expected value, and clamp
+        // for max level L , expected value (2^(L+1)-1)/2^(L+2)
+        total *= (r32)(1<<(maxLevel+2))
+        total /= (r32)((1<<(maxLevel+1))-1)
+        total = Clamp(total,0.0,1.0)
+
+		// debugging
+        //Print("Fire index {i} -> total {total}%d"ENDLINE)
+        
+		// shift fire
+        int pos = PositiveMod(i+shift,NUM_PIXELS)
+
+        // compute RGB color based on total
+        RGBColor color = GetFireRGB(total)
+		// draw
+        SetPixel(pos,color)
+
+

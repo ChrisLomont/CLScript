@@ -1,0 +1,370 @@
+! Grammar and token for CLScript
+! in GOLD parser format to check correctness
+! This is not an actual GOLD parser script, since it needs some lexical tricks 
+! to make the language indentation based
+!
+! Chris Lomont Oct 2016
+! format augmented EBNF
+! X = A B C
+! 'token' in single quotes
+! 'A'-'Z' range
+! [optional]
+! {zero or more times}
+! item* means 0 or more times
+! item+ means 1 or more times
+! (A|B)|C means (A or B) or C
+! 
+! EOL is end of line
+! INDENT/UNINDENT - commands for parser to check indentation levels
+! tokens and grammar
+!
+
+"Name"    = 'CL Script'
+"Version" = '2016'
+"Author"  = 'Chris Lomont' 
+"About"   = 'CL Script is designed for small, embedded devices.'
+
+"Case Sensitive" = True
+"Start Symbol"   = <Declarations>
+
+! ===================================================================
+! Literal values
+!
+! Hex via 0xDEED, bin via 0b0010, decimal as usual
+! float has decimal 0.121, allows +1.2e4, -1.1e-12
+! All support underscore as separator like 1_000_000
+!
+! Strings are ASCII, no " or '. String interpolation via "test {x},{y}"
+! ===================================================================
+
+{Hex Digit}      = {digit} + [abcdefABCDEF]
+{Bin Digit}      = [01]
+
+DecLiteral       = {digit}({digit}|'_')*
+BinLiteral       = 0b{Bin Digit}({Bin Digit}|'_')*
+HexLiteral       = 0x{Hex Digit}({Hex Digit}|'_')*
+FloatLiteral     = ({digit}'_')*'.'{digit}({digit}|'_')*(e('+'|'-')?{digit}+)?
+
+{String Ch}      = {Printable} - ["]
+{Char Ch}        = {Printable} - ['']
+
+StringLiteral    = '"'( {String Ch} | '\'{Printable} )* '"'
+CharLiteral      = '' ( {Char Ch} | '\'{Printable} )''                 
+
+! Identifiers
+! start with a letter or underscore, add digits to the mix thereafter
+
+{Id Head}        = {Letter} + [_]
+{Id Tail}        = {Id Head} + {Digit} + [_]
+
+ID               = {Id Head}{Id Tail}*   ! identifier is name
+
+! For program structure, end of line and indent/dedent are tokens created by parser
+! prefixed with ESC (ASCII 27) here to allow to pass Gold parser generator
+EOL              = {#27}E  ! end of line
+INDENT           = {#27}I  ! indented lines
+DEDENT           = {#27}D  ! opposite of indent               
+                 
+
+! ===================================================================
+! Comments - allow nested comments
+! ===================================================================
+
+Comment Block @= {Nesting = All, Advance = Character, Ending = Closed }
+Comment Start  = '/*'
+Comment End    = '*/'
+Comment Line   = '//'
+
+! ===================================================================
+! each file has this form. It is a list of declarations, each ending with EOL
+! ===================================================================
+<Declarations> ::= <Declaration> <Declarations> | ! a file is a list of zero or more declarations
+<Declaration>  ::= <Import Declaration>      ! include file or definitions, file inserted here
+                 | <Attribute Declaration>   ! tag the following declaration with an attribute 
+                 | <Enum Declaration>        ! define an enum
+                 | <Type Declaration>        ! define a type
+                 | <Function Declaration>    ! define or import a function
+                 | <Variable Declaration>    ! define or import a variable
+
+! ===================================================================
+! import file for code and/or definitions. Prefer *.cls (Chris Lomont Script)
+! ===================================================================
+<Import Declaration> ::= import StringLiteral EOL
+
+! ===================================================================
+! Attribute, possible on type, enum, variable, function, affects next one
+!
+! [Var "string1" ....]
+! ===================================================================
+<Attribute Declaration> ::= '[' ID <Attribute Strings> ']' EOL
+! 0 or more strings             
+<Attribute Strings>   ::= string <Attribute Strings> | 
+
+! ===================================================================
+! Enumerations
+!
+! enum Bob
+!    item1 = 0b0001
+!    item2 = 0b0002
+!    item3 = 1234
+!    item5
+!
+! use via Bob.item1, can cast to/from i32 only, can & and | 
+! stored in i32
+!
+! ===================================================================
+<Enum Declaration> ::= enum ID EOL INDENT <Enum Values> DEDENT
+<Enum Values>      ::= <Enum Value> <Enum Values>
+                     | <Enum Value>
+<Enum Value>       ::= ID EOL
+                     | ID '=' <Expression> EOL ! expression must be evaluated to integral literal at compile time
+
+! ===================================================================
+! basic types are built in ones or user defined ones
+! ===================================================================
+<Type>  ::= void     ! empty type, used fo functions returning nothing
+          | bool     ! boolean takes on true or false
+          | i32      ! signed 32 bit integer
+          | r32      ! 32 bit floating point, IEEE 754 if possible, perhaps s15.16 fixed point
+          | string   ! ASCII string
+          | char     ! a single byte ASCII character
+          | ID       ! user type
+
+
+! ===================================================================
+! Type Declaration defines a new type
+!
+! type Point
+!    r32 x y
+!    i32 r g b 
+!    RGB color
+! ===================================================================
+<Type Declaration> ::= type ID EOL INDENT <Type Member Definitions> DEDENT
+             
+! nonempty list of variable type and names
+<Type Member Definitions>  ::= <Variable Type and Names> EOL <Type Member Definitions>
+                             | <Variable Type and Names> EOL
+
+! ===================================================================
+! Variable Declaration
+!
+! export const i32 x y = 0 0 // multiple assignment
+! i32 [4] arr = 0 1 2 3
+! r32 [2,2] mat = 1.0 0.0 0.0 1.0
+! Vec3 a = 0.0 0.0 0.0
+! import i32 a
+! export r32 bob = 1.0
+! RGB color = 0.0 1.0 0.0
+! string [2] txts = "bob" "fred"
+!
+! ===================================================================
+<Variable Declaration>    ::= 'import' <Optional Const> <Variable Type and Names> EOL 
+                            | <Optional Export> <Optional Const> <Variable Definition> EOL
+                            
+! deifne a variable, used globally and local to functions
+<Variable Definition>     ::= <Variable Type and Names> <Variable Initializer>
+               
+<Variable Type and Names> ::= <Type> <Optional Array> <Variable List> 
+
+<Variable List>           ::= ID <Variable List>  | ID              ! one or more IDs
+<Variable Initializer>    ::= '=' <Initializer List>  |             ! initializer or not
+<Initializer List>        ::=  <Value> <Initializer List> | <Value> ! one or more                      
+
+<Optional Const>          ::= const |                           
+<Optional Export>         ::= export |                               
+! array can be single or multi dimensional                  
+<Optional Array>          ::= '[' <Expression List> ']' |      ! array or empty TODO - must be constant?
+
+! ===================================================================
+! Function  Declaration
+! 
+! import i32 sqrt (i32 value)
+! import fail
+!
+! i32 times (i32 a, i32 b)
+!    return a * b
+!
+! // call with swap (&a, &b)
+! void swap (i32 & a, i32 & b)
+!    i32 t = a
+!    a = b
+!    b = t
+!    // how about a b = b a ? can do on stack nicely
+!
+! Vec operator+(Vec a,Vec b)
+!    r32 x = a.x + b.x
+!    r32 y = a.y + b.y
+!    return Vec(x,y)
+!
+! doNothing()
+!   // nothing to do
+!
+! ===================================================================
+! import has no definition block
+<Function Declaration>    ::= 'import' <Function Prototype> | <Optional Export> <Function Prototype> <Block>
+
+! return type, name, parameters, EOL
+<Function Prototype> ::= <Type> <Function Name> '(' <Function Parameters> ')' EOL
+
+! names are identifiers, or operator overloads                      
+<Function Name> ::= ID
+                  | 'op+'
+                  | 'op-'
+                  | 'op/'
+                  | 'op*'
+                  | 'op=='
+                  | 'op!='
+       
+! 0 or more parameters
+<Function Parameters>  ::= <Parameter> ',' <Function Parameters> | <Parameter> |   
+                            
+! parameter is type and name 
+<Parameter>     ::= <Type> <Optional Reference> ID       
+
+! reference allows passing built in type (i32, r32, etc) by reference
+<Optional Reference>     ::= '&' | 
+
+! ===================================================================
+! Statements
+! i32 a b c = 1 2 (3+4)
+! for i in 1..10
+! for i in a..2..b
+! for item in array
+! if a 
+!    clause1
+! else
+!    clause2
+! a = b + c
+! r g b = 1.0 2.0 3.0
+! while ! done
+!    if a = 5
+!       break
+! ===================================================================
+! one or more statements
+
+<Statements> ::= <Statement> <Statements> |
+
+<Statement>   ::= <Variable Definition> EOL
+               | <Assign Statement> EOL
+               | if <Expression> EOL <Block>
+               | if <Expression> EOL <Block> else EOL <Block>
+               | while <Expression> EOL <Block>
+               | for ID in <For end> <For incr> <For End> EOL <Block>
+               | <Function Call> EOL
+               | <Jump Statement> EOL
+               
+<Function Call> ::= ID '(' <Expression List> ')'
+
+<Assign Statement>  ::= <ID List> '=' <Expression List>
+
+! one or more IDs
+<ID List> ::= ID <ID List> | ID
+          
+! todo - add these expressions
+!               | <Op If> '+='  <Expr>
+!               | <Op If> '-='  <Expr>
+!               | <Op If> '*='  <Expr>
+!               | <Op If> '/='  <Expr>
+!               | <Op If> '^='  <Expr>
+!               | <Op If> '&='  <Expr>
+!               | <Op If> '|='  <Expr>
+!               | <Op If> '>>=' <Expr>
+!               | <Op If> '<<=' <Expr>
+!               | <Op If> '>>>=' <Expr>
+!               | <Op If> '<<<=' <Expr>
+!               | <Op If> '='   <Expr>
+
+
+<Int Literal> ::= DecLiteral | HexLiteral | BinLiteral
+<For end>     ::= ID | <Int Literal>
+<For incr>    ::= '..' | '..' <Int Literal> '..'
+
+<Jump Statement>  ::= break 
+                   | continue 
+                   | return <Expression>
+
+<Block>     ::= INDENT <Statements> DEDENT
+
+
+
+
+! ===================================================================
+! Here begins C style levels of operator precedence.
+! An expression evaluates to a Value (a string, int, real, char, bool, user type)
+! ===================================================================
+
+! 0 or more expressions, used in assignments and function lists
+<Expression List> ::= <Expression> ',' <Expression List> | <Expression> | 
+
+<Expression> ::= <Op Or>
+
+<Op Or>      ::= <Op Or> '||' <Op And> 
+               | <Op And>
+
+<Op And>     ::= <Op And> '&&' <Op BinOR>
+               | <Op BinOR>
+
+<Op BinOR>   ::= <Op BinOr> '|' <Op BinXOR>
+               | <Op BinXOR>
+
+<Op BinXOR>  ::= <Op BinXOR> '^' <Op BinAND>
+               | <Op BinAND>
+
+<Op BinAND>  ::= <Op BinAND> '&' <Op Equate>
+               | <Op Equate>
+
+<Op Equate>  ::= <Op Equate> '==' <Op Compare>
+               | <Op Equate> '!=' <Op Compare>
+               | <Op Compare>
+
+<Op Compare> ::= <Op Compare> '<'  <Op Shift>
+               | <Op Compare> '>'  <Op Shift>
+               | <Op Compare> '<=' <Op Shift>
+               | <Op Compare> '>=' <Op Shift>
+               | <Op Shift>
+
+<Op Shift>   ::= <Op Shift> '<<' <Op Rotate> 
+               | <Op Shift> '>>' <Op Rotate>
+               | <Op Rotate>
+
+<Op Rotate>  ::= <Op Rotate> '<<<' <Op Add> ! rotate left
+               | <Op Rotate> '>>>' <Op Add> ! rotate right
+               | <Op Add>
+
+<Op Add>     ::= <Op Add> '+' <Op Mult>
+               | <Op Add> '-' <Op Mult>
+               | <Op Mult>
+
+<Op Mult>    ::= <Op Mult> '*' <Op Unary>
+               | <Op Mult> '/' <Op Unary>
+               | <Op Mult> '%' <Op Unary>
+               | <Op Unary>
+
+<Op Unary>   ::= '!'    <Op Unary> ! logical not
+               | '~'    <Op Unary> ! bitwise invert  
+               | '-'    <Op Unary> ! negate
+               | '+'    <Op Unary> ! positive, for int, float
+               | '++'   <Op Unary>
+               | '--'   <Op Unary>
+               | <Op Pointer> '++'
+               | <Op Pointer> '--'
+!               | '(' <Type> ')' <Op Unary>   !CAST - causes reduce-reduce conflict
+               | <Op Pointer>
+
+<Op Pointer> ::= <Op Pointer> '.' <Value>               
+               | <Op Pointer> '[' <Expression> ']'
+               | <Value>
+
+<Value>      ::= BinLiteral
+               | HexLiteral
+               | DecLiteral  
+               | StringLiteral
+               | CharLiteral
+               | FloatLiteral
+               | <Bool Literal>
+               | <Function Call>              
+               | ID                           ! identifier
+               | '(' <Expression> ')'         ! sub expression
+               
+<Bool Literal> ::= true | false
+! END OF GRAMMAR
