@@ -203,7 +203,7 @@ Needs
    - Import/Export tables allow linking....
    - Attributes to know how to export items
       - for example, our visualizations tagged with [Vis "Vis name here"]
-  -      
+   - typenames and sizes for external knowledge?      
    
 # Bytecode 
   

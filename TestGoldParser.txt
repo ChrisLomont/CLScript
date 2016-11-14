@@ -1,0 +1,105 @@
+// example visualization                                                                         ```
+// modified to test Gold Parser, to get EOL, use ```, INDENT is ``_, DEDENT is `__               ```
+                                                                                                 
+import "HypnoLight.cls"                                                                          ```
+                                                                                                 
+// const works like a #define in C                                                               ```
+const i32 NUM_TWINKLES = 20                                                                      ```
+                                                                                                 
+// store a single twinkle                                                                        ```
+type Twinkle                                                                                     ```
+``_ i32 position   /* pixel position */                                                          ```
+    Particle decay /* counts 1.0 down to 0.0 */                                                  ```
+`__
+                                                                                                 
+// store state for the vis                                                                       ```
+type TwinkleState                                                                                ```
+``_ Particle hue                                                                                 ```
+    Twinkle twinkles[NUM_TWINKLES]                                                               ```
+`__
+                                                                                     
+// start a twinkle if there is one available                                                     ```
+void AddTwinkle(i32 position, Twinkle twinkles, int count, int fps)                              ```
+``_ for i in [0..count-1]                                                                          ```
+``_     if twinkles[i].decay.value == 0                                                          ```
+            // add one here                                                                      ```
+            // 1/5 to 1/10 sec                                                                   ```
+``_         i32 rate = randMod2(5,10)                                                            ```
+            ParticleInit(twinkles[i].decay,1,1, rate, 1,1,fps,DIRECTION_NEGATIVE)                ```
+            twinkles[i].position = position                                                      ```
+            return /* jump out */                                                                ```
+`__ `__ `__                                                                                      
+                                    
+TwinkleState state                                                                               ```
+
+[Vis "Twinkle"] /* attribute to mark this as a visualization */                                  ```
+export void Twinkle(Visualization vis)                                                           ```
+    // initialize                                                                                ```
+``_ if vis.frame == 0                                                                            ```
+``_     ParticleInit(state.hue, 0.0, 1.0, 1.0, 17, 27, vis.fps, DIRECTION_RANDOM)                ```
+        for t in state.twinkies                                                                  ```
+``_         t.decay.value = 0 /* marks as available */                                           ```
+`__ `__                                                                                          
+    // update and draw                                                                           ```
+    ParticleUpdate(state.hue,0,HSLMAX,ENDPOINT_WRAP)                                             ```
+    r32 hue = state.hue.value                                                                    ```
+                                                                                                 
+    for i in [0..NUM_PIXELS-1]                                                                     ```
+``_     r32 sat = 1.0                                                                            ```
+        r32 light = 0.5                                                                          ```
+                                                                                                 
+        if rand8() < 2                                                                           ```
+``_         AddTwinkle(i, state.twinkles, NUM_TWINKLES, vis.fps)                                 ```
+                                                                                                 
+        // apply all twinkles                                                                    ```
+`__     r32 a = 0.0                                                                              ```
+        for t in state.twinkles                                                                  ```
+``_         if t.position == i                                                                   ```
+``_             a = max(a,state.twinkles[j].decay.value)                                         ```
+`__ `__                                                                                          
+        light += a*0.5                                                                           ```
+        SetPixel(i,HSLColor(hue,sat,light))                                                      ```
+`__                                                                                                 
+    // update twinkles                                                                           ```
+    for t in state.twinkles                                                                      ```
+``_     ParticleUpdate(t.decay,0.0,1.0,ENDPOINT_CLAMP)                                           ```
+                                                                                                 
+    // end of visualization Twinkle                                                              ```
+`__ `__                                                                                          
+
+enum EType                                                                                       ```
+``_ None = 0                                                                                     ```
+    aa = 0x1000                                                                                  ```
+    bb                                                                                           ```
+    cc = 0b1000                                                                                  ```
+    dd = 1234                                                                                    ```
+    ee                                                                                           ```
+`__
+                                                                                                 
+[Attr "string 1" "string 2"]                                                                     ```
+void Test(i32 bob[], i32  mat[,])                                                               ```
+``_ i32 a, b[10,bob[4]],c                                                                       ```
+    a,b[5,1],c = 0,2,3                                                                          ```
+    i32 s[3] = 0,1,2                                                                             ```
+    r32 t[2,2] = 0,1,2,3                                                                         ```
+                                                                                                 
+    // test literals                                                                             ```
+    i32 a,b,c,c2 = +12_345, 0xDEAD_F00D, 0b1101100, -10                                          ```
+    r32 d,e,f = 0.1,-1000.00012e12,1.0e-5                                                        ```
+                                                                                                 
+    // identifiers                                                                               ```
+    i32 _a_b12 = 000 /* ensure can read 0, 00, 000, as int, not float */                         ```
+    i32 aa = 0                                                                                   ```
+    i32 b = 00                                                                                   ```
+                                                                                                 
+    EType et = EType.bb & EType.cc                                                               ```
+    bool check = (et&~EType.dd) == EType.None                                                    ```
+                                                                                                 
+    string s1 = "this is a test"                                                                 ```
+    string s2 = "test 2" + s1                                                                    ```
+    string s3 = "format {s1} {a}"                                                                ```
+                                                                                                 
+    char ch = s1[5] + 8                                                                          ```
+    s2[6] = ch                                                                                   ```
+                                                                                                 
+`__                                                                                              

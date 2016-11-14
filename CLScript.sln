@@ -5,9 +5,13 @@ VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1180FB7D-5523-4291-8D2F-6DCA5C6C6254}"
 	ProjectSection(SolutionItems) = preProject
+		Example.txt = Example.txt
+		Fire.txt = Fire.txt
 		Grammar.txt = Grammar.txt
 		Language.md = Language.md
+		TestGoldParser.txt = TestGoldParser.txt
 		TestProgram.txt = TestProgram.txt
+		Twinkle.txt = Twinkle.txt
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompilerLib", "CompilerLib\CompilerLib.csproj", "{A897FEA7-AEFC-464E-BA2B-0689AA3CEED3}"
