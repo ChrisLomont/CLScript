@@ -40,8 +40,11 @@
 {Hex Digit}      = {digit} + [abcdefABCDEF]
 {Bin Digit}      = [01]
 
-! allow underscores in numbers after the first character
-FloatLiteral     = ({digit})*'.'{digit}({digit})*(e('+'|'-')?{digit}+)?
+! allow underscores in numbers after the first character for numbers
+
+! float has a digit on at least one side of a '.' and an optional suffix, no leading '_'
+FloatLiteral     = (({digit}({digit}|'_')*'.'({digit}|'_')*) | (({digit}({digit}|'_')*)?'.'{digit}({digit}|'_')*))(e('+'|'-')?{digit}({digit}|'_')*)? 
+                                     
 DecLiteral       = {digit}({digit}|'_')*
 BinLiteral       = 0b{Bin Digit}({Bin Digit}|'_')*
 HexLiteral       = 0x{Hex Digit}({Hex Digit}|'_')*
@@ -402,7 +405,6 @@ Comment Line   = '//'
 !               | '(' <Type> ')' <Op Unary>   !CAST - causes reduce-reduce conflict
                | <Op Pointer>
 
-! todo - left recursive?!
 <Op Pointer> ::= <Op Pointer> '.' <Value>               
                | <Op Pointer> '[' <Expression List> ']'
                | <Value>
