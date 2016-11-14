@@ -334,9 +334,9 @@ Comment Line   = '//'
                     | return <Expression>
                     | return
 
-<For Statement> ::= for ID in '[' <Expression> '..' <Expression> ']' EOL <Block>
-                  | for ID in '[' <Expression> '..' <Expression> ']' by <Expression> EOL <Block>
-                  | for ID in <Assign Item> EOL <Block>
+<For Statement> ::= for ID '=' <Expression> 'to' <Expression>  EOL <Block>
+                  | for ID '=' <Expression> 'to' <Expression> 'by' <Expression> EOL <Block>
+                  | for ID 'in' <Assign Item> EOL <Block>
 
 ! a block is an indented collection of statements
 <Block>     ::= INDENT <Statements> DEDENT
