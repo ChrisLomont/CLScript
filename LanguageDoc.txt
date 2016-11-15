@@ -1,0 +1,116 @@
+type bob
+    i32 ed
+
+i32 end
+
+// This language is CLScript (Chris Lomont's Script)
+// Line comments begin with the two characters // and run through the end of the line
+/* Block comments start with /* and end 
+   with */ and can be nested
+   /* another nesting */
+*/
+
+12345 1234.56 12.0 0. .1 1_000 0x111 0b101 0X100 0B100
+
+// import brings in another file for definitions, etc.
+import "AnyExternals.cls"
+
+// a module name prepends a symbol before anything exported from this file
+// useful to group items
+module MyModule
+
+// types 
+// void   = no type, used for functions returning nothing
+// i32    = signed 32 bit integer
+// r32    = real 32 bit floating point value, IEEE 754 when possible, or maybe s15.16 fixed point
+// bool   = boolean, takes on values true and false
+// string = a string, ASCII, double quote delimited like "this is a string"
+// user defined types start with the keyword type
+// scope in the entire language is is done via indentation, so this puts some fields in the type
+
+type MyType
+    i32 field1, field2
+    r32 field3
+
+// global variables can be declared, and optionally initialized
+i32 global1
+i32 global2 = 1234
+
+// variables can be declared several at a time, and optionally initalized left to right
+// this shows decimal, hex with a 0x or 0X prefix, binary with a 0b or 0B prefix.
+// optional underscores can be used to space numbers out
+i32 a,b,c,d = 1, 0xABAB, 1_000_000, 0b00101
+
+// real numbers have this format. They require a decimal '.' to differentiate from integers
+r32 f = -123.45e-123
+
+// global constants can be defined with the 'const' keyword. These take no RAM on embedded systems when possible
+const r32 pi = 3.14159265358979
+
+// a function has one or more return types (including void), then the name, then 
+// zero or more parameters, with an indented body, and look like this
+i32 square(i32 value)
+    return value*value
+
+// a function can return more than one value as a tuple
+(i32,bool) doubleIfNotTwo(i32 value)
+   if value != 2
+      return (2*value,true)
+   return (value,false)
+
+// arrays look like this (must be compile time sized, optional initializers)
+i32 [10] array = 0,1,2,3,4,5,6,7,8,9
+
+// arrays can be multidimensional
+r32 [2,2] mat = 1.0,0.0,0.0,1.0
+
+// enumerated type:
+enum EnumeratedType
+    None = 0
+    Some = 1
+    OhYeah
+
+// everything is only visible to this file. To make things viewable from outside, export them
+export (r32,r32) zero2D()
+   return (0.0,0.0)
+
+// to get a function or variable from elsewhere, use import
+import i32 anInt
+import void doNothing()
+
+// flow of control
+bool TestLoops()
+   i32 result = 0     // a result we compute
+   for i in [0,10]    // variable i loops from 0 to 10, inclusive, by 1
+      result = result + i
+   for i in [10,0]    // variable i loops from 10 down to 0, inclusive, by -1
+      result += i     // += is short for adding the right to the left
+                      // also have -=, TODO
+   for j in [10,0,-2] // variable j loops from 10 down to 0, inclusive, by -2
+      result = result + j
+
+   for j in [result,result+12,4] // entries can be expressions, only evaluated at loop start
+      result += j/2   // integer division rounds to 0
+
+   i32 [4] array = 9,4,2,6
+   for k in array     // arrays can be iterated over
+      result -= k
+
+   i32 b = 0
+   while b < 100      // while loops loop until the condition is not met
+      b = b + 1
+      if b == 5
+          continue // jump to loop top
+      else if b == 10
+          break    // exit loop
+      else 
+          b++      // ++ adds one, -- subtracts one
+      result += b
+
+   return result == 0
+      
+
+
+// forward function declarator
+
+// end of file

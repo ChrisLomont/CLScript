@@ -66,10 +66,13 @@ ID               = {Id Head}{Id Tail}*   ! identifier is name
 
 ! For program structure, end of line and indent/dedent are tokens created by parser
 ! prefixed with ESC (ASCII 27) here to allow to pass Gold parser generator
-EOL              = '```'  ! end of line
-INDENT           = '``_'  ! indented lines
-DEDENT           = '`__'  ! opposite of indent               
-                 
+EOL              = '`E' ! '```'  ! end of line
+INDENT           = '`I' ! '``_'  ! indented lines
+DEDENT           = '`U' ! '`__'  ! opposite of indent               
+
+! allow multiple in most places
+<EOLs> ::= EOL <EOLs> | EOL
+
 
 ! ===================================================================
 ! Comments - allow nested comments
@@ -86,16 +89,23 @@ Comment Line   = '//'
 <Declarations> ::= <Declaration> <Declarations> ! a file is a list of zero or more declarations
                  | 
 <Declaration>  ::= <Import Declaration>         ! include file or definitions, file inserted here
+                 | <Module Declaration>         ! name the current module
                  | <Attribute Declaration>      ! tag the next declaration with an attribute 
                  | <Enum Declaration>           ! define an enum
                  | <Type Declaration>           ! define a type
-                 | <Function Declaration>       ! define or import a function
                  | <Variable Declaration>       ! define or import a variable                 
+                 | <Function Declaration>       ! define or import a function
+                 | EOL                          ! allow blank lines
 
 ! ===================================================================
 ! import file for code and/or definitions. Prefer *.cls extension (Chris Lomont Script)
 ! ===================================================================
 <Import Declaration> ::= 'import' StringLiteral EOL
+
+! ===================================================================
+! Name a module, which is a prefix for all items following
+! ===================================================================
+<Module Declaration> ::= 'module' ID EOL
 
 ! ===================================================================
 ! Attribute, possible on type, enum, variable, function, affects next one
@@ -119,17 +129,16 @@ Comment Line   = '//'
 ! stored in i32
 !
 ! ===================================================================
-<Enum Declaration> ::= 'enum' ID EOL INDENT <Enum Values> DEDENT
+<Enum Declaration> ::= 'enum' ID <EOLs> INDENT <Enum Values> DEDENT
 <Enum Values>      ::= <Enum Value> <Enum Values>
                      | <Enum Value>
-<Enum Value>       ::= ID EOL
-                     | ID '=' <Expression> EOL ! expression must be evaluated to integral literal at compile time
+<Enum Value>       ::= ID <EOLs>
+                     | ID '=' <Expression> <EOLs> ! expression must be evaluated to integral literal at compile time
 
 ! ===================================================================
 ! basic types are built in types or user defined types
 ! ===================================================================
-<Type>  ::= 'void'     ! empty type, used for functions returning nothing
-          | 'bool'     ! boolean takes on true or false
+<Type>  ::= 'bool'     ! boolean takes on true or false
           | 'i32'      ! signed 32 bit integer
           | 'r32'      ! 32 bit floating point, IEEE 754 if possible, perhaps s15.16 fixed point
           | 'string'   ! ASCII string
@@ -141,32 +150,34 @@ Comment Line   = '//'
 ! A Type Declaration defines a new type
 !
 ! type Point
-!    r32 x y
-!    i32 r g b 
-!    RGB color
+!     r32 x y
+!     i32 r g b 
+!     RGB color[3],c2
+! export type Type2
+!     i32 a
 ! ===================================================================
-<Type Declaration> ::= <Type Header> ID EOL INDENT <Type Member Definitions> DEDENT
+<Type Declaration> ::= <Type Header> ID <EOLs> INDENT <Type Member Definitions> DEDENT
 <Type Header> ::= 'export' 'type' | 'type'            
 
 ! nonempty list of variable type and names
-<Type Member Definitions>  ::= <Variable Type and Names> EOL <Type Member Definitions>
-                             | <Variable Type and Names> EOL
+<Type Member Definitions>  ::= <Variable Type and Names> <EOLs> <Type Member Definitions>
+                             | <Variable Type and Names> <EOLs>
 
 ! ===================================================================
 ! Variable Declaration
 !
-! export const i32 x y = 0 0      // multiple assignment, export constants
-! i32 [4] arr = 0 1 2 3           // array assignment
-! r32 [2,2] mat = 1.0 0.0 0.0 1.0 // multi array
-! Vec3 a = 0.0 0.0 0.0            // fields
+! export const i32 x,y = 0,0      // multiple assignment, export constants
+! i32 [4] arr = 0,1,2,3           // array assignment
+! r32 [2,2] mat = 1.0,0.0,0.0,1.0 // multi array
+! Vec3 a = 0.0,0.0,0.0            // fields
 ! import i32 a                    // import var name
 ! export r32 bob = 1.0            // export
-! RGB color = 0.0 1.0 0.0         //
+! RGB color = 0.0,1.0,0.0         //
 ! const string [2] txts = "bob" "fred"  // constants
 !
 ! ===================================================================
 <Variable Declaration>    ::= 'import' <Import> EOL
-                            | <Export> EOL !<Optional Export> <Optional Const> <Variable Definition> EOL
+                            | <Export> EOL 
 
 <Import> ::= <Variable Type and Names> | 'const' <Variable Type and Names> 
 <Export> ::= <Rest> | 'export' <Rest> | 'export' 'const' <Rest> | 'const' <Rest>
@@ -178,7 +189,6 @@ Comment Line   = '//'
                
 ! array can be single or multi dimensional                  
 <Variable Type and Names> ::= <Type> <ID List> 
-!                            | <Type> '[' <Expression List> ']' <ID List> 
 
 <ID List>                 ::= <Array ID> ',' <ID List> | <Array ID>
                            
@@ -189,9 +199,6 @@ Comment Line   = '//'
 <Initializer List>        ::= <Expression List>  
                            ! <Value> ',' <Initializer List> | <Value> ! one or more                      
 
-!<Optional Const>          ::= const  | 
-!<Optional Export>         ::= export |   otot                            
-
 ! ===================================================================
 ! Function  Declaration
 ! 
@@ -201,8 +208,8 @@ Comment Line   = '//'
 ! i32 times (i32 a, i32 b)
 !    return a * b
 !
-! // call with swap (&a, &b)
-! void swap (i32 & a, i32 & b)
+! // call with swap (&a, &b), no return value
+! () swap (i32 & a, i32 & b)
 !    i32 t = a
 !    a = b
 !    b = t
@@ -213,8 +220,11 @@ Comment Line   = '//'
 !    r32 y = a.y + b.y
 !    return Vec(x,y)
 !
-! doNothing()
+! () doNothing()
 !   // nothing to do
+! 
+! (i32,bool) ret2() // multiple return
+!     return 1,true
 !
 ! ===================================================================
 ! import has no definition block
@@ -223,7 +233,10 @@ Comment Line   = '//'
                             | <Function Prototype> <Block>
 
 ! return type, name, parameters, EOL
-<Function Prototype> ::= <Type> <Function Name> '(' <Function Parameters> ')' EOL
+<Function Prototype> ::= '(' <Return Types> ')' <Function Name> '(' <Function Parameters> ')' EOL
+
+!0 or more types
+<Return Types>       ::= <Type> ',' <Return Types> | <Type> |
 
 ! names are identifiers, or operator overloads                      
 <Function Name> ::= ID
@@ -265,40 +278,18 @@ Comment Line   = '//'
 ! zero or more statements
 <Statements> ::= <Statement> <Statements> |
 
-<Statement>   ::= <Variable Definition> EOL
-                | <Assign Statement>    EOL
+<Statement>   ::= <Variable Definition> <EOLs>
+                | <Assign Statement>    <EOLs>
                 | <If Statement>
                 | <For Statement>       
-                | 'while' <Expression>    EOL <Block>
-                | <Function Call>       EOL
-                | <Jump Statement>      EOL
+                | 'while' <Expression>  <EOLs> <Block>
+                | <Function Call>       <EOLs>
+                | <Jump Statement>      <EOLs>
 
-! handle 
-!
-! if a>0 
-!   b = 1
-!
-! if a == 1
-!   b = 1
-! else
-!    b = 2
-
-! if a == 1
-!   b = 1
-! else if a == 3
-!    b = 2
-! else 
-!    b = 3
-<If Statement> ::= 'if' <Expression> EOL <If End>
-
-<If End> ::= <Block>
-           | <Block> 'else' EOL <Block>
-           | <Block> <ElseIfs>
-           | <Block> <ElseIfs> 'else' EOL <Block>
-
-! 0 or more
-<ElseIfs> ::= 'elseif' <Expression> EOL <Block> <ElseIfs> | 'elseif' <Expression> EOL <Block>
-
+! assign some values to some variables
+! a = 1
+! a,b,c = 1,2,3
+! bob[10].item[1],b += 0, 1
 <Assign Statement>  ::= <Assign List> <Assign Operator> <Expression List>
 <Assign Operator>   ::= '='
                      |  '+='
@@ -326,21 +317,155 @@ Comment Line   = '//'
                 | ID '[' <Expression List> ']' 
                 | ID '[' <Expression List> ']' '.' <Assign Item>
 
-<Function Call> ::= ID '(' <Expression List> ')'
-                
+! if statement follows C somewhat
+<If Statement> ::= 'if' <Expression> <EOLs> <Block>
+                 | 'if' <Expression> <EOLS> <Then St> 'else' <EOLs> <Block>
+                 | 'if' <Expression> <EOLs> <Then St> 'else' <If Statement>
+<Then St> ::=  <Block> ! this trick makes the grammar LALR
 
+! function call 
+<Function Call> ::= ID '(' <Expression List> ')'
+               
+! jump around
 <Jump Statement>  ::= break 
                     | continue 
-                    | return <Expression>
-                    | return
+                    | return <Expression List>
 
-<For Statement> ::= for ID '=' <Expression> 'to' <Expression>  EOL <Block>
-                  | for ID '=' <Expression> 'to' <Expression> 'by' <Expression> EOL <Block>
-                  | for ID 'in' <Assign Item> EOL <Block>
+!<For Statement> ::= for ID '=' <Expression> 'to' <Expression>  <EOLs> <Block>
+!                  | for ID '=' <Expression> 'to' <Expression> 'by' <Expression> <EOLs> <Block>
+!                  | for ID 'in' <Assign Item> <EOLs> <Block>
+
+<For Statement> ::= for ID in <Expression List> <EOLs> <Block>
 
 ! a block is an indented collection of statements
 <Block>     ::= INDENT <Statements> DEDENT
              
+
+! ===================================================================
+! Here begins C style levels of operator precedence.
+! An expression evaluates to a Value (a string, int, real, char, bool, user type)
+! non left recursive type patterned after Mouse PEG parser http://www.romanredz.se/Mouse/C.peg
+! ===================================================================
+
+!! 0 or more expressions, used in assignments and function lists
+!<Expression List> ::= <Expression> ',' <Expression List> | <Expression> | 
+!
+!PrimaryExpression
+!    = Identifier
+!    / Constant
+!    / StringLiteral
+!    / LPAR Expression RPAR
+!    ;
+!
+!PostfixExpression
+!    = ( PrimaryExpression
+!      / LPAR TypeName RPAR LWING InitializerList COMMA? RWING
+!      )
+!      ( LBRK Expression RBRK
+!      / LPAR ArgumentExpressionList? RPAR
+!      / DOT Identifier
+!      / PTR Identifier
+!      / INC
+!      / DEC
+!      )*
+!    ;
+!
+!ArgumentExpressionList
+!    = AssignmentExpression (COMMA AssignmentExpression)*
+!    ;
+!
+!UnaryExpression
+!    = PostfixExpression
+!    / INC UnaryExpression
+!    / DEC UnaryExpression
+!    / UnaryOperator CastExpression
+!    / SIZEOF (UnaryExpression / LPAR TypeName RPAR )
+!    ;
+!
+!UnaryOperator
+!    = AND
+!    / STAR
+!    / PLUS
+!    / MINUS
+!    / TILDA
+!    / BANG
+!    ;
+!
+!CastExpression
+!    = (LPAR TypeName RPAR)* UnaryExpression
+!    ;
+!
+!MultiplicativeExpression
+!    = CastExpression ((STAR / DIV / MOD) CastExpression)*
+!    ;
+!
+!AdditiveExpression
+!    = MultiplicativeExpression ((PLUS / MINUS) MultiplicativeExpression)*
+!    ;
+!
+!ShiftExpression
+!    = AdditiveExpression ((LEFT / RIGHT) AdditiveExpression)*
+!    ;
+!
+!RelationalExpression
+!    = ShiftExpression ((LE / GE / LT / GT) ShiftExpression)*
+!    ;
+!
+!EqualityExpression
+!    = RelationalExpression ((EQUEQU / BANGEQU) RelationalExpression)*
+!    ;
+!
+!ANDExpression
+!    = EqualityExpression (AND EqualityExpression)*
+!    ;
+!
+!ExclusiveORExpression
+!    = ANDExpression (HAT ANDExpression)*
+!    ;
+!
+!InclusiveORExpression
+!    = ExclusiveORExpression (OR ExclusiveORExpression)*
+!    ;
+!
+!LogicalANDExpression
+!    = InclusiveORExpression (ANDAND InclusiveORExpression)*
+!    ;
+!
+!LogicalORExpression
+!    = LogicalANDExpression (OROR LogicalANDExpression)*
+!    ;
+!
+!ConditionalExpression
+!    = LogicalORExpression (QUERY Expression COLON LogicalORExpression)*
+!    ;
+!
+!AssignmentExpression
+!    = UnaryExpression AssignmentOperator AssignmentExpression
+!    / ConditionalExpression
+!    ;
+!
+!AssignmentOperator
+!    = EQU
+!    / STAREQU
+!    / DIVEQU
+!    / MODEQU
+!    / PLUSEQU
+!    / MINUSEQU
+!    / LEFTEQU
+!    / RIGHTEQU
+!    / ANDEQU
+!    / HATEQU
+!    / OREQU
+!    ;
+!
+!Expression
+!    = AssignmentExpression (COMMA AssignmentExpression)*
+!    ;
+!
+!ConstantExpression
+!    = ConditionalExpression
+!    ;
+
 
 ! ===================================================================
 ! Here begins C style levels of operator precedence.
@@ -421,4 +546,7 @@ Comment Line   = '//'
                | '(' <Expression> ')'         ! sub expression
                
 <Bool Literal> ::= true | false
+                
+! todo - add multiple return items
+! todo - add module/namespace (last module "name" prefixes all exports/imports?)
 ! END OF GRAMMAR

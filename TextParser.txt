@@ -1,0 +1,212 @@
+
+import "testing"
+import "tt"
+module _Bob_Is_123
+/* attributes
+*/
+[Attribute1]
+[Attribute2 "field 1"]
+[Attribute3 "field 1" "ff2"]
+
+// enum
+
+enum Enum1
+
+    Value1 = 0123 + 123
+    
+    Value2 = 0x123 + Value1
+    Value3
+    Value4 = 0b101 * 5
+    
+type Type1
+    i32 a,b[10]
+type Type2
+    bool a,b,c
+    Type1 t1[5,3*4]
+export type Type3
+    string str
+    bool b
+type Vec
+    r32 x,y,z
+
+import bool isTrue
+import const bool isFalse
+
+export i32 i1,i2,i3 = 1,4,4*7
+export const bool b1,b2 = true,false
+
+r32  r1   = 0.0
+string s1 = "this is a test"
+
+char ch = '?'
+const i32 const1[2,3] = 1,2,3,4,5,6
+Type3 t1 = "fred",true
+
+import ()    func_i1()
+import (i32) func_i2(char c)
+
+export (i32,bool) func_e3(i32 p1[], Type2 t1[,])
+    return 1,t1[0,0].a
+
+(Vec3) op+(Vec3 a, Vec3 b)
+    Vec3 c = a.x+b.x,a.y+b.y,a.z+b.z
+    return c
+
+(bool ) TestLiteral ()
+    r32 f1 = 0.1
+    r32 f2 = 0.
+    r32 f3 = .1
+    r32 f4 = 1_000.1e+5
+    r32 f5 = -1_000.1_0e-5
+    i32 a,b,c = 0x8000_0000, 0b00010, -12345
+    char db = '"'
+    string s = "ss {db} with quotes {db} embedded"
+    string sn = "'"
+    char c1,c2,c3 = '\n','?',sn[0] 
+    return true
+
+// test assign and variable definitions
+(bool) TestAssign()
+    char c = '?'
+    string s1,s2 = "bob","fred"
+    i32 a,b,c = 0,1,2
+    r32 x,y = 1.0,2.0
+    bool b1,b2 = true,true
+    Type2 t2[5]
+    a = b
+    a += b
+    a,b -= 1       // same value
+    x,y *= 2.0,2.0 // different values
+    c  /= 10
+    b1 ^= true
+    b2 &= false
+    c  |= 10
+    c %= b
+    a >>= 1
+    a <<= c
+    a >>>= 12
+    a <<<= b
+    t2[1].t1[1,2].a -= 10
+    return true    
+
+(bool) TestExpressions()   
+    bool b1,b2,b3 = true,true,false
+    bool b4 = b1 || b2 && b3
+    
+    i32 i1,i2,i3,i4 = 0,2,8,16
+    i4 = (i1 | i2) ^ i3 & i4
+
+    // comparison
+    b4 = i1 == i2
+    b4 = i1 != i2+1
+    b4 = i1 < i2
+    b4 = i1 > i2
+    b4 = i1 <= i2
+    b4 = i1 >= i2
+    
+    // shift and rotate
+    i1 = i2 >> 2
+    i1 = i1 << (i1-1)
+    i1 = i2 >>> 2
+    i1 = i2 <<< 3
+    
+    i1 = -i2 + i3 * i4 / i2 - 0x123
+    
+    i1 = ~i1
+    i1 = -i1
+    i1 = +i1
+    i1 = i1++ // todo - make single line
+    i1 = i1--
+    
+    i1 = Test2()
+    i1[10],i2.rr = Test2(a+1,!b,~(a+3))
+    
+    return true
+    
+
+(bool) TestJump()
+    i32 j = 1
+    for i in 0,100
+        if i == 12
+           continue
+        if i == 70
+           break
+        j += i
+    i32 c = 0
+    while c < 10
+        // c++ // todo - fails compile
+        c = c + 1
+        if (c%2)==0
+            continue
+        else if c == 9
+            break
+        j += i
+    return true        
+           
+
+(bool) TestFor()
+    i32 a = 0
+    i32 arr[3] = 1,2,3
+    for i in 0,10
+        a += i
+    for j in 10,1
+        a += j
+    for k in 0,10,2
+        a += k
+    for i in  10,0,-3
+        a += i
+    for i in 10,0,-3
+        a += i      
+    for i in arr
+        a += i
+       
+    return true       
+
+(bool) TestIf()
+    i32 a,b,c,d,e = 0 // partial init
+    bool bb = true
+    b = 2*a
+    c = 0
+    if a == 0
+        b = 1
+    if a != 1
+        c = 1
+    else
+        c = 2
+    if (a+b*c) >= 0
+        c = 3
+    else if (a<0)
+        d = 1
+        
+    if (a+b*c-1) >= 0
+        c = 3
+    else if (a<0)
+        d = 1
+    else 
+        e = 1   
+    
+    if a == 0
+        if b == 0
+            c = 1
+        else
+            d = 1
+    else
+        e = 1     
+
+    if bb
+        e = 1
+    
+    return true
+
+(i32) Recurse1(i32 v)
+    if v < 10
+        v = Recurse2(v+1)
+    return v 
+
+(i32) Recurse2(i32 v)
+    if v < 11
+        v = Recurse1(v+2)
+    return v 
+
+// END OF FILE
+
