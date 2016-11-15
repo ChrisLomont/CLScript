@@ -17,8 +17,8 @@ type TwinkleState
     Twinkle twinkles[NUM_TWINKLES]
 
 // start a twinkle if there is one available
-void AddTwinkle(i32 position, Twinkle twinkles, int count, int fps)
-	for i in 0..count-1
+() AddTwinkle(i32 position, Twinkle twinkles, i32 count, i32 fps)
+    for i in 0,count-1
         if twinkles[i].decay.value == 0
             // add one here
             // 1/5 to 1/10 sec
@@ -27,22 +27,19 @@ void AddTwinkle(i32 position, Twinkle twinkles, int count, int fps)
             twinkles[i].position = position
             return // jump out
 
-// the state, persistent while this script is live
-TwinkleState state
-
 [Vis "Twinkle"] // attribute to mark this as a visualization
-export void Twinkle(Visualization vis)
+export () Twinkle(Visualization vis, TwinkleState state)
     // initialize
     if vis.frame == 0
         ParticleInit(state.hue, 0.0, 1.0, 1.0, 17, 27, vis.fps, DIRECTION_RANDOM)
-		for t in state.twinkles
+        for t in state.twinkles
             t.decay.value = 0 // marks as available
 
     // update and draw
     ParticleUpdate(state.hue,0,HSLMAX,ENDPOINT_WRAP)
     r32 hue = state.hue.value
     
-	for i in 0..NUM_PIXELS-1
+    for i in 0,NUM_PIXELS-1
         r32 sat = 1.0
         r32 light = 0.5
 
@@ -51,7 +48,7 @@ export void Twinkle(Visualization vis)
 
         // apply all twinkles
         r32 a = 0.0
-		for t in state.twinkles
+        for t in state.twinkles
             if t.position == i
                 a = max(a,state.twinkles[j].decay.value)
 
@@ -60,7 +57,7 @@ export void Twinkle(Visualization vis)
         SetPixel(i,HSLColor(hue,sat,light))
 
     // update twinkles
-	for t in state.twinkles		
+    for t in state.twinkles
         ParticleUpdate(t.decay,0.0,1.0,ENDPOINT_CLAMP)
 
-	// end of visualization Twinkle
+    // end of visualization Twinkle

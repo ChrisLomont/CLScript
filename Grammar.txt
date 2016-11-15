@@ -70,9 +70,8 @@ EOL              = '`E' ! '```'  ! end of line
 INDENT           = '`I' ! '``_'  ! indented lines
 DEDENT           = '`U' ! '`__'  ! opposite of indent               
 
-! allow multiple in most places
+! allow multiple EOL wherever one is allowed
 <EOLs> ::= EOL <EOLs> | EOL
-
 
 ! ===================================================================
 ! Comments - allow nested comments
@@ -96,6 +95,13 @@ Comment Line   = '//'
                  | <Variable Declaration>       ! define or import a variable                 
                  | <Function Declaration>       ! define or import a function
                  | EOL                          ! allow blank lines
+
+! import: file, variable, func
+! export: variable, func
+<Optional Export> ::= 'export' | ! variable, func
+<Optional Import> ::= 'import' | ! variable, func, file
+<Optional Const>  ::= 'const'  | ! variable
+                   
 
 ! ===================================================================
 ! import file for code and/or definitions. Prefer *.cls extension (Chris Lomont Script)
@@ -130,6 +136,7 @@ Comment Line   = '//'
 !
 ! ===================================================================
 <Enum Declaration> ::= 'enum' ID <EOLs> INDENT <Enum Values> DEDENT
+! one or more values
 <Enum Values>      ::= <Enum Value> <Enum Values>
                      | <Enum Value>
 <Enum Value>       ::= ID <EOLs>
@@ -156,8 +163,7 @@ Comment Line   = '//'
 ! export type Type2
 !     i32 a
 ! ===================================================================
-<Type Declaration> ::= <Type Header> ID <EOLs> INDENT <Type Member Definitions> DEDENT
-<Type Header> ::= 'export' 'type' | 'type'            
+<Type Declaration> ::= 'type' ID <EOLs> INDENT <Type Member Definitions> DEDENT
 
 ! nonempty list of variable type and names
 <Type Member Definitions>  ::= <Variable Type and Names> <EOLs> <Type Member Definitions>
@@ -176,49 +182,44 @@ Comment Line   = '//'
 ! const string [2] txts = "bob" "fred"  // constants
 !
 ! ===================================================================
-<Variable Declaration>    ::= 'import' <Import> EOL
-                            | <Export> EOL 
+<Variable Declaration>    ::= <Import Variable> EOL | <Normal Variable> EOL 
 
-<Import> ::= <Variable Type and Names> | 'const' <Variable Type and Names> 
-<Export> ::= <Rest> | 'export' <Rest> | 'export' 'const' <Rest> | 'const' <Rest>
-
-<Rest> ::= <Variable Definition>                   
+<Import Variable> ::= 'import'          <Optional Const> <Variable Type and Names> 
+<Normal Variable> ::= <Optional Export> <Optional Const> <Variable Definition>                
 
 ! deifne a variable, used globally and local to functions
 <Variable Definition>     ::= <Variable Type and Names> <Variable Initializer>
                
-! array can be single or multi dimensional                  
 <Variable Type and Names> ::= <Type> <ID List> 
-
-<ID List>                 ::= <Array ID> ',' <ID List> | <Array ID>
-                           
-<Array ID> ::= ID | ID '[' <Expression List> ']'
-
+<ID List>                 ::= ID <Optional Array> ',' <ID List> | ID <Optional Array>
+! array can be single or multi dimensional                  
+<Optional Array>          ::= '[' <Expression List> ']' |
 
 <Variable Initializer>    ::= '=' <Initializer List>  |             ! initializer or not
 <Initializer List>        ::= <Expression List>  
-                           ! <Value> ',' <Initializer List> | <Value> ! one or more                      
+                           
+
 
 ! ===================================================================
 ! Function  Declaration
 ! 
-! import i32 sqrt (i32 value)
+! import (i32) sqrt (i32 value)
 ! import fail
 !
-! i32 times (i32 a, i32 b)
+! (i32) times (i32 a, i32 b)
 !    return a * b
 !
-! // call with swap (&a, &b), no return value
-! () swap (i32 & a, i32 & b)
+! // call with swap (a, b), no return value
+! (i32,i32) swap (i32 & a, i32 & b)
 !    i32 t = a
 !    a = b
 !    b = t
 !    // how about a b = b a ? can do on stack nicely
+!    return b,a
 !
-! Vec op+(Vec a,Vec b)
-!    r32 x = a.x + b.x
-!    r32 y = a.y + b.y
-!    return Vec(x,y)
+! (Vec) op+(Vec a,Vec b)
+!    Vec v = a.x + b.x,a.y + b.y
+!    return v
 !
 ! () doNothing()
 !   // nothing to do
@@ -228,12 +229,12 @@ Comment Line   = '//'
 !
 ! ===================================================================
 ! import has no definition block
-<Function Declaration>    ::= 'import' <Function Prototype> 
-                            | 'export' <Function Prototype> <Block> 
-                            | <Function Prototype> <Block>
+<Function Declaration>    ::= 'import' <Function Prototype> <EOLs>
+                            | 'export' <Function Prototype> <EOLs> <Block> 
+                            | <Function Prototype> <EOLs> <Block>
 
 ! return type, name, parameters, EOL
-<Function Prototype> ::= '(' <Return Types> ')' <Function Name> '(' <Function Parameters> ')' EOL
+<Function Prototype> ::= '(' <Return Types> ')' <Function Name> '(' <Function Parameters> ')'
 
 !0 or more types
 <Return Types>       ::= <Type> ',' <Return Types> | <Type> |
@@ -292,18 +293,20 @@ Comment Line   = '//'
 ! bob[10].item[1],b += 0, 1
 <Assign Statement>  ::= <Assign List> <Assign Operator> <Expression List>
 <Assign Operator>   ::= '='
-                     |  '+='
-                     |  '-='
-                     |  '*='
-                     |  '/='
-                     |  '^='
-                     |  '&='
-                     |  '|='
-                     |  '%='
-                     |  '>>='
-                     |  '<<='
-                     |  '>>>='
-                     |  '<<<='
+                      | '+='
+                      | '-='
+                      | '*='
+                      | '/='
+                      | '^='
+                      | '&='
+                      | '|='
+                      | '%='
+                      | '>>='
+                      | '<<='
+                      | '>>>='
+                      | '<<<='
+                      | '++' ! must have 0 items in expression list
+                      | '--' ! must have 0 items in expression list
 
 ! a list of one or more things to assign expressions to
 <Assign List> ::= <Assign Item> ',' <Assign List> | <Assign Item>
@@ -318,27 +321,25 @@ Comment Line   = '//'
                 | ID '[' <Expression List> ']' '.' <Assign Item>
 
 ! if statement follows C somewhat
-<If Statement> ::= 'if' <Expression> <EOLs> <Block>
-                 | 'if' <Expression> <EOLS> <Then St> 'else' <EOLs> <Block>
-                 | 'if' <Expression> <EOLs> <Then St> 'else' <If Statement>
-<Then St> ::=  <Block> ! this trick makes the grammar LALR
+<If Statement>   ::= 'if' <Expression> <EOLs> <Block>
+                   | 'if' <Expression> <EOLS> <Then St> 'else' <EOLs> <Block>
+                   | 'if' <Expression> <EOLs> <Then St> 'else' <If Statement>
+<Then St>        ::=  <Block> ! this trick makes the grammar LALR
 
 ! function call 
-<Function Call> ::= ID '(' <Expression List> ')'
+<Function Call>  ::= ID '(' <Expression List> ')'
                
 ! jump around
-<Jump Statement>  ::= break 
-                    | continue 
-                    | return <Expression List>
+<Jump Statement> ::= break 
+                   | continue 
+                   | return <Expression List> ! 0 or more items
 
-!<For Statement> ::= for ID '=' <Expression> 'to' <Expression>  <EOLs> <Block>
-!                  | for ID '=' <Expression> 'to' <Expression> 'by' <Expression> <EOLs> <Block>
-!                  | for ID 'in' <Assign Item> <EOLs> <Block>
-
-<For Statement> ::= for ID in <Expression List> <EOLs> <Block>
+! for i in a,b,c goes a to b by c, c optional, deduced to be 1 or -1, can be expressions
+! also supports for i in array
+<For Statement>  ::= for ID in <Expression List> <EOLs> <Block>
 
 ! a block is an indented collection of statements
-<Block>     ::= INDENT <Statements> DEDENT
+<Block>          ::= INDENT <Statements> DEDENT
              
 
 ! ===================================================================
@@ -472,6 +473,7 @@ Comment Line   = '//'
 ! An expression evaluates to a Value (a string, int, real, char, bool, user type)
 ! ===================================================================
 ! todo - fix all left recursion
+! todo minimize expressions
 ! 0 or more expressions, used in assignments and function lists
 <Expression List> ::= <Expression> ',' <Expression List> | <Expression> | 
 
@@ -547,6 +549,4 @@ Comment Line   = '//'
                
 <Bool Literal> ::= true | false
                 
-! todo - add multiple return items
-! todo - add module/namespace (last module "name" prefixes all exports/imports?)
 ! END OF GRAMMAR

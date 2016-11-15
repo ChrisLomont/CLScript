@@ -23,7 +23,7 @@ type Type1
 type Type2
     bool a,b,c
     Type1 t1[5,3*4]
-export type Type3
+type Type3
     string str
     bool b
 type Vec
@@ -115,8 +115,9 @@ export (i32,bool) func_e3(i32 p1[], Type2 t1[,])
     i1 = ~i1
     i1 = -i1
     i1 = +i1
-    i1 = i1++ // todo - make single line
-    i1 = i1--
+    i1++ // todo - make single line
+    i1--
+    i1[10].r--
     
     i1 = Test2()
     i1[10],i2.rr = Test2(a+1,!b,~(a+3))
