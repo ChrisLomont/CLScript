@@ -348,195 +348,10 @@ Comment Line   = '//'
 ! non left recursive type patterned after Mouse PEG parser http://www.romanredz.se/Mouse/C.peg
 ! ===================================================================
 
-!! 0 or more expressions, used in assignments and function lists
-!<Expression List> ::= <Expression> ',' <Expression List> | <Expression> | 
-!
-!PrimaryExpression
-!    = Identifier
-!    / Constant
-!    / StringLiteral
-!    / LPAR Expression RPAR
-!    ;
-!
-!PostfixExpression
-!    = ( PrimaryExpression
-!      / LPAR TypeName RPAR LWING InitializerList COMMA? RWING
-!      )
-!      ( LBRK Expression RBRK
-!      / LPAR ArgumentExpressionList? RPAR
-!      / DOT Identifier
-!      / PTR Identifier
-!      / INC
-!      / DEC
-!      )*
-!    ;
-!
-!ArgumentExpressionList
-!    = AssignmentExpression (COMMA AssignmentExpression)*
-!    ;
-!
-!UnaryExpression
-!    = PostfixExpression
-!    / INC UnaryExpression
-!    / DEC UnaryExpression
-!    / UnaryOperator CastExpression
-!    / SIZEOF (UnaryExpression / LPAR TypeName RPAR )
-!    ;
-!
-!UnaryOperator
-!    = AND
-!    / STAR
-!    / PLUS
-!    / MINUS
-!    / TILDA
-!    / BANG
-!    ;
-!
-!CastExpression
-!    = (LPAR TypeName RPAR)* UnaryExpression
-!    ;
-!
-!MultiplicativeExpression
-!    = CastExpression ((STAR / DIV / MOD) CastExpression)*
-!    ;
-!
-!AdditiveExpression
-!    = MultiplicativeExpression ((PLUS / MINUS) MultiplicativeExpression)*
-!    ;
-!
-!ShiftExpression
-!    = AdditiveExpression ((LEFT / RIGHT) AdditiveExpression)*
-!    ;
-!
-!RelationalExpression
-!    = ShiftExpression ((LE / GE / LT / GT) ShiftExpression)*
-!    ;
-!
-!EqualityExpression
-!    = RelationalExpression ((EQUEQU / BANGEQU) RelationalExpression)*
-!    ;
-!
-!ANDExpression
-!    = EqualityExpression (AND EqualityExpression)*
-!    ;
-!
-!ExclusiveORExpression
-!    = ANDExpression (HAT ANDExpression)*
-!    ;
-!
-!InclusiveORExpression
-!    = ExclusiveORExpression (OR ExclusiveORExpression)*
-!    ;
-!
-!LogicalANDExpression
-!    = InclusiveORExpression (ANDAND InclusiveORExpression)*
-!    ;
-!
-!LogicalORExpression
-!    = LogicalANDExpression (OROR LogicalANDExpression)*
-!    ;
-!
-!ConditionalExpression
-!    = LogicalORExpression (QUERY Expression COLON LogicalORExpression)*
-!    ;
-!
-!AssignmentExpression
-!    = UnaryExpression AssignmentOperator AssignmentExpression
-!    / ConditionalExpression
-!    ;
-!
-!AssignmentOperator
-!    = EQU
-!    / STAREQU
-!    / DIVEQU
-!    / MODEQU
-!    / PLUSEQU
-!    / MINUSEQU
-!    / LEFTEQU
-!    / RIGHTEQU
-!    / ANDEQU
-!    / HATEQU
-!    / OREQU
-!    ;
-!
-!Expression
-!    = AssignmentExpression (COMMA AssignmentExpression)*
-!    ;
-!
-!ConstantExpression
-!    = ConditionalExpression
-!    ;
-
-
-! ===================================================================
-! Here begins C style levels of operator precedence.
-! An expression evaluates to a Value (a string, int, real, char, bool, user type)
-! ===================================================================
-! todo - fix all left recursion
-! todo minimize expressions
 ! 0 or more expressions, used in assignments and function lists
 <Expression List> ::= <Expression> ',' <Expression List> | <Expression> | 
 
-<Expression> ::= <Op Or>
-
-<Op Or>      ::= <Op Or> '||' <Op And> 
-               | <Op And>
-
-<Op And>     ::= <Op And> '&&' <Op BinOR>
-               | <Op BinOR>
-
-<Op BinOR>   ::= <Op BinOr> '|' <Op BinXOR>
-               | <Op BinXOR>
-
-<Op BinXOR>  ::= <Op BinXOR> '^' <Op BinAND>
-               | <Op BinAND>
-
-<Op BinAND>  ::= <Op BinAND> '&' <Op Equate>
-               | <Op Equate>
-
-<Op Equate>  ::= <Op Equate> '==' <Op Compare>
-               | <Op Equate> '!=' <Op Compare>
-               | <Op Compare>
-
-<Op Compare> ::= <Op Compare> '<'  <Op Shift>
-               | <Op Compare> '>'  <Op Shift>
-               | <Op Compare> '<=' <Op Shift>
-               | <Op Compare> '>=' <Op Shift>
-               | <Op Shift>
-
-<Op Shift>   ::= <Op Shift> '<<' <Op Rotate> 
-               | <Op Shift> '>>' <Op Rotate>
-               | <Op Rotate>
-
-<Op Rotate>  ::= <Op Rotate> '<<<' <Op Add> ! rotate left
-               | <Op Rotate> '>>>' <Op Add> ! rotate right
-               | <Op Add>
-
-<Op Add>     ::= <Op Add> '+' <Op Mult>
-               | <Op Add> '-' <Op Mult>
-               | <Op Mult>
-
-<Op Mult>    ::= <Op Mult> '*' <Op Unary>
-               | <Op Mult> '/' <Op Unary>
-               | <Op Mult> '%' <Op Unary>
-               | <Op Unary>
-
-<Op Unary>   ::= '!'    <Op Unary> ! logical not
-               | '~'    <Op Unary> ! bitwise invert  
-               | '-'    <Op Unary> ! negate
-               | '+'    <Op Unary> ! positive, for int, float
-               | '++'   <Op Unary>
-               | '--'   <Op Unary>
-               | <Op Pointer> '++'
-               | <Op Pointer> '--'
-!               | '(' <Type> ')' <Op Unary>   !CAST - causes reduce-reduce conflict
-               | <Op Pointer>
-
-<Op Pointer> ::= <Op Pointer> '.' <Value>               
-               | <Op Pointer> '[' <Expression List> ']'
-               | <Value>
-
-<Value>      ::= BinLiteral
+<PrimaryExpression> ::= BinLiteral
                | HexLiteral
                | DecLiteral  
                | StringLiteral
@@ -546,7 +361,178 @@ Comment Line   = '//'
                | <Function Call>              
                | ID                           ! identifier
                | '(' <Expression> ')'         ! sub expression
-               
+
 <Bool Literal> ::= true | false
+
+<PostfixExpression> ::= <Post1> <Post2>
+<Post1> ::= <PrimaryExpression> 
+<Post2> ::= <Post3> <Post2> |
+<Post3> ::= '[' <Expression List> ']'
+          | '(' <Post4> ')'
+          | '.' ID
+          | '++'
+          | '--'
+<Post4> ::= <ArgumentExpressionList> | 
+
+<ArgumentExpressionList> ::= <Arg1>
+<Arg1> ::= <AssignmentExpression> | <AssignmentExpression> ',' <Arg1>                      
+
+<UnaryExpression> ::= <PostfixExpression>
+                    | '++' <UnaryExpression>
+                    | '--' <UnaryExpression>
+                    | <UnaryOperator> <UnaryExpression>
+
+<UnaryOperator> ::= '&'
+                  | '*'
+                  | '+'
+                  | '-'
+                  | '~'
+                  | '!'
+    
+
+!<CastExpression> ::=('(' <TypeName> ')')* <UnaryExpression>
+
+<MultiplicativeExpression> ::= <Mul1>! <UnaryExpression> (('*' | '/' | '%') <UnaryExpression>)*
+<Mul1> ::= <UnaryExpression> | <UnaryExpression> <Mul2> <Mul1>
+<Mul2> ::= '*' | '/' | '%'
+
+<AdditiveExpression> ::= <Add1> ! <MultiplicativeExpression> (('+' | '-') <MultiplicativeExpression>)*
+<Add1> ::= <MultiplicativeExpression> | <MultiplicativeExpression> <Add2> <Add1>
+<Add2> ::= '+' | '-'
+
+<RotateExpression> ::= <Rot1> 
+<Rot1> ::= <AdditiveExpression> | <AdditiveExpression> <Rot2> <Rot1>
+<Rot2> ::= '<<<' | '>>>'                             
+
+<ShiftExpression> ::= <Shift1> ! <AdditiveExpression> (('<<' | '>>') <AdditiveExpression>)*
+<Shift1> ::= <RotateExpression> | <RotateExpression> <Shift2> <Shift1>
+<Shift2> ::= '<<' | '>>'                             
+
+<RelationalExpression> ::= <Rel1> ! <ShiftExpression> (('<=' | '>=' | '<' | '>') <ShiftExpression>)*
+<Rel1> ::= <ShiftExpression> | <ShiftExpression> <Rel2> <Rel1>
+<Rel2> ::= '<=' | '>=' | '<' | '>'        
+
+<EqualityExpression> ::= <Eq1>! <RelationalExpression> (('==' | '!=') <RelationalExpression>)*
+<Eq1> ::= <RelationalExpression> | <RelationalExpression> <Eq2> <Eq1>
+<Eq2> ::= '==' | '!='     
+
+<ANDExpression>      ::= <And1> ! <EqualityExpression> ('&' <EqualityExpression>)*
+<And1> ::= <EqualityExpression> | <EqualityExpression> '&' <And1>
+
+<ExclusiveORExpression> ::= <Or1> ! <ANDExpression> ('^' <ANDExpression>)*
+<Or1> ::= <ANDExpression>  | <ANDExpression>  '^' <Or1>
+
+<InclusiveORExpression> ::= <IOr1> ! <ExclusiveORExpression> ('|' <ExclusiveORExpression>)*
+<IOr1> ::= <ExclusiveORExpression> | <ExclusiveORExpression> '|' <IOr1>
+
+<LogicalANDExpression> ::= <LAnd> ! <InclusiveORExpression> ('&&' <InclusiveORExpression>)*
+<LAnd> ::= <InclusiveORExpression> | <InclusiveORExpression> '&&' <LAnd>
+
+<LogicalORExpression> ::= <Lor> ! <LogicalANDExpression> ('||' <LogicalANDExpression>)*
+<Lor> ::= <LogicalANDExpression> | <LogicalANDExpression> '||' <Lor>
+
+<ConditionalExpression> ::= <LogicalORExpression> ! ('?' <Expression> ':' <LogicalORExpression>)*
+
+<AssignmentExpression> ::= <UnaryExpression> <AssignmentOperator> <AssignmentExpression>
+                         | <ConditionalExpression>
+
+<AssignmentOperator> ::= '='
+    | '*='
+!    / DIVEQU
+!    / MODEQU
+!    / PLUSEQU
+!    / MINUSEQU
+!    / LEFTEQU
+!    / RIGHTEQU
+!    / ANDEQU
+!    / HATEQU
+!    / OREQU
+
+<Expression> ::= <Ex> ! <AssignmentExpression> (',' <AssignmentExpression>)*
+<Ex> ::= <AssignmentExpression> ! | <AssignmentExpression> ',' <Ex>
+
+<ConstantExpression> ::= <ConditionalExpression>
+
+
+! ===================================================================
+! Here begins C style levels of operator precedence.
+! An expression evaluates to a Value (a string, int, real, char, bool, user type)
+! ===================================================================
+! todo - fix all left recursion
+! todo minimize expressions
+! 0 or more expressions, used in assignments and function lists
+!<Expression List> ::= <Expression> ',' <Expression List> | <Expression> | 
+!
+!<Expression> ::= <Op Or>
+!
+!<Op Or>      ::= <Op Or> '||' <Op And> 
+!               | <Op And>
+!
+!<Op And>     ::= <Op And> '&&' <Op BinOR>
+!               | <Op BinOR>
+!
+!<Op BinOR>   ::= <Op BinOr> '|' <Op BinXOR>
+!               | <Op BinXOR>
+!
+!<Op BinXOR>  ::= <Op BinXOR> '^' <Op BinAND>
+!               | <Op BinAND>
+!
+!<Op BinAND>  ::= <Op BinAND> '&' <Op Equate>
+!               | <Op Equate>
+!
+!<Op Equate>  ::= <Op Equate> '==' <Op Compare>
+!               | <Op Equate> '!=' <Op Compare>
+!               | <Op Compare>
+!
+!<Op Compare> ::= <Op Compare> '<'  <Op Shift>
+!               | <Op Compare> '>'  <Op Shift>
+!               | <Op Compare> '<=' <Op Shift>
+!               | <Op Compare> '>=' <Op Shift>
+!               | <Op Shift>
+!
+!<Op Shift>   ::= <Op Shift> '<<' <Op Rotate> 
+!               | <Op Shift> '>>' <Op Rotate>
+!               | <Op Rotate>
+!
+!<Op Rotate>  ::= <Op Rotate> '<<<' <Op Add> ! rotate left
+!               | <Op Rotate> '>>>' <Op Add> ! rotate right
+!               | <Op Add>
+!
+!<Op Add>     ::= <Op Add> '+' <Op Mult>
+!               | <Op Add> '-' <Op Mult>
+!               | <Op Mult>
+!
+!<Op Mult>    ::= <Op Mult> '*' <Op Unary>
+!               | <Op Mult> '/' <Op Unary>
+!               | <Op Mult> '%' <Op Unary>
+!               | <Op Unary>
+!
+!<Op Unary>   ::= '!'    <Op Unary> ! logical not
+!               | '~'    <Op Unary> ! bitwise invert  
+!               | '-'    <Op Unary> ! negate
+!               | '+'    <Op Unary> ! positive, for int, float
+!               | '++'   <Op Unary>
+!               | '--'   <Op Unary>
+!               | <Op Pointer> '++'
+!               | <Op Pointer> '--'
+!!               | '(' <Type> ')' <Op Unary>   !CAST - causes reduce-reduce conflict
+!               | <Op Pointer>
+!
+!<Op Pointer> ::= <Op Pointer> '.' <Value>               
+!               | <Op Pointer> '[' <Expression List> ']'
+!               | <Value>
+!
+!<Value>      ::= BinLiteral
+!               | HexLiteral
+!               | DecLiteral  
+!               | StringLiteral
+!               | CharLiteral
+!               | FloatLiteral
+!               | <Bool Literal>
+!               | <Function Call>              
+!               | ID                           ! identifier
+!               | '(' <Expression> ')'         ! sub expression
+!               
+!<Bool Literal> ::= true | false
                 
 ! END OF GRAMMAR
