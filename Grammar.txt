@@ -65,10 +65,10 @@ CharLiteral      = '' ( {Char Ch} | '\'{Printable} )''
 ID               = {Id Head}{Id Tail}*   ! identifier is name
 
 ! For program structure, end of line and indent/dedent are tokens created by parser
-! prefixed with ESC (ASCII 27) here to allow to pass Gold parser generator
-EOL              = '`E' ! '```'  ! end of line
-INDENT           = '`I' ! '``_'  ! indented lines
-DEDENT           = '`U' ! '`__'  ! opposite of indent               
+! odd tokens here allow parsing text from our lexer with the Gold testing tools.
+EOL              = '`E' ! end of line
+INDENT           = '`I' ! indent line
+DEDENT           = '`U' ! unindent line
 
 ! allow multiple EOL wherever one is allowed
 <EOLs> ::= EOL <EOLs> | EOL
@@ -198,8 +198,6 @@ Comment Line   = '//'
 <Variable Initializer>    ::= '=' <Initializer List>  |             ! initializer or not
 <Initializer List>        ::= <Expression List1>  
                            
-
-
 ! ===================================================================
 ! Function  Declaration
 ! 
@@ -349,26 +347,25 @@ Comment Line   = '//'
 ! ===================================================================
 
 ! 0 or more expressions, used in assignments and function lists
-<Expression List0> ::= <Expression> ',' <Expression List0> | <Expression> | 
+<Expression List0> ::=  <Expression List1> | 
 ! 1 or more expressions
 <Expression List1> ::= <Expression> | <Expression> ',' <Expression List1>
-                    ! todo - check uses of list 0 and 1
                           
-<PrimaryExpression> ::= BinLiteral
-               | HexLiteral
-               | DecLiteral  
-               | StringLiteral
-               | CharLiteral
-               | FloatLiteral
-               | <Bool Literal>
-               | <Function Call>              
-               | ID                           ! identifier
-               | '(' <Expression> ')'         ! sub expression
+<PrimaryExpression> ::= <Literal>
+                      | <Function Call>              
+                      | ID                           ! identifier
+                      | '(' <Expression> ')'         ! sub expression
 
-<Bool Literal> ::= true | false
+<Literal>           ::= BinLiteral
+                      | HexLiteral
+                      | DecLiteral  
+                      | StringLiteral
+                      | CharLiteral
+                      | FloatLiteral
+                      | true | false
+           
 
-<PostfixExpression> ::= <Post1> <Post2>
-<Post1> ::= <PrimaryExpression> 
+<PostfixExpression> ::= <PrimaryExpression> <Post2>
 <Post2> ::= <Post3> <Post2> |
 <Post3> ::= '[' <Expression List1> ']'
           | '(' <Expression List0> ')'
@@ -381,123 +378,32 @@ Comment Line   = '//'
                     | '--' <UnaryExpression>
                     | <UnaryOperator> <UnaryExpression>
 
-<UnaryOperator> ::= '&'
-                  | '*'
-                  | '+'
-                  | '-'
-                  | '~'
-                  | '!'
-    
-! todo - clean expressions
+<UnaryOperator>            ::= '*'  | '+' | '-' | '~' | '!'
+   
 <MultiplicativeExpression> ::= <UnaryExpression> | <UnaryExpression> <MultOp> <MultiplicativeExpression>
-<MultOp> ::= '*' | '/' | '%'
+<MultOp>                   ::= '*' | '/' | '%'
 
-<AdditiveExpression> ::= <MultiplicativeExpression> | <MultiplicativeExpression> <AddOp> <AdditiveExpression>
-<AddOp> ::= '+' | '-'
+<AdditiveExpression>       ::= <MultiplicativeExpression> | <MultiplicativeExpression> <AddOp> <AdditiveExpression>
+<AddOp>                    ::= '+' | '-'
 
-<RotateExpression> ::= <AdditiveExpression> | <AdditiveExpression> <RotOp> <RotateExpression>
-<RotOp> ::= '<<<' | '>>>'                             
+<RotateExpression>         ::= <AdditiveExpression> | <AdditiveExpression> <RotOp> <RotateExpression>
+<RotOp>                    ::= '<<<' | '>>>'                             
 
-<ShiftExpression> ::= <RotateExpression> | <RotateExpression> <ShiftOp> <ShiftExpression>
-<ShiftOp> ::= '<<' | '>>'                             
+<ShiftExpression>          ::= <RotateExpression> | <RotateExpression> <ShiftOp> <ShiftExpression>
+<ShiftOp>                  ::= '<<' | '>>'                             
 
-<RelationalExpression> ::= <ShiftExpression> | <ShiftExpression> <RelOp> <RelationalExpression>
-<RelOp> ::= '<=' | '>=' | '<' | '>'        
+<RelationalExpression>     ::= <ShiftExpression> | <ShiftExpression> <RelOp> <RelationalExpression>
+<RelOp>                    ::= '<=' | '>=' | '<' | '>'        
 
-<EqualityExpression> ::= <RelationalExpression> | <RelationalExpression> <Eq2Op> <EqualityExpression>
-<Eq2Op> ::= '==' | '!='     
+<EqualityExpression>       ::= <RelationalExpression> | <RelationalExpression> <EqOp> <EqualityExpression>
+<EqOp>                     ::= '==' | '!='     
+ 
+<ANDExpression>            ::= <EqualityExpression>    | <EqualityExpression>    '&'  <ANDExpression>
+<ExclusiveORExpression>    ::= <ANDExpression>         | <ANDExpression>         '^'  <ExclusiveORExpression>
+<InclusiveORExpression>    ::= <ExclusiveORExpression> | <ExclusiveORExpression> '|'  <InclusiveORExpression>
+<LogicalANDExpression>     ::= <InclusiveORExpression> | <InclusiveORExpression> '&&' <LogicalANDExpression>
+<LogicalORExpression>      ::= <LogicalANDExpression>  | <LogicalANDExpression>  '||' <LogicalORExpression>
 
-<ANDExpression>      ::= <EqualityExpression> | <EqualityExpression> '&' <ANDExpression>
-
-<ExclusiveORExpression> ::= <ANDExpression>  | <ANDExpression>  '^' <ExclusiveORExpression>
-
-<InclusiveORExpression> ::= <ExclusiveORExpression> | <ExclusiveORExpression> '|' <InclusiveORExpression>
-
-<LogicalANDExpression> ::= <InclusiveORExpression> | <InclusiveORExpression> '&&' <LogicalANDExpression>
-
-<LogicalORExpression> ::= <LogicalANDExpression> | <LogicalANDExpression> '||' <LogicalORExpression>
-
-<Expression> ::= <LogicalORExpression>
-
-! ===================================================================
-! Here begins C style levels of operator precedence.
-! An expression evaluates to a Value (a string, int, real, char, bool, user type)
-! ===================================================================
-! todo - fix all left recursion
-! todo minimize expressions
-! 0 or more expressions, used in assignments and function lists
-!<Expression List> ::= <Expression> ',' <Expression List> | <Expression> | 
-!
-!<Expression> ::= <Op Or>
-!
-!<Op Or>      ::= <Op Or> '||' <Op And> 
-!               | <Op And>
-!
-!<Op And>     ::= <Op And> '&&' <Op BinOR>
-!               | <Op BinOR>
-!
-!<Op BinOR>   ::= <Op BinOr> '|' <Op BinXOR>
-!               | <Op BinXOR>
-!
-!<Op BinXOR>  ::= <Op BinXOR> '^' <Op BinAND>
-!               | <Op BinAND>
-!
-!<Op BinAND>  ::= <Op BinAND> '&' <Op Equate>
-!               | <Op Equate>
-!
-!<Op Equate>  ::= <Op Equate> '==' <Op Compare>
-!               | <Op Equate> '!=' <Op Compare>
-!               | <Op Compare>
-!
-!<Op Compare> ::= <Op Compare> '<'  <Op Shift>
-!               | <Op Compare> '>'  <Op Shift>
-!               | <Op Compare> '<=' <Op Shift>
-!               | <Op Compare> '>=' <Op Shift>
-!               | <Op Shift>
-!
-!<Op Shift>   ::= <Op Shift> '<<' <Op Rotate> 
-!               | <Op Shift> '>>' <Op Rotate>
-!               | <Op Rotate>
-!
-!<Op Rotate>  ::= <Op Rotate> '<<<' <Op Add> ! rotate left
-!               | <Op Rotate> '>>>' <Op Add> ! rotate right
-!               | <Op Add>
-!
-!<Op Add>     ::= <Op Add> '+' <Op Mult>
-!               | <Op Add> '-' <Op Mult>
-!               | <Op Mult>
-!
-!<Op Mult>    ::= <Op Mult> '*' <Op Unary>
-!               | <Op Mult> '/' <Op Unary>
-!               | <Op Mult> '%' <Op Unary>
-!               | <Op Unary>
-!
-!<Op Unary>   ::= '!'    <Op Unary> ! logical not
-!               | '~'    <Op Unary> ! bitwise invert  
-!               | '-'    <Op Unary> ! negate
-!               | '+'    <Op Unary> ! positive, for int, float
-!               | '++'   <Op Unary>
-!               | '--'   <Op Unary>
-!               | <Op Pointer> '++'
-!               | <Op Pointer> '--'
-!!               | '(' <Type> ')' <Op Unary>   !CAST - causes reduce-reduce conflict
-!               | <Op Pointer>
-!
-!<Op Pointer> ::= <Op Pointer> '.' <Value>               
-!               | <Op Pointer> '[' <Expression List> ']'
-!               | <Value>
-!
-!<Value>      ::= BinLiteral
-!               | HexLiteral
-!               | DecLiteral  
-!               | StringLiteral
-!               | CharLiteral
-!               | FloatLiteral
-!               | <Bool Literal>
-!               | <Function Call>              
-!               | ID                           ! identifier
-!               | '(' <Expression> ')'         ! sub expression
-!               
-!<Bool Literal> ::= true | false
+<Expression>               ::= <LogicalORExpression>
                 
 ! END OF GRAMMAR
