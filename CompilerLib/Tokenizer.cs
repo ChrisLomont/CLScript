@@ -1,14 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ServiceModel;
 
 namespace Lomont.ClScript.CompilerLib
 {
-    class Tokenizer
+    public class TokenizerOld
     {
-        string[] lines;
+#if false
+        // the text being tokenized
+        string text;
+
+        class SourcePosition
+        {
+            public int lineNumber = 0;
+            public int linePosition = 0;
+            public string filename = "";
+        }
+
+        SourcePosition position = new SourcePosition();
+
+#region Lexers
+
+#endregion
 
         // next line to parse into tokens
         int nextLineIndex = 0;
@@ -16,18 +30,22 @@ namespace Lomont.ClScript.CompilerLib
         // index of last token handed out
         int lastTokenIndex = -1;
 
+        // tokenized file
         List<Token> tokenList = new List<Token>();
+        
+        // stack to store indices of tokens for backing up
+        Stack<int> tokenIndexStack = new Stack<int>();
 
-        Stack<int> stateStack = new Stack<int>();
-
-        public Tokenizer(string[] lines)
+        // create a characterStream for the lines of code
+        public TokenizerOld(string text)
         {
-            this.lines = lines;
+            this.text = text;
             nextLineIndex = 0;
             lastTokenIndex = -1;
             indentLevel.Push(0);
         }
 
+        // get next token, update internals
         public Token TakeToken()
         {
             if (lastTokenIndex + 1 >= tokenList.Count)
@@ -39,22 +57,38 @@ namespace Lomont.ClScript.CompilerLib
             if (indentLevel.Count > 1)
             {
                 indentLevel.Pop();
-                return new Token("[DEDENT]", lines.Length + 1, 0, TokenType.Dedent);
+                return new Token(TokenType.Dedent, "[DEDENT]", lines.Length + 1, 0);
             }
 
-            return new Token("[EOF]",lines.Length+1,0,TokenType.EndOfFile);
+            return new Token(TokenType.EndOfFile, "[EOF]", lines.Length+1, 0);
         }
 
+        /// <summary>
+        /// Store current token state for backing up, or comitting
+        /// </summary>
         public void PushState()
         {
-            stateStack.Push(lastTokenIndex);
+            tokenIndexStack.Push(lastTokenIndex);
         }
+        
+        /// <summary>
+        /// Restore token state for backing up
+        /// </summary>
         public void PopState()
         {
-            lastTokenIndex = stateStack.Pop();
+            lastTokenIndex = tokenIndexStack.Pop();
         }
 
-        Stack<int> indentLevel = new Stack<int>();
+        /// <summary>
+        /// remove last backup point
+        /// </summary>
+        public void CommitState()
+        {
+            tokenIndexStack.Pop();
+        }
+
+        // store indentation levels
+        readonly Stack<int> indentLevel = new Stack<int>();
 
         /// <summary>
         /// Add tokens for the next line if possible
@@ -70,11 +104,14 @@ namespace Lomont.ClScript.CompilerLib
             // todo - merge lines, remove comments
             string line = null;
 
+            // get next line
+            
             do
             {
                 line = lines[nextLineIndex++];
                 line = line.Replace("\r", "");
             } while (line.Trim().StartsWith("//") || String.IsNullOrEmpty(line.Trim()));
+
 
             var indent = IndentLevel(line);
 
@@ -93,14 +130,14 @@ namespace Lomont.ClScript.CompilerLib
 
             while (indent < indentLevel.Peek())
             {
-                tokenList.Add(new Token("[DEDENT]", nextLineIndex - 1, 0, TokenType.Dedent));
+                tokenList.Add(new Token(TokenType.Dedent, "[DEDENT]", nextLineIndex - 1, 0));
                 indentLevel.Pop();
             }
 
 
             if (indent > indentLevel.Peek())
             {
-                tokenList.Add(new Token("[INDENT]", nextLineIndex - 1, 0, TokenType.Indent));
+                tokenList.Add(new Token(TokenType.Indent, "[INDENT]", nextLineIndex - 1, 0));
                 indentLevel.Push(indent);
             }
 
@@ -114,10 +151,10 @@ namespace Lomont.ClScript.CompilerLib
 
                 var type = GetTokenType(item, tokenList.LastOrDefault());
 
-                tokenList.Add(new Token(item,nextLineIndex-1, index, type));
+                tokenList.Add(new Token(type, item, nextLineIndex-1, index));
             }
 
-            tokenList.Add(new Token("[EOL]", nextLineIndex - 1, line.Length, TokenType.EndOfLine));
+            tokenList.Add(new Token(TokenType.EndOfLine, "[EOL]", nextLineIndex - 1, line.Length));
         }
 
         // given a line, remove strings, putting them into a string dict for later lookup
@@ -154,7 +191,7 @@ namespace Lomont.ClScript.CompilerLib
             "char","bool","u32","i32","u8","i8","r32","string","void"
         };
 
-            // determine token type from text
+        // determine token type from text
         TokenType GetTokenType(string item, Token last)
         {
             if (item.ToLower().StartsWith("0x"))
@@ -181,7 +218,7 @@ namespace Lomont.ClScript.CompilerLib
                 return TokenType.StringLiteral;
             else if (item[0] == '\'')
                 return TokenType.CharacterLiteral;
-            else if (last.Value == "type")
+            else if (last.TokenValue == "type")
             {
                 // new typename - todo - scope so can move out
                 typeNames.Add(item);
@@ -213,6 +250,7 @@ namespace Lomont.ClScript.CompilerLib
             return true;
         }
 
+        // determine identation level for a line of code
         int IndentLevel(string line)
         {
             var c = 0;
@@ -228,5 +266,6 @@ namespace Lomont.ClScript.CompilerLib
             PopState();
             return token;
         }
+#endif
     }
 }

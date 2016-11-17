@@ -4,6 +4,8 @@ using System.Windows;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using ICSharpCode.AvalonEdit;
+using Lomont.ClScript.CompilerLib;
+using Microsoft.Win32;
 
 namespace Lomont.ClScript.WPFEdit.ViewModel
 {
@@ -36,22 +38,68 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             ////}
             /// 
             CompileCommand = new RelayCommand(Compile);
+            SaveCommand = new RelayCommand(Save);
+            LoadCommand = new RelayCommand(Load);
+            ExportCommand = new RelayCommand(Export);
         }
 
         public RelayCommand CompileCommand { get; private set; }
+        public RelayCommand SaveCommand { get; private set; }
+        public RelayCommand LoadCommand { get; private set; }
+        public RelayCommand ExportCommand { get; private set; }
         public TextEditor Editor { get; set; }
         public ObservableCollection<string> Messages { get; } = new ObservableCollection<string>();
+
+        void Save()
+        {
+            if (!string.IsNullOrEmpty(filename))
+            {
+                File.WriteAllText(filename, Editor.Text);
+                Messages.Add($"File {filename} saved");
+            }
+            
+        }
+
+        string filename = "";
+        void Load()
+        {
+            var ofd = new OpenFileDialog();
+            if (ofd.ShowDialog() == true)
+            {
+                var text = File.ReadAllText(ofd.FileName);
+                Editor.Text = text;
+                filename = ofd.FileName;
+                Messages.Add($"File {filename} loaded");
+            }
+        }
+
+        void Export()
+        {
+            if (!string.IsNullOrEmpty(filename))
+            {
+                Compile();
+
+                //compiler.todo();
+
+                var localName = filename + ".export";
+                Messages.Add($"Tokenized file {localName} saved");
+            }
+        }
+
+        Compiler compiler;
 
         void Compile()
         {
             var output = new StringWriter();
-            var lines = Editor.Text.Split('\n');
-            var compiler = new CompilerLib.Compiler();
-            compiler.Compile(lines, output);
+            var text = Editor.Text;
+            compiler = new CompilerLib.Compiler();
+            string goldText;
+            compiler.Compile(text, new Environment(output), out goldText);
+            File.WriteAllText("goldOut.txt",goldText);
             var msgs = output.ToString().Split('\n');
             Messages.Clear();
             foreach (var msg in msgs)
-                Messages.Add(msg);
+                Messages.Add(msg.Replace("\r","").Replace("\n",""));
         }
 
         // editor article at http://www.codeproject.com/Articles/42490/Using-AvalonEdit-WPF-Text-Editor

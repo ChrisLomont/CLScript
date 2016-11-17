@@ -85,16 +85,15 @@ Comment Line   = '//'
 ! ===================================================================
 ! each file has this form. It is a list of declarations, each ending with EOL
 ! ===================================================================
-<Declarations> ::= <Declaration> <Declarations> ! a file is a list of zero or more declarations
-                 | 
-<Declaration>  ::= <Import Declaration>         ! include file or definitions, file inserted here
-                 | <Module Declaration>         ! name the current module
-                 | <Attribute Declaration>      ! tag the next declaration with an attribute 
-                 | <Enum Declaration>           ! define an enum
-                 | <Type Declaration>           ! define a type
-                 | <Variable Declaration>       ! define or import a variable                 
-                 | <Function Declaration>       ! define or import a function
-                 | EOL                          ! allow blank lines
+<Declarations> ::= <Declaration> <Declarations> | ! a file is a list of zero or more declarations
+<Declaration>  ::= <Import Declaration>           ! include file or definitions, file inserted here
+                 | <Module Declaration>           ! name the current module
+                 | <Attribute Declaration>        ! tag the next declaration with an attribute 
+                 | <Enum Declaration>             ! define an enum
+                 | <Type Declaration>             ! define a type
+                 | <Variable Declaration>         ! define or import a variable                 
+                 | <Function Declaration>         ! define or import a function
+                 | EOL                            ! allow blank lines
 
 ! import: file, variable, func
 ! export: variable, func
