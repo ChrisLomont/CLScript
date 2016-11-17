@@ -193,10 +193,10 @@ Comment Line   = '//'
 <Variable Type and Names> ::= <Type> <ID List> 
 <ID List>                 ::= ID <Optional Array> ',' <ID List> | ID <Optional Array>
 ! array can be single or multi dimensional                  
-<Optional Array>          ::= '[' <Expression List> ']' |
+<Optional Array>          ::= '[' <Expression List1> ']' |
 
 <Variable Initializer>    ::= '=' <Initializer List>  |             ! initializer or not
-<Initializer List>        ::= <Expression List>  
+<Initializer List>        ::= <Expression List1>  
                            
 
 
@@ -291,7 +291,7 @@ Comment Line   = '//'
 ! a = 1
 ! a,b,c = 1,2,3
 ! bob[10].item[1],b += 0, 1
-<Assign Statement>  ::= <Assign List> <Assign Operator> <Expression List>
+<Assign Statement>  ::= <Assign List> <Assign Operator> <Expression List1> | <Assign List> <Unary Assign>
 <Assign Operator>   ::= '='
                       | '+='
                       | '-='
@@ -305,7 +305,7 @@ Comment Line   = '//'
                       | '<<='
                       | '>>>='
                       | '<<<='
-                      | '++' ! must have 0 items in expression list
+<Unary Assign>      ::= '++' ! must have 0 items in expression list
                       | '--' ! must have 0 items in expression list
 
 ! a list of one or more things to assign expressions to
@@ -317,8 +317,8 @@ Comment Line   = '//'
 ! form is ID ('[' list '])
 <Assign Item> ::= ID 
                 | ID '.' <Assign Item>
-                | ID '[' <Expression List> ']' 
-                | ID '[' <Expression List> ']' '.' <Assign Item>
+                | ID '[' <Expression List1> ']' 
+                | ID '[' <Expression List1> ']' '.' <Assign Item>
 
 ! if statement follows C somewhat
 <If Statement>   ::= 'if' <Expression> <EOLs> <Block>
@@ -327,16 +327,16 @@ Comment Line   = '//'
 <Then St>        ::=  <Block> ! this trick makes the grammar LALR
 
 ! function call 
-<Function Call>  ::= ID '(' <Expression List> ')'
+<Function Call>  ::= ID '(' <Expression List0> ')'
                
 ! jump around
 <Jump Statement> ::= break 
                    | continue 
-                   | return <Expression List> ! 0 or more items
+                   | return <Expression List0> ! 0 or more items
 
 ! for i in a,b,c goes a to b by c, c optional, deduced to be 1 or -1, can be expressions
 ! also supports for i in array
-<For Statement>  ::= for ID in <Expression List> <EOLs> <Block>
+<For Statement>  ::= for ID in <Expression List1> <EOLs> <Block>
 
 ! a block is an indented collection of statements
 <Block>          ::= INDENT <Statements> DEDENT
@@ -349,8 +349,11 @@ Comment Line   = '//'
 ! ===================================================================
 
 ! 0 or more expressions, used in assignments and function lists
-<Expression List> ::= <Expression> ',' <Expression List> | <Expression> | 
-
+<Expression List0> ::= <Expression> ',' <Expression List0> | <Expression> | 
+! 1 or more expressions
+<Expression List1> ::= <Expression> | <Expression> ',' <Expression List1>
+                    ! todo - check uses of list 0 and 1
+                          
 <PrimaryExpression> ::= BinLiteral
                | HexLiteral
                | DecLiteral  
@@ -367,15 +370,11 @@ Comment Line   = '//'
 <PostfixExpression> ::= <Post1> <Post2>
 <Post1> ::= <PrimaryExpression> 
 <Post2> ::= <Post3> <Post2> |
-<Post3> ::= '[' <Expression List> ']'
-          | '(' <Post4> ')'
+<Post3> ::= '[' <Expression List1> ']'
+          | '(' <Expression List0> ')'
           | '.' ID
           | '++'
           | '--'
-<Post4> ::= <ArgumentExpressionList> | 
-
-<ArgumentExpressionList> ::= <Arg1>
-<Arg1> ::= <AssignmentExpression> | <AssignmentExpression> ',' <Arg1>                      
 
 <UnaryExpression> ::= <PostfixExpression>
                     | '++' <UnaryExpression>
@@ -389,70 +388,36 @@ Comment Line   = '//'
                   | '~'
                   | '!'
     
+! todo - clean expressions
+<MultiplicativeExpression> ::= <UnaryExpression> | <UnaryExpression> <MultOp> <MultiplicativeExpression>
+<MultOp> ::= '*' | '/' | '%'
 
-!<CastExpression> ::=('(' <TypeName> ')')* <UnaryExpression>
+<AdditiveExpression> ::= <MultiplicativeExpression> | <MultiplicativeExpression> <AddOp> <AdditiveExpression>
+<AddOp> ::= '+' | '-'
 
-<MultiplicativeExpression> ::= <Mul1>! <UnaryExpression> (('*' | '/' | '%') <UnaryExpression>)*
-<Mul1> ::= <UnaryExpression> | <UnaryExpression> <Mul2> <Mul1>
-<Mul2> ::= '*' | '/' | '%'
+<RotateExpression> ::= <AdditiveExpression> | <AdditiveExpression> <RotOp> <RotateExpression>
+<RotOp> ::= '<<<' | '>>>'                             
 
-<AdditiveExpression> ::= <Add1> ! <MultiplicativeExpression> (('+' | '-') <MultiplicativeExpression>)*
-<Add1> ::= <MultiplicativeExpression> | <MultiplicativeExpression> <Add2> <Add1>
-<Add2> ::= '+' | '-'
+<ShiftExpression> ::= <RotateExpression> | <RotateExpression> <ShiftOp> <ShiftExpression>
+<ShiftOp> ::= '<<' | '>>'                             
 
-<RotateExpression> ::= <Rot1> 
-<Rot1> ::= <AdditiveExpression> | <AdditiveExpression> <Rot2> <Rot1>
-<Rot2> ::= '<<<' | '>>>'                             
+<RelationalExpression> ::= <ShiftExpression> | <ShiftExpression> <RelOp> <RelationalExpression>
+<RelOp> ::= '<=' | '>=' | '<' | '>'        
 
-<ShiftExpression> ::= <Shift1> ! <AdditiveExpression> (('<<' | '>>') <AdditiveExpression>)*
-<Shift1> ::= <RotateExpression> | <RotateExpression> <Shift2> <Shift1>
-<Shift2> ::= '<<' | '>>'                             
+<EqualityExpression> ::= <RelationalExpression> | <RelationalExpression> <Eq2Op> <EqualityExpression>
+<Eq2Op> ::= '==' | '!='     
 
-<RelationalExpression> ::= <Rel1> ! <ShiftExpression> (('<=' | '>=' | '<' | '>') <ShiftExpression>)*
-<Rel1> ::= <ShiftExpression> | <ShiftExpression> <Rel2> <Rel1>
-<Rel2> ::= '<=' | '>=' | '<' | '>'        
+<ANDExpression>      ::= <EqualityExpression> | <EqualityExpression> '&' <ANDExpression>
 
-<EqualityExpression> ::= <Eq1>! <RelationalExpression> (('==' | '!=') <RelationalExpression>)*
-<Eq1> ::= <RelationalExpression> | <RelationalExpression> <Eq2> <Eq1>
-<Eq2> ::= '==' | '!='     
+<ExclusiveORExpression> ::= <ANDExpression>  | <ANDExpression>  '^' <ExclusiveORExpression>
 
-<ANDExpression>      ::= <And1> ! <EqualityExpression> ('&' <EqualityExpression>)*
-<And1> ::= <EqualityExpression> | <EqualityExpression> '&' <And1>
+<InclusiveORExpression> ::= <ExclusiveORExpression> | <ExclusiveORExpression> '|' <InclusiveORExpression>
 
-<ExclusiveORExpression> ::= <Or1> ! <ANDExpression> ('^' <ANDExpression>)*
-<Or1> ::= <ANDExpression>  | <ANDExpression>  '^' <Or1>
+<LogicalANDExpression> ::= <InclusiveORExpression> | <InclusiveORExpression> '&&' <LogicalANDExpression>
 
-<InclusiveORExpression> ::= <IOr1> ! <ExclusiveORExpression> ('|' <ExclusiveORExpression>)*
-<IOr1> ::= <ExclusiveORExpression> | <ExclusiveORExpression> '|' <IOr1>
+<LogicalORExpression> ::= <LogicalANDExpression> | <LogicalANDExpression> '||' <LogicalORExpression>
 
-<LogicalANDExpression> ::= <LAnd> ! <InclusiveORExpression> ('&&' <InclusiveORExpression>)*
-<LAnd> ::= <InclusiveORExpression> | <InclusiveORExpression> '&&' <LAnd>
-
-<LogicalORExpression> ::= <Lor> ! <LogicalANDExpression> ('||' <LogicalANDExpression>)*
-<Lor> ::= <LogicalANDExpression> | <LogicalANDExpression> '||' <Lor>
-
-<ConditionalExpression> ::= <LogicalORExpression> ! ('?' <Expression> ':' <LogicalORExpression>)*
-
-<AssignmentExpression> ::= <UnaryExpression> <AssignmentOperator> <AssignmentExpression>
-                         | <ConditionalExpression>
-
-<AssignmentOperator> ::= '='
-    | '*='
-!    / DIVEQU
-!    / MODEQU
-!    / PLUSEQU
-!    / MINUSEQU
-!    / LEFTEQU
-!    / RIGHTEQU
-!    / ANDEQU
-!    / HATEQU
-!    / OREQU
-
-<Expression> ::= <Ex> ! <AssignmentExpression> (',' <AssignmentExpression>)*
-<Ex> ::= <AssignmentExpression> ! | <AssignmentExpression> ',' <Ex>
-
-<ConstantExpression> ::= <ConditionalExpression>
-
+<Expression> ::= <LogicalORExpression>
 
 ! ===================================================================
 ! Here begins C style levels of operator precedence.

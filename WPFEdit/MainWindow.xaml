@@ -14,10 +14,14 @@
     </Window.DataContext>
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+            <Button Command="{Binding LoadCommand}">Load</Button>
+            <Button Command="{Binding SaveCommand}">Save</Button>
+            <Button Command="{Binding ExportCommand}">Export</Button>
             <Button Command="{Binding CompileCommand}">Compile</Button>
         </StackPanel>
         <GroupBox Header="Messages" DockPanel.Dock="Bottom">
             <ListBox 
+                FontFamily="Consolas"
                 Height="200"
                 ItemsSource="{Binding Messages}"
                 />
