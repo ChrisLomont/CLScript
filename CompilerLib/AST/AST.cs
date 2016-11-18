@@ -11,6 +11,8 @@ namespace Lomont.ClScript.CompilerLib.AST
     {
         public List<Ast> Children { get; private set; }
 
+        public Token Token { get; set; }
+
         public Ast()
         {
             Children = new List<Ast>();
@@ -24,7 +26,10 @@ namespace Lomont.ClScript.CompilerLib.AST
 
         public override string ToString()
         {
-            return this.GetType().Name + " " + Children.Aggregate("", (acc, ast) => acc + " " + ast);
+            return this.GetType().Name + " " +
+                   // Children.Aggregate("", (acc, ast) => acc + " " + ast) + 
+                   $"{Token}" + 
+                   "";
         }
     }
 }

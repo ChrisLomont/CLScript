@@ -290,8 +290,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
             {
                 if (TokenStream.Current.TokenValue == match)
                 {
+                    var h = new HelperAst(TokenStream.Current);
                     TokenStream.Consume();
-                    return new HelperAst();
+                    return h;
                 }
                 return null;
             };
@@ -303,17 +304,23 @@ namespace Lomont.ClScript.CompilerLib.Parser
             {
                 if (TokenStream.Current.TokenType == tokenType)
                 {
+                    var h = new HelperAst(TokenStream.Current);
                     TokenStream.Consume();
-                    return new HelperAst();
+                    return h;
                 }
                 return null;
             };
         }
 
-        class HelperAst : Ast
+
+        internal class HelperAst : Ast
         {
             public bool Keep { get; set; }
 
+            public HelperAst(Token token)
+            {
+                Token = token;
+            }
             public HelperAst(List<Ast> asts = null)
             {
                 if (asts != null)

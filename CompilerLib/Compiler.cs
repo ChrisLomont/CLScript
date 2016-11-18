@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System.Text;
+using Lomont.ClScript.CompilerLib.AST;
 using Lomont.ClScript.CompilerLib.Visitors;
 
 namespace Lomont.ClScript.CompilerLib
@@ -32,6 +33,7 @@ namespace Lomont.ClScript.CompilerLib
                 var ast = parser.Parse(environment);
                 if (ast != null)
                 {
+                    ast = ProcessTree(ast, environment);
                     var pr = new PrintVisitor(environment);
                     pr.Start(ast);
                 }
@@ -44,6 +46,15 @@ namespace Lomont.ClScript.CompilerLib
                     ex = ex.InnerException;
                 } while (ex != null);
             }
+        }
+
+        // do compiler tree transforms
+        Ast ProcessTree(Ast ast, Environment environment)
+        {
+            var pass1 = new CollapseHelperVisitor(environment);
+            pass1.Start(ast);
+
+            return ast;
         }
 
         // helper function to tag items for gold parser

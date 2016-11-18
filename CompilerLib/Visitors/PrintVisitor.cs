@@ -39,6 +39,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             for (var i = 0; i < ast.Children.Count; i++)
                 Visit(ast.Children[i],indent, i == ast.Children.Count - 1);
+
         }
     }
 }

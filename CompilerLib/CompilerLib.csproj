@@ -67,6 +67,7 @@
     <Compile Include="StreamableBase.cs" />
     <Compile Include="Token.cs" />
     <Compile Include="Tokenizer.cs" />
+    <Compile Include="Visitors\CollapseHelperVisitor.cs" />
     <Compile Include="Visitors\PrintVisitor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />

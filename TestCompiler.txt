@@ -2,9 +2,15 @@ import "bob"
 
 import "fred"
 
+module Monkeyballs
+
 enum Bob 
    Fred  
    
    Al
    
+enum Tokdog
+   val = 
+   val1
+   val
    
