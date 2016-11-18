@@ -10,6 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Grammar.txt = Grammar.txt
 		Language.md = Language.md
 		LanguageDoc.txt = LanguageDoc.txt
+		TestCompiler.txt = TestCompiler.txt
 		TestGoldParser.txt = TestGoldParser.txt
 		TestProgram.txt = TestProgram.txt
 		TextParser.txt = TextParser.txt

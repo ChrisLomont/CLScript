@@ -9,8 +9,5 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     class EnumValueAst : Ast
     {
-        public EnumValueAst(Token token) : base(token)
-        {
-        }
     }
 }

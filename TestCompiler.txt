@@ -1,0 +1,10 @@
+import "bob"
+
+import "fred"
+
+enum Bob 
+   Fred  
+   
+   Al
+   
+   

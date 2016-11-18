@@ -9,41 +9,22 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     public abstract class Ast
     {
-        // public MemorySpace CallingMemory { get; set; }
-        // public Scope CallingScope { get; set; }
-        // public Scope CurrentScope { get; set; }
-        // public Scope Global { get; set; }
-        // public IType AstSymbolType { get; set; }
-        /// <summary>
-        /// Used instead of reflection to determine the syntax tree type
-        /// </summary>
-        // public abstract AstTypes AstType { get; }
-
-        public Token Token { get; set; }
-
         public List<Ast> Children { get; private set; }
 
-        public Ast ConvertedExpression { get; set; }
-
-        public bool IsLink { get; set; }
-
-        protected Ast(Token token)
+        public Ast()
         {
-            Token = token;
             Children = new List<Ast>();
         }
 
         public void AddChild(Ast child)
         {
             if (child != null)
-            {
                 Children.Add(child);
-            }
         }
 
         public override string ToString()
         {
-            return Token.TokenType + " " + Children.Aggregate("", (acc, ast) => acc + " " + ast);
+            return this.GetType().Name + " " + Children.Aggregate("", (acc, ast) => acc + " " + ast);
         }
     }
 }

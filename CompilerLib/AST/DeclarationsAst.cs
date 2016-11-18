@@ -9,8 +9,5 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     class DeclarationsAst : Ast
     {
-        public DeclarationsAst(Token token) : base(token)
-        {
-        }
     }
 }

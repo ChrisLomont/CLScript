@@ -9,8 +9,5 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     class ImportAst :Ast
     {
-        public ImportAst(Token token) : base(token)
-        {
-        }
     }
 }

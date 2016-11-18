@@ -80,7 +80,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         // <Declarations> ::= <Declaration> <Declarations> | ! a file is a list of zero or more declarations
         Ast ParseDeclarations()
         {
-            var decls = new DeclarationsAst(null);
+            var decls = new DeclarationsAst();
 
             Ast decl = null;
             do
@@ -163,14 +163,14 @@ namespace Lomont.ClScript.CompilerLib.Parser
                         OneOrMore(Match(TokenType.EndOfLine))
                         ),
                     () => MatchSequence(
-                        typeof (EnumValueAst)),
+                        typeof (EnumValueAst),
                         Keep(Match(TokenType.Identifier)),
                         Match("="), 
                         //Keep(ParseExpression), todo
                         OneOrMore(Match(TokenType.EndOfLine))
+                        )
                     );
         }
-
 
         #endregion 
 
@@ -199,7 +199,8 @@ namespace Lomont.ClScript.CompilerLib.Parser
             PostCheck(matched);
             if (matched)
             {
-                var ast = (Ast)Activator.CreateInstance(astType, kept);
+                var ast = (Ast)Activator.CreateInstance(astType);
+                ast.Children.AddRange(kept);
                 return ast;
             }
             return null;
@@ -241,37 +242,46 @@ namespace Lomont.ClScript.CompilerLib.Parser
         // wrap a token, ast, or other item to keep when parsing
         ParseDelegate Keep(ParseDelegate func)
         {
-            var ast = func();
-            if (ast == null)
-                return () => null; // nothing to see here
-            (ast as HelperAst).Keep = true;
-            return () => ast;
+            return () =>
+            {
+                var ast = func();
+                if (ast == null)
+                    return null; // nothing to see here
+                (ast as HelperAst).Keep = true;
+                return ast;
+            };
         }
 
         ParseDelegate ZeroOrMore(ParseDelegate func)
         {
-            var asts = new List<Ast>();
-            var ast = func();
-            while (ast != null)
+            return () =>
             {
-                asts.Add(ast);
-                ast = func();
-            }
-            return () => new HelperAst(null, asts);
+                var asts = new List<Ast>();
+                var ast = func();
+                while (ast != null)
+                {
+                    asts.Add(ast);
+                    ast = func();
+                }
+                return new HelperAst(asts);
+            };
         }
 
         ParseDelegate OneOrMore(ParseDelegate func)
         {
-            var asts = new List<Ast>();
-            var ast = func();
-            while (ast != null)
+            return () =>
             {
-                asts.Add(ast);
-                ast = func();
-            }
-            if (!asts.Any())
-                return () => null; // failed
-            return () => new HelperAst(null, asts);
+                var asts = new List<Ast>();
+                var ast = func();
+                while (ast != null)
+                {
+                    asts.Add(ast);
+                    ast = func();
+                }
+                if (!asts.Any())
+                    return null; // failed
+                return new HelperAst(asts);
+            };
         }
 
         ParseDelegate Match(string match)
@@ -280,9 +290,8 @@ namespace Lomont.ClScript.CompilerLib.Parser
             {
                 if (TokenStream.Current.TokenValue == match)
                 {
-                    var token = TokenStream.Current;
                     TokenStream.Consume();
-                    return new HelperAst(token);
+                    return new HelperAst();
                 }
                 return null;
             };
@@ -294,9 +303,8 @@ namespace Lomont.ClScript.CompilerLib.Parser
             {
                 if (TokenStream.Current.TokenType == tokenType)
                 {
-                    var token = TokenStream.Current;
                     TokenStream.Consume();
-                    return new HelperAst(token);
+                    return new HelperAst();
                 }
                 return null;
             };
@@ -304,14 +312,15 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         class HelperAst : Ast
         {
-            public HelperAst(Token token, List<Ast> asts = null) : base(token)
+            public bool Keep { get; set; }
+
+            public HelperAst(List<Ast> asts = null)
             {
                 if (asts != null)
                     Children.AddRange(asts);
             }
-
-            public bool Keep { get; set; }
         }
+
         #endregion
 
     }
