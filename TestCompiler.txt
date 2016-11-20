@@ -10,7 +10,13 @@ enum Bob
    Al
    
 enum Tokdog
-   val = 
+   val 
    val1
    val
+   
+type type1
+   i32 a
+
+
+   
    

@@ -102,11 +102,30 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ParseImportDeclaration,
                 ParseModuleDeclaration,
                 ParseAttributeDeclaration,
-                ParseEnumDeclaration
-                // ParseTypeDeclaration, // todo
-                // ParseVariableDeclaration,
-                // ParseFunctionDeclaration
+                ParseEnumDeclaration,
+                ParseTypeDeclaration,
+                ParseVariableDeclaration,
+                ParseFunctionDeclaration
             );
+        }
+
+        Ast ParseOptionalConst()
+        {
+            if (TokenStream.Current.TokenValue == "const")
+                return new HelperAst(TokenStream.Consume());
+            return new HelperAst();
+        }
+        Ast ParseOptionalExport()
+        {
+            if (TokenStream.Current.TokenValue == "export")
+                return new HelperAst(TokenStream.Consume());
+            return new HelperAst();
+        }
+        Ast ParseOptionalImport()
+        {
+            if (TokenStream.Current.TokenValue == "import")
+                return new HelperAst(TokenStream.Consume());
+            return new HelperAst();
         }
 
         Ast ParseImportDeclaration()
@@ -166,13 +185,732 @@ namespace Lomont.ClScript.CompilerLib.Parser
                         typeof (EnumValueAst),
                         Keep(Match(TokenType.Identifier)),
                         Match("="), 
-                        //Keep(ParseExpression), todo
+                        Keep(ParseExpression),
                         OneOrMore(Match(TokenType.EndOfLine))
                         )
                     );
         }
 
-        #endregion 
+        Ast ParseType()
+        {
+            var t = TokenStream.Current;
+            if (
+                t.TokenType == TokenType.Bool ||
+                t.TokenType == TokenType.Int32 ||
+                t.TokenType == TokenType.Float32 ||
+                t.TokenType == TokenType.String ||
+                t.TokenType == TokenType.Char ||
+                t.TokenType == TokenType.Identifier
+            )
+            {
+                TokenStream.Consume();
+                return new TypeAst(t);
+            }
+            return null;
+        }
+
+        Ast ParseTypeDeclaration()
+        {
+            return MatchSequence(
+                typeof(TypeDeclarationAst),
+                Match("type"),
+                Keep(Match(TokenType.Identifier)),
+                ParseEoLs,
+                Match(TokenType.Indent),
+                Keep(ParseTypeMemberDefinitions),
+                Match(TokenType.Undent)
+                );
+        }
+
+        // one or more end of line
+        Ast ParseEoLs()
+        {
+            return OneOrMore(Match(TokenType.EndOfLine))();
+        }
+
+        Ast ParseTypeMemberDefinitions()
+        {
+            return MatchOr(
+                ()=>MatchSequence(
+                    typeof(TypeMemberDefinitionAst),
+                    Keep(ParseVariableTypeAndNames),
+                    ParseEoLs,
+                    ParseTypeMemberDefinitions
+                    ),
+                ()=>MatchSequence(
+                    typeof(TypeMemberDefinitionAst),
+                    Keep(ParseVariableTypeAndNames),
+                    ParseEoLs
+                    )
+            );
+        }
+
+        Ast ParseVariableDeclaration()
+        {
+            return MatchOr(
+                () =>MatchSequence(
+                    typeof(VariableDeclarationAst),
+                    Keep(ParseImportVariable),
+                    Match(TokenType.EndOfLine)
+                    ),
+                () => MatchSequence(
+                    typeof(VariableDeclarationAst),
+                    Keep(ParseNormalVariable),
+                    Match(TokenType.EndOfLine)
+                    )
+            );
+        }
+
+        Ast ParseImportVariable()
+        {
+            return MatchSequence(
+                typeof(VariableDeclarationAst),
+                Keep(Match("import")),
+                Keep(ParseOptionalConst),
+                Keep(ParseVariableTypeAndNames)
+            );
+        }
+
+        Ast ParseNormalVariable()
+        {
+            return MatchSequence(
+                typeof(VariableDeclarationAst),
+                Keep(ParseOptionalExport),
+                Keep(ParseOptionalConst),
+                Keep(ParseVariableTypeAndNames),
+                Keep(ParseVariableDefinition)
+            );
+        }
+
+        Ast ParseVariableDefinition()
+        {
+            return MatchSequence(
+                typeof(HelperAst),
+                Keep(ParseVariableTypeAndNames),
+                Keep(ParseVariableInitializer)
+                );
+        }
+
+        Ast ParseVariableTypeAndNames()
+        {
+            return MatchSequence(
+                typeof(VariableTypeAndNamesAst),
+                Keep(ParseType),
+                Keep(ParseIDList)
+                );
+        }
+
+        Ast ParseIDList()
+        {
+            return MatchOr(
+                () => MatchSequence(
+                    typeof(TypeMemberDefinitionAst),
+                    Keep(Match(TokenType.Identifier)),
+                    Keep(ParseOptionalArray),
+                    Match(","),
+                    Keep(ParseIDList)
+                    ),
+                () => MatchSequence(
+                    typeof(TypeMemberDefinitionAst),
+                    Keep(Match(TokenType.Identifier)),
+                    Keep(ParseOptionalArray)
+                    )
+            );
+        }
+
+        Ast ParseOptionalArray()
+        {
+            return ZeroOrOne(
+                ()=> MatchSequence(
+                    typeof(ArrayAst),
+                    Match("["),
+                    Keep(ParseExpressionList1),
+                    Match("]")
+                    )
+                    )();
+        }
+
+        Ast ParseVariableInitializer()
+        {
+            return ZeroOrOne(
+                    ()=>MatchSequence(
+                        typeof(HelperAst),
+                        Match("="),
+                        Keep(ParseInitializerList)
+                    ))();
+        }
+
+        Ast ParseInitializerList()
+        {
+            return ParseExpressionList1();
+        }
+
+        #region Function parsing statements
+
+        Ast ParseFunctionDeclaration()
+        {
+            return MatchOr(
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Keep(Match("import")),
+                    Keep(ParseFunctionPrototype),
+                    ParseEoLs
+                ),
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ParseOptionalExport),
+                    Keep(ParseFunctionPrototype),
+                    ParseEoLs,
+                    ParseBlock
+                )
+            );
+        }
+
+        Ast ParseFunctionPrototype()
+        {
+            return MatchSequence(
+                typeof(FunctionPrototypeAst),
+                Match("("),
+                Keep(ParseReturnTypes),
+                Match(")"),
+                Keep(ParseFunctionName),
+                Match("("),
+                Keep(ParseFunctionParameters),
+                Match(")")
+                );
+        }
+
+        Ast ParseReturnTypes()
+        {
+            var ast = MatchOr(
+                ()=>MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ParseType),
+                    Match(","),
+                    ParseReturnTypes
+                    ),
+                ParseType
+            );
+            return ast ?? new HelperAst();
+        }
+
+        Ast ParseFunctionName()
+        {
+            var t = TokenStream.Current;
+            if (t.TokenType == TokenType.Identifier ||
+                t.TokenValue == "op+" ||
+                t.TokenValue == "op-" ||
+                t.TokenValue == "op/" ||
+                t.TokenValue == "op*" ||
+                t.TokenValue == "op==" ||
+                t.TokenValue == "op!="
+                )
+                return new HelperAst(TokenStream.Consume());
+            return null;
+        }
+
+        Ast ParseFunctionParameters()
+        {
+            return MatchOr(
+                ()=>MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ParseParameter),
+                    Match(","),
+                    Keep(ParseFunctionParameters)
+                    ),
+                ParseParameter,
+                AlwaysMatch
+                );
+        }
+
+        Ast ParseParameter()
+        {
+            return MatchSequence(
+                typeof(HelperAst),
+                Keep(ParseType),
+                Keep(OneOf("&","")), // optional reference
+                Keep(Match(TokenType.Identifier)),
+                Keep(ParseOptionalEmptyArray)
+                );
+        }
+
+        Ast ParseOptionalEmptyArray()
+        {
+            if (TokenStream.Current.TokenType == TokenType.LSquareBracket)
+            {
+                // empty array denoting size
+                return MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ZeroOrMore(Match(",")))
+                );
+            }
+            return new HelperAst(); // nothing
+        }
+
+        Ast ParseStatement()
+        {
+            return MatchOr(
+                ()=>MatchSequence(
+                    typeof(VariableDefinitionAst),
+                    Keep(ParseVariableDefinition),
+                    ParseEoLs
+                    ),
+                () => MatchSequence(
+                    typeof(AssignStatementAst),
+                    Keep(ParseAssignStatement),
+                    ParseEoLs
+                    ),
+                () => MatchSequence(
+                    typeof(IfStatementAst),
+                    Keep(ParseIfStatement)
+                    ),
+                () => MatchSequence(
+                    typeof(ForStatementAst),
+                    Keep(ParseForStatement)
+                    ),
+                () => MatchSequence(
+                    typeof(WhileStatementAst),
+                    Keep(ParseWhileStatement)
+                    ),
+                () => MatchSequence(
+                    typeof(FunctionCallAst),
+                    Keep(ParseFunctionCall),
+                    ParseEoLs
+                    ),
+                () => MatchSequence(
+                    typeof(JumpStatementAst),
+                    Keep(ParseJumpStatement),
+                    ParseEoLs
+                    )
+                );
+        }
+
+        static string[] assignOperators = {"=","+=","-=","*=","/=","^=","&=","|=","%=",">>=","<<=",">>>=","<<<="};
+        Ast ParseAssignStatement()
+        {
+            return MatchOr(
+                ()=>MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ParseAssignList),
+                    Keep(OneOf(assignOperators)),
+                    Keep(ParseExpressionList1)
+                    ),
+                ()=>MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ParseAssignList),
+                    Keep(OneOf("++","--"))
+                    )
+            );
+        }
+
+        Ast ParseAssignList()
+        {
+            return MatchOr(
+                ()=>MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ParseAssignItem),
+                    Match(","),
+                    Keep(ParseAssignList)
+                    ),
+                ()=>MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ParseAssignItem)
+                    )
+                );
+        }
+
+        Ast ParseAssignItem()
+        {
+            return MatchOr(
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Keep(Match(TokenType.Identifier)),
+                    Keep(Match("[")),
+                    Keep(ParseExpressionList1),
+                    Keep(Match("]")),
+                    Keep(Match(".")),
+                    Keep(ParseAssignItem)
+                    ),
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Keep(Match(TokenType.Identifier)),
+                    Keep(Match("[")),
+                    Keep(ParseExpressionList1),
+                    Keep(Match("]"))
+                    ),
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Keep(Match(TokenType.Identifier)),
+                    Keep(Match(".")),
+                    Keep(ParseAssignItem)
+                    ),
+                Match(TokenType.Identifier)
+                );
+        }
+
+        Ast ParseIfStatement()
+        {
+            return MatchOr(
+                ()=>MatchSequence(
+                    typeof(HelperAst),
+                    Match("if"),
+                    Keep(ParseExpression),
+                    ParseEoLs,
+                    Keep(ParseBlock),
+                    Match("else"),
+                    Keep(ParseIfStatement)
+                    ),
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Match("if"),
+                    Keep(ParseExpression),
+                    ParseEoLs,
+                    Keep(ParseBlock),
+                    Match("else"),
+                    Keep(ParseBlock)
+                    ),
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Match("if"),
+                    Keep(ParseExpression),
+                    ParseEoLs,
+                    Keep(ParseBlock)
+                    )
+            );
+        }
+
+        Ast ParseJumpStatement()
+        {
+            var t = TokenStream.Current.TokenValue;
+            if (t == "break" || t == "continue" || t == "return")
+            {
+                var h = new HelperAst(TokenStream.Consume());
+                if (t == "return")
+                {
+                    var retval = ParseExpressionList0();
+                    if (retval != null)
+                        h.Children.Add(retval);
+                }
+                return h;
+            }
+            return null;
+        }
+
+        Ast ParseForStatement()
+        {
+            return MatchSequence(
+                typeof(HelperAst), 
+                Match("for"),
+                Keep(Match(TokenType.Identifier)),
+                Keep(ParseExpressionList1),
+                ParseEoLs,
+                Keep(ParseBlock)
+            );
+        }
+
+        Ast ParseWhileStatement()
+        {
+            return MatchSequence(
+                typeof(HelperAst),
+                Match("while"),
+                Keep(ParseExpression),
+                ParseEoLs,
+                Keep(ParseBlock)
+                );
+        }
+
+        Ast ParseBlock()
+        {
+            return MatchSequence(
+                typeof(BlockAst),
+                Match(TokenType.Indent),
+                Keep(ZeroOrMore(() => ParseStatement())),
+                Match(TokenType.Undent)
+            );
+        }
+
+        #endregion
+
+        Ast ParseExpressionList0()
+        {
+            return ZeroOrOne(
+                ParseExpressionList1
+            )();
+        }
+
+        Ast ParseExpressionList1()
+        {
+            return MatchOr(
+                Keep(ParseExpression),
+                ()=>MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ParseExpression),
+                    Match(","),
+                    Keep(ParseExpressionList1)
+                    )
+                );
+        }
+
+        #region Parse Expression
+
+        Ast ParseExpression()
+        {
+            return ParseLogicalORExpression();
+        }
+
+        Ast ParseLogicalORExpression()
+        {
+            return
+                MatchOr(
+                    ParseLogicalANDExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(ParseLogicalANDExpression),
+                        Keep(Match("||")),
+                        Keep(ParseLogicalORExpression)
+                    )
+                );
+        }
+        Ast ParseLogicalANDExpression()
+        {
+            return
+                MatchOr(
+                    ParseInclusiveOrExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(ParseInclusiveOrExpression),
+                        Keep(Match("&&")),
+                        Keep(ParseLogicalANDExpression)
+                    )
+                );
+        }
+        Ast ParseInclusiveOrExpression()
+        {
+            return
+                MatchOr(
+                    ParseExclusiveOrExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(ParseExclusiveOrExpression),
+                        Keep(Match("|")),
+                        Keep(ParseInclusiveOrExpression)
+                    )
+                );
+        }
+        Ast ParseExclusiveOrExpression()
+        {
+            return
+                MatchOr(
+                    ParseAndExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(ParseAndExpression),
+                        Keep(Match("&")),
+                        Keep(ParseExclusiveOrExpression)
+                    )
+                );
+        }
+        Ast ParseAndExpression()
+        {
+            return
+                MatchOr(
+                    EqualityExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(EqualityExpression),
+                        Keep(Match("&")),
+                        Keep(ParseAndExpression)
+                    )
+                );
+        }
+        Ast EqualityExpression()
+        {
+            return
+                MatchOr(
+                    RelationalExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(RelationalExpression),
+                        Keep(OneOf("==","!=")),
+                        Keep(EqualityExpression)
+                    )
+                );
+        }
+        Ast RelationalExpression()
+        {
+            return
+                MatchOr(
+                    ShiftExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(ShiftExpression),
+                        Keep(OneOf("<=", ">=","<",">")),
+                        Keep(RelationalExpression)
+                    )
+                );
+        }
+        Ast ShiftExpression()
+        {
+            return
+                MatchOr(
+                    RotateExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(RotateExpression),
+                        Keep(OneOf("<<", ">>")),
+                        Keep(ShiftExpression)
+                    )
+                );
+        }
+        Ast RotateExpression()
+        {
+            return
+                MatchOr(
+                    AdditiveExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(AdditiveExpression),
+                        Keep(OneOf("<<<", ">>>")),
+                        Keep(RotateExpression)
+                    )
+                );
+        }
+        Ast AdditiveExpression()
+        {
+            return
+                MatchOr(
+                    MultiplicativeExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(MultiplicativeExpression),
+                        Keep(OneOf("+", "-")),
+                        Keep(AdditiveExpression)
+                    )
+                );
+        }
+        Ast MultiplicativeExpression()
+        {
+            return
+                MatchOr(
+                    UnaryExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(UnaryExpression),
+                        Keep(OneOf("*", "/","%")),
+                        Keep(MultiplicativeExpression)
+                    )
+                );
+        }
+        Ast UnaryExpression()
+        {
+            return
+                MatchOr(
+                    PostfixExpression,
+                    () => MatchSequence(
+                        typeof(HelperAst),
+                        Keep(OneOf("++","--","+","-","~","!")),
+                        Keep(UnaryExpression)
+                    )
+                );
+        }
+        Ast PostfixExpression()
+        {
+            return
+                MatchSequence(
+                    typeof(HelperAst),
+                    Keep(PrimaryExpression),
+                    Keep(Post2));
+        }
+        Ast PrimaryExpression()
+        {
+            return
+                MatchOr(
+                    LiteralExpression,
+                    ParseFunctionCall,
+                    Match(TokenType.Identifier),
+                    ()=>MatchSequence(
+                            typeof(HelperAst),
+                            Keep(Match("(")),
+                            Keep(ParseExpression),
+                            Keep(Match(")"))
+                            )
+                );
+        }
+        Ast Post2()
+        {
+            var ast = MatchSequence(
+                          typeof(HelperAst),
+                          Keep(Post3),
+                          Keep(Post2)
+                      ) ?? new HelperAst();
+            return ast;
+        }
+        Ast Post3()
+        {
+            return MatchOr(
+                ()=>MatchSequence(
+                    typeof(HelperAst),
+                    Keep(Match("[")),
+                    Keep(ParseExpressionList1),
+                    Keep(Match("]"))
+                    ),
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Keep(Match("(")),
+                    Keep(ParseExpressionList0),
+                    Keep(Match(")"))
+                    ),
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Keep(Match(".")),
+                    Keep(Match(TokenType.Identifier))
+                    ),
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Keep(Match("++"))
+                    ),
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Keep(Match("--"))
+                    )
+                );
+        }
+
+        Ast LiteralExpression()
+        {
+            if (TokenStream.Current.TokenType == TokenType.BinaryLiteral)
+                return new HelperAst(TokenStream.Consume());
+            if (TokenStream.Current.TokenType == TokenType.HexadecimalLiteral)
+                return new HelperAst(TokenStream.Consume());
+            if (TokenStream.Current.TokenType == TokenType.DecimalLiteral)
+                return new HelperAst(TokenStream.Consume());
+            if (TokenStream.Current.TokenType == TokenType.StringLiteral)
+                return new HelperAst(TokenStream.Consume());
+            if (TokenStream.Current.TokenType == TokenType.CharacterLiteral)
+                return new HelperAst(TokenStream.Consume());
+            if (TokenStream.Current.TokenType == TokenType.FloatLiteral)
+                return new HelperAst(TokenStream.Consume());
+            if (TokenStream.Current.TokenValue == "true")
+                return new HelperAst(TokenStream.Consume());
+            if (TokenStream.Current.TokenValue == "false")
+                return new HelperAst(TokenStream.Consume());
+            return null;
+        }
+
+        Ast ParseFunctionCall()
+        {
+            return MatchSequence(
+                    typeof(HelperAst),
+                    Keep(Match(TokenType.Identifier)),
+                    Keep(Match("(")),
+                    Keep(ParseExpressionList0),
+                    Keep(Match(")"))
+                );
+        }
+
+        #endregion
+
+        #endregion
 
         #region Helpers
 
@@ -252,6 +990,28 @@ namespace Lomont.ClScript.CompilerLib.Parser
             };
         }
 
+        ParseDelegate ZeroOrOne(ParseDelegate func)
+        {
+            return () =>
+            {
+                var asts = new List<Ast>();
+                var ast = func();
+                while (ast != null)
+                {
+                    asts.Add(ast);
+                    ast = func();
+                }
+                if (asts.Count > 1)
+                    return null; // too many
+                return new HelperAst(asts);
+            };
+        }
+
+        Ast AlwaysMatch()
+        {
+            return new HelperAst();
+        }
+
         ParseDelegate ZeroOrMore(ParseDelegate func)
         {
             return () =>
@@ -281,6 +1041,21 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 if (!asts.Any())
                     return null; // failed
                 return new HelperAst(asts);
+            };
+        }
+
+        ParseDelegate OneOf(params string[] matchStrings)
+        {
+            return () =>
+            {
+                foreach (var match in matchStrings)
+                    if (TokenStream.Current.TokenValue == match)
+                    {
+                        var h = new HelperAst(TokenStream.Current);
+                        TokenStream.Consume();
+                        return h;
+                    }
+                return null;
             };
         }
 

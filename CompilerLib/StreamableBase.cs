@@ -36,9 +36,11 @@ namespace Lomont.ClScript.CompilerLib
             }
         }
 
-        public void Consume()
+        public T Consume()
         {
+            var a = Current;
             Index++;
+            return a;
         }
 
         private Boolean EOF(int lookahead)

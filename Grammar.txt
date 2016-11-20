@@ -280,9 +280,11 @@ Comment Line   = '//'
                 | <Assign Statement>    <EOLs>
                 | <If Statement>
                 | <For Statement>       
-                | 'while' <Expression>  <EOLs> <Block>
+                | <While Statement>
                 | <Function Call>       <EOLs>
                 | <Jump Statement>      <EOLs>
+                
+
 
 ! assign some values to some variables
 ! a = 1
@@ -335,6 +337,9 @@ Comment Line   = '//'
 ! also supports for i in array
 <For Statement>  ::= for ID in <Expression List1> <EOLs> <Block>
 
+<While Statement> ::= 'while' <Expression>  <EOLs> <Block>
+
+
 ! a block is an indented collection of statements
 <Block>          ::= INDENT <Statements> DEDENT
              
@@ -373,11 +378,9 @@ Comment Line   = '//'
           | '--'
 
 <UnaryExpression> ::= <PostfixExpression>
-                    | '++' <UnaryExpression>
-                    | '--' <UnaryExpression>
                     | <UnaryOperator> <UnaryExpression>
 
-<UnaryOperator>            ::= '*'  | '+' | '-' | '~' | '!'
+<UnaryOperator>            ::= '++' | '--' | '+' | '-' | '~' | '!'
    
 <MultiplicativeExpression> ::= <UnaryExpression> | <UnaryExpression> <MultOp> <MultiplicativeExpression>
 <MultOp>                   ::= '*' | '/' | '%'
