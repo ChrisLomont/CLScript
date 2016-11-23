@@ -38,18 +38,27 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AST\ArrayAst.cs" />
-    <Compile Include="AST\AST.cs" />
+    <Compile Include="AST\AssignStatementAst.cs" />
+    <Compile Include="AST\Ast.cs" />
     <Compile Include="AST\AttributeAst.cs" />
+    <Compile Include="AST\BlockAst.cs" />
     <Compile Include="AST\DeclarationsAst.cs" />
     <Compile Include="AST\EnumAst.cs" />
     <Compile Include="AST\EnumValueAst.cs" />
+    <Compile Include="AST\ForStatementAst.cs" />
+    <Compile Include="AST\FunctionCallAst.cs" />
+    <Compile Include="AST\FunctionPrototypeAst.cs" />
+    <Compile Include="AST\IfStatementAst.cs" />
     <Compile Include="AST\ImportAst.cs" />
+    <Compile Include="AST\JumpStatementAst.cs" />
     <Compile Include="AST\ModuleAst.cs" />
     <Compile Include="AST\TypeAst.cs" />
     <Compile Include="AST\TypeDeclarationAst.cs" />
     <Compile Include="AST\TypeMemberDefinitionAst.cs" />
     <Compile Include="AST\VariableDeclarationAst.cs" />
+    <Compile Include="AST\VariableDefinitionAst.cs" />
     <Compile Include="AST\VariableTypeAndNamesAst.cs" />
+    <Compile Include="AST\WhileStatementAst.cs" />
     <Compile Include="Compiler.cs" />
     <Compile Include="Environment.cs" />
     <Compile Include="Exceptions.cs" />

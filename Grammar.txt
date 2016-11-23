@@ -335,7 +335,10 @@ Comment Line   = '//'
 
 ! for i in a,b,c goes a to b by c, c optional, deduced to be 1 or -1, can be expressions
 ! also supports for i in array
-<For Statement>  ::= for ID in <Expression List1> <EOLs> <Block>
+<For Statement>  ::= for ID in <For Range> <EOLs> <Block>
+<For Range> ::= <Expression> ',' <Expression> ',' <Expression> 
+             | <Expression> ',' <Expression>
+             | <Assign Item>
 
 <While Statement> ::= 'while' <Expression>  <EOLs> <Block>
 
@@ -369,10 +372,10 @@ Comment Line   = '//'
                       | true | false
            
 
-<PostfixExpression> ::= <PrimaryExpression> <Post2>
-<Post2> ::= <Post3> <Post2> |
-<Post3> ::= '[' <Expression List1> ']'
-          | '(' <Expression List0> ')'
+<PostfixExpression> ::= <PrimaryExpression> <Postfix2>
+<Postfix2> ::= <Postfix3> <Postfix2> |
+<Postfix3> ::= '[' <Expression List1> ']'
+!          | '(' <Expression List0> ')' ! todo - what is this? array spacing?
           | '.' ID
           | '++'
           | '--'

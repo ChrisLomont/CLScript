@@ -28,7 +28,7 @@ namespace Lomont.ClScript.CompilerLib
             if (TokenType == TokenType.EndOfLine)
                 v = "\\n";
             var msg = $"[{TokenType}, {Position.LineNumber}:{Position.LinePosition}-{Position.LinePosition + TokenValue.Length}]";
-            return $"{msg,-50} := {v}";
+            return $"({v}) : {msg}";
         }
     }
 

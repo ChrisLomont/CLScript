@@ -17,7 +17,7 @@ namespace Lomont.ClScript.CompilerLib
             SnapshotIndexes = new Stack<int>();
         }
 
-        private List<T> Items { get; set; }
+        protected List<T> Items { get; set; }
 
         protected int Index { get; set; }
 

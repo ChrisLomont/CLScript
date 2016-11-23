@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,10 +11,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
     // http://stackoverflow.com/questions/1649027/how-do-i-print-out-a-tree-structure
     class PrintVisitor
     {
-        Environment environment;
-        public PrintVisitor(Environment environment)
+        TextWriter output;
+        public PrintVisitor(TextWriter outut)
         {
-            this.environment = environment;
+            this.output = outut;
         }
 
         public void Start(Ast ast)
@@ -24,18 +25,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         public void Visit(Ast ast, string indent, bool last)
         {
-            environment.Output.Write(indent);
+            output.Write(indent);
             if (last)
             {
-                environment.Output.Write("\\-");
+                output.Write("\\-");
                 indent += "  ";
             }
             else
             {
-                environment.Output.Write("|-");
+                output.Write("|-");
                 indent += "| ";
             }
-            environment.Output.WriteLine(ast.ToString());
+            output.WriteLine(ast.ToString());
 
             for (var i = 0; i < ast.Children.Count; i++)
                 Visit(ast.Children[i],indent, i == ast.Children.Count - 1);

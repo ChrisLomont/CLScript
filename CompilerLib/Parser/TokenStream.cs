@@ -135,5 +135,12 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return current;
             }
         }
+
+        public List<Token> GetTokens()
+        {
+            var items = new List<Token>();
+            items.AddRange(Items);
+            return items;
+        }
     }
 }

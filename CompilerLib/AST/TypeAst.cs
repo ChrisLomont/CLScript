@@ -8,6 +8,12 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     class TypeAst : Ast
     {
+        // needs parameterless or exception on reflected construction
+        public TypeAst()
+        {
+            
+        }
+
         public TypeAst(Token token)
         {
             Token = token;

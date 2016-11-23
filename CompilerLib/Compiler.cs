@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using System.Text;
 using Lomont.ClScript.CompilerLib.AST;
+using Lomont.ClScript.CompilerLib.Parser;
 using Lomont.ClScript.CompilerLib.Visitors;
 
 namespace Lomont.ClScript.CompilerLib
@@ -14,6 +15,21 @@ namespace Lomont.ClScript.CompilerLib
     {
 
         Lexer.Lexer lexer;
+        Parser.Parser parser;
+
+        public Ast SyntaxTree { get; private set; }
+
+        public string SyntaxTreeToText()
+        {
+            if (SyntaxTree != null)
+            {
+                var output = new StringWriter();
+                var pr = new PrintVisitor(output);
+                pr.Start(SyntaxTree);
+                return output.ToString();
+            }
+            return "No syntax tree to show\n";
+        }
 
         public void Compile(string text, Environment environment, out string result)
         {
@@ -29,20 +45,19 @@ namespace Lomont.ClScript.CompilerLib
                     environment.Output.WriteLine(result);
                     lexer = new Lexer.Lexer(text, environment);
                 }
-                var parser = new Parser.Parser(lexer);
-                var ast = parser.Parse(environment);
-                if (ast != null)
-                {
-                    ast = ProcessTree(ast, environment);
-                    var pr = new PrintVisitor(environment);
-                    pr.Start(ast);
-                }
+                parser = new Parser.Parser(lexer);
+                SyntaxTree = parser.Parse(environment);
+                //if (SyntaxTree != null)
+                //{
+                //    SyntaxTree = ProcessTree(SyntaxTree, environment);
+                //}
             }
             catch (Exception ex)
             {
                 do
                 {
                     environment.Output.WriteLine($"Error: {ex.Message}");
+                    environment.Output.WriteLine($"Details: {ex}");
                     ex = ex.InnerException;
                 } while (ex != null);
             }
@@ -51,8 +66,8 @@ namespace Lomont.ClScript.CompilerLib
         // do compiler tree transforms
         Ast ProcessTree(Ast ast, Environment environment)
         {
-            var pass1 = new CollapseHelperVisitor(environment);
-            pass1.Start(ast);
+            //var pass1 = new CollapseHelperVisitor(environment);
+            //pass1.Start(ast);
 
             return ast;
         }
@@ -60,8 +75,9 @@ namespace Lomont.ClScript.CompilerLib
         // helper function to tag items for gold parser
         string LexToGoldParser(Lexer.Lexer lexer)
         {
+            var filterTokens = true; // causes comments to be skipped, etc
             var sb = new StringBuilder();
-            foreach (var token in lexer.Lex(false))
+            foreach (var token in lexer.Lex(filterTokens))
             {
                 if (token.TokenType == TokenType.Comment)
                     continue;
@@ -77,5 +93,11 @@ namespace Lomont.ClScript.CompilerLib
             return sb.ToString();
         }
 
+        public List<Token> GetTokens()
+        {
+            if (parser != null)
+                return parser.GetTokens();
+            return new List<Token>();
+        }
     }
 }

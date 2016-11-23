@@ -43,10 +43,10 @@ namespace Lomont.ClScript.CompilerLib.Lexer
 
                     var exponent = GetExponent(characterStream);
 
-                    return new Token(TokenType.Float32);
+                    return new Token(TokenType.FloatLiteral);
                 }
 
-                return new Token(TokenType.Int32);
+                return new Token(TokenType.DecimalLiteral);
             }
 
             return null;

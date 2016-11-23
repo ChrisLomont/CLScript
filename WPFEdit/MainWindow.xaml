@@ -26,12 +26,38 @@
                 ItemsSource="{Binding Messages}"
                 />
         </GroupBox>
-        <avalonEdit:TextEditor Background="Bisque"
+        <ListBox
+            DockPanel.Dock="Right"
+            ItemsSource="{Binding Tokens}"
+            />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+        <avalonEdit:TextEditor 
+            Grid.Column="0"
+            Background="Bisque"
     xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
     x:Name="textEditor"
     FontFamily="Consolas"
     SyntaxHighlighting="C#"
     FontSize="10pt"/>
+            <GridSplitter
+                Grid.Column="1"
+                ResizeDirection="Columns"
+                Width="3"
+                />
+            <avalonEdit:TextEditor 
+            Grid.Column="2"
+            Background="LightCyan"
+    xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
+    x:Name="treeView"
+    FontFamily="Consolas"
+    SyntaxHighlighting="C#"
+    FontSize="10pt"/>
+        </Grid>
 
     </DockPanel>
 </Window>

@@ -89,6 +89,8 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 if (decl != null)
                     decls.Children.Add(decl);
             } while (decl != null);
+            if (TokenStream.Current.TokenType != TokenType.EndOfFile)
+                environment.Output.WriteLine($"Could not parse {TokenStream.Current}");
             return decls;
         }
 
@@ -277,7 +279,6 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 typeof(VariableDeclarationAst),
                 Keep(ParseOptionalExport),
                 Keep(ParseOptionalConst),
-                Keep(ParseVariableTypeAndNames),
                 Keep(ParseVariableDefinition)
             );
         }
@@ -567,6 +568,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     ParseEoLs,
                     Keep(ParseBlock),
                     Match("else"),
+                    ParseEoLs,
                     Keep(ParseBlock)
                     ),
                 () => MatchSequence(
@@ -602,10 +604,33 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 typeof(HelperAst), 
                 Match("for"),
                 Keep(Match(TokenType.Identifier)),
-                Keep(ParseExpressionList1),
+                Match("in"),
+                Keep(ParseForRange),
                 ParseEoLs,
                 Keep(ParseBlock)
             );
+        }
+
+        // a,b,c or a,b or array item
+        Ast ParseForRange()
+        {
+            return MatchOr(
+                ()=>MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ParseExpression),
+                    Match(","),
+                    Keep(ParseExpression),
+                    Match(","),
+                    Keep(ParseExpression)
+                    ),
+                () => MatchSequence(
+                    typeof(HelperAst),
+                    Keep(ParseExpression),
+                    Match(","),
+                    Keep(ParseExpression)
+                    ),
+                ParseAssignItem
+                );
         }
 
         Ast ParseWhileStatement()
@@ -641,13 +666,13 @@ namespace Lomont.ClScript.CompilerLib.Parser
         Ast ParseExpressionList1()
         {
             return MatchOr(
-                Keep(ParseExpression),
                 ()=>MatchSequence(
                     typeof(HelperAst),
                     Keep(ParseExpression),
                     Match(","),
                     Keep(ParseExpressionList1)
-                    )
+                    ),
+                Keep(ParseExpression)
                 );
         }
 
@@ -662,155 +687,157 @@ namespace Lomont.ClScript.CompilerLib.Parser
         {
             return
                 MatchOr(
-                    ParseLogicalANDExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(ParseLogicalANDExpression),
                         Keep(Match("||")),
                         Keep(ParseLogicalORExpression)
-                    )
+                    ),
+                    ParseLogicalANDExpression
                 );
         }
         Ast ParseLogicalANDExpression()
         {
             return
                 MatchOr(
-                    ParseInclusiveOrExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(ParseInclusiveOrExpression),
                         Keep(Match("&&")),
                         Keep(ParseLogicalANDExpression)
-                    )
+                    ),
+                    ParseInclusiveOrExpression
                 );
         }
         Ast ParseInclusiveOrExpression()
         {
             return
                 MatchOr(
-                    ParseExclusiveOrExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(ParseExclusiveOrExpression),
                         Keep(Match("|")),
                         Keep(ParseInclusiveOrExpression)
-                    )
+                    ),
+                    ParseExclusiveOrExpression
                 );
         }
         Ast ParseExclusiveOrExpression()
         {
             return
                 MatchOr(
-                    ParseAndExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(ParseAndExpression),
                         Keep(Match("&")),
                         Keep(ParseExclusiveOrExpression)
-                    )
+                    ),
+                    ParseAndExpression
                 );
         }
         Ast ParseAndExpression()
         {
             return
                 MatchOr(
-                    EqualityExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(EqualityExpression),
                         Keep(Match("&")),
                         Keep(ParseAndExpression)
-                    )
+                    ),
+                    EqualityExpression
                 );
         }
         Ast EqualityExpression()
         {
             return
                 MatchOr(
-                    RelationalExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(RelationalExpression),
                         Keep(OneOf("==","!=")),
                         Keep(EqualityExpression)
-                    )
+                    ),
+                    RelationalExpression
                 );
         }
+
         Ast RelationalExpression()
         {
             return
                 MatchOr(
-                    ShiftExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(ShiftExpression),
-                        Keep(OneOf("<=", ">=","<",">")),
+                        Keep(OneOf("<=", ">=", "<", ">")),
                         Keep(RelationalExpression)
-                    )
+                    ),
+                    ShiftExpression
                 );
         }
+
         Ast ShiftExpression()
         {
             return
                 MatchOr(
-                    RotateExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(RotateExpression),
                         Keep(OneOf("<<", ">>")),
                         Keep(ShiftExpression)
-                    )
+                    ),
+                    RotateExpression
                 );
         }
         Ast RotateExpression()
         {
             return
                 MatchOr(
-                    AdditiveExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(AdditiveExpression),
                         Keep(OneOf("<<<", ">>>")),
                         Keep(RotateExpression)
-                    )
+                    ),
+                    AdditiveExpression
                 );
         }
         Ast AdditiveExpression()
         {
             return
                 MatchOr(
-                    MultiplicativeExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(MultiplicativeExpression),
                         Keep(OneOf("+", "-")),
                         Keep(AdditiveExpression)
-                    )
+                    ),
+                    MultiplicativeExpression
                 );
         }
         Ast MultiplicativeExpression()
         {
             return
                 MatchOr(
-                    UnaryExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(UnaryExpression),
                         Keep(OneOf("*", "/","%")),
                         Keep(MultiplicativeExpression)
-                    )
+                    ),
+                    UnaryExpression
                 );
         }
         Ast UnaryExpression()
         {
             return
                 MatchOr(
-                    PostfixExpression,
                     () => MatchSequence(
                         typeof(HelperAst),
                         Keep(OneOf("++","--","+","-","~","!")),
                         Keep(UnaryExpression)
-                    )
+                    ),
+                    PostfixExpression
                 );
         }
         Ast PostfixExpression()
@@ -819,7 +846,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 MatchSequence(
                     typeof(HelperAst),
                     Keep(PrimaryExpression),
-                    Keep(Post2));
+                    Keep(Postfix2));
         }
         Ast PrimaryExpression()
         {
@@ -836,16 +863,16 @@ namespace Lomont.ClScript.CompilerLib.Parser
                             )
                 );
         }
-        Ast Post2()
+        Ast Postfix2()
         {
             var ast = MatchSequence(
                           typeof(HelperAst),
-                          Keep(Post3),
-                          Keep(Post2)
+                          Keep(Postfix3),
+                          Keep(Postfix2)
                       ) ?? new HelperAst();
             return ast;
         }
-        Ast Post3()
+        Ast Postfix3()
         {
             return MatchOr(
                 ()=>MatchSequence(
@@ -854,12 +881,12 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     Keep(ParseExpressionList1),
                     Keep(Match("]"))
                     ),
-                () => MatchSequence(
-                    typeof(HelperAst),
-                    Keep(Match("(")),
-                    Keep(ParseExpressionList0),
-                    Keep(Match(")"))
-                    ),
+//                () => MatchSequence( // todo - what is this for?
+//                    typeof(HelperAst),
+//                    Keep(Match("(")),
+//                    Keep(ParseExpressionList0),
+//                    Keep(Match(")"))
+//                    ),
                 () => MatchSequence(
                     typeof(HelperAst),
                     Keep(Match(".")),
@@ -900,7 +927,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         Ast ParseFunctionCall()
         {
             return MatchSequence(
-                    typeof(HelperAst),
+                    typeof(FunctionCallAst),
                     Keep(Match(TokenType.Identifier)),
                     Keep(Match("(")),
                     Keep(ParseExpressionList0),
@@ -932,6 +959,8 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     break;
                 }
                 if (ast is HelperAst && (ast as HelperAst).Keep)
+                    kept.Add(ast);
+                if (!(ast is HelperAst))
                     kept.Add(ast);
             }
             PostCheck(matched);
@@ -985,7 +1014,10 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 var ast = func();
                 if (ast == null)
                     return null; // nothing to see here
-                (ast as HelperAst).Keep = true;
+                // note - all nodes kept, except HelperAst nodes, unless they are marked
+                // so those we need to mark specially
+                if (ast is HelperAst)
+                    (ast as HelperAst).Keep = true;
                 return ast;
             };
         }
@@ -1092,6 +1124,13 @@ namespace Lomont.ClScript.CompilerLib.Parser
         {
             public bool Keep { get; set; }
 
+            // needs parameterless or exception on reflected construction
+            public HelperAst()
+            {
+
+            }
+
+
             public HelperAst(Token token)
             {
                 Token = token;
@@ -1105,6 +1144,10 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         #endregion
 
+        public List<Token> GetTokens()
+        {
+            return TokenStream.GetTokens();
+        }
     }
 }
 

@@ -40,6 +40,8 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                     // skip whitespace
                     if (current.TokenType == TokenType.WhiteSpace)
                         skipToken = true;
+                    if (current.TokenType == TokenType.Comment)
+                        skipToken = true;
                 }
 
                 if (!skipToken)
@@ -68,37 +70,40 @@ namespace Lomont.ClScript.CompilerLib.Lexer
         List<MatchBase> Matchers { get; set; }
         Environment env;
 
-        // create an ordered list of items to match
+        // is not an identifier character
+        Func<char, bool> notId = c => !Char.IsLetterOrDigit(c) && c != '_';
+
+            // create an ordered list of items to match
         List<MatchBase> InitializeMatchList()
         {
             // the order here matters because it defines token precedence
             var keywords = new List<MatchBase>
             {
-                new MatchKeyword(TokenType.Import, "import"),
-                new MatchKeyword(TokenType.Export, "export"),
-                new MatchKeyword(TokenType.Module, "module"),
-                new MatchKeyword(TokenType.Enum, "enum"),
-                new MatchKeyword(TokenType.Type, "type"),
-                new MatchKeyword(TokenType.Const, "const"),
+                new MatchKeyword(TokenType.Import, "import",notId),
+                new MatchKeyword(TokenType.Export, "export",notId),
+                new MatchKeyword(TokenType.Module, "module",notId),
+                new MatchKeyword(TokenType.Enum, "enum",notId),
+                new MatchKeyword(TokenType.Type, "type",notId),
+                new MatchKeyword(TokenType.Const, "const",notId),
 
-                new MatchKeyword(TokenType.Bool, "bool"),
-                new MatchKeyword(TokenType.Int32, "i32"),
-                new MatchKeyword(TokenType.Float32, "r32"),
-                new MatchKeyword(TokenType.String, "string"),
-                new MatchKeyword(TokenType.Char, "char"),
+                new MatchKeyword(TokenType.Bool, "bool",notId),
+                new MatchKeyword(TokenType.Int32, "i32",notId),
+                new MatchKeyword(TokenType.Float32, "r32",notId),
+                new MatchKeyword(TokenType.String, "string",notId),
+                new MatchKeyword(TokenType.Char, "char",notId),
 
-                new MatchKeyword(TokenType.True, "true"),
-                new MatchKeyword(TokenType.False, "false"),
+                new MatchKeyword(TokenType.True, "true",notId),
+                new MatchKeyword(TokenType.False, "false",notId),
 
-                new MatchKeyword(TokenType.If, "if"),
-                new MatchKeyword(TokenType.Else, "else"),
-                new MatchKeyword(TokenType.While, "while"),
-                new MatchKeyword(TokenType.For, "for"),
-                new MatchKeyword(TokenType.In, "in"),
+                new MatchKeyword(TokenType.If, "if",notId),
+                new MatchKeyword(TokenType.Else, "else",notId),
+                new MatchKeyword(TokenType.While, "while",notId),
+                new MatchKeyword(TokenType.For, "for",notId),
+                new MatchKeyword(TokenType.In, "in",notId),
 
-                new MatchKeyword(TokenType.Return, "return"),
-                new MatchKeyword(TokenType.Break, "break"),
-                new MatchKeyword(TokenType.Continue, "continue"),
+                new MatchKeyword(TokenType.Return, "return",notId),
+                new MatchKeyword(TokenType.Break, "break",notId),
+                new MatchKeyword(TokenType.Continue, "continue",notId),
 
                 new MatchKeyword(TokenType.OpAdd, "op+"),
                 new MatchKeyword(TokenType.OpSub, "op-"),

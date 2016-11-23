@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
@@ -6,6 +7,7 @@ using GalaSoft.MvvmLight.Command;
 using ICSharpCode.AvalonEdit;
 using Lomont.ClScript.CompilerLib;
 using Microsoft.Win32;
+using Environment = Lomont.ClScript.CompilerLib.Environment;
 
 namespace Lomont.ClScript.WPFEdit.ViewModel
 {
@@ -48,8 +50,11 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
         public RelayCommand LoadCommand { get; private set; }
         public RelayCommand ExportCommand { get; private set; }
         public TextEditor Editor { get; set; }
+        public TextEditor TreeText { get; set; }
         public ObservableCollection<string> Messages { get; } = new ObservableCollection<string>();
 
+        public ObservableCollection<Token> Tokens { get; } = new ObservableCollection<Token>();
+        
         void Save()
         {
             if (!string.IsNullOrEmpty(filename))
@@ -90,16 +95,30 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
 
         void Compile()
         {
-            var output = new StringWriter();
-            var text = Editor.Text;
-            compiler = new CompilerLib.Compiler();
-            string goldText;
-            compiler.Compile(text, new Environment(output), out goldText);
-            File.WriteAllText("goldOut.txt",goldText);
-            var msgs = output.ToString().Split('\n');
-            Messages.Clear();
-            foreach (var msg in msgs)
-                Messages.Add(msg.Replace("\r","").Replace("\n",""));
+            try
+            {
+                var output = new StringWriter();
+                var text = Editor.Text;
+                compiler = new CompilerLib.Compiler();
+                string goldText;
+                compiler.Compile(text, new Environment(output), out goldText);
+                File.WriteAllText("goldOut.txt", goldText);
+                var msgs = output.ToString().Split('\n');
+                Messages.Clear();
+                foreach (var msg in msgs)
+                    Messages.Add(msg.Replace("\r", "").Replace("\n", ""));
+
+                TreeText.Text = compiler.SyntaxTreeToText();
+                Tokens.Clear();
+                foreach (var t in compiler.GetTokens())
+                    Tokens.Add(t);
+            }
+            catch (Exception ex)
+            {
+                Messages.Clear();
+                Messages.Add($"FATAL: Compiler leaked exception {ex}");
+            }
+
         }
 
         // editor article at http://www.codeproject.com/Articles/42490/Using-AvalonEdit-WPF-Text-Editor
