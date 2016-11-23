@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using Lomont.ClScript.CompilerLib.AST;
-using Lomont.ClScript.CompilerLib.Visitors;
+using Lomont.ClScript.CompilerLib.Lexer;
 
 namespace Lomont.ClScript.CompilerLib.Parser
 {
@@ -67,6 +65,8 @@ namespace Lomont.ClScript.CompilerLib.Parser
         public Ast Parse(Environment environment)
         {
             this.environment = environment;
+            ignoreErrors.Clear();
+            ignoreErrors.Push(false);
             var ast = ParseDeclarations(); // start here
             return ast;
         }
@@ -100,15 +100,43 @@ namespace Lomont.ClScript.CompilerLib.Parser
             // eat any extra end of line
             while (TokenStream.Current.TokenType == TokenType.EndOfLine)
                 TokenStream.Consume();
-            return MatchOr(
-                ParseImportDeclaration,
-                ParseModuleDeclaration,
-                ParseAttributeDeclaration,
-                ParseEnumDeclaration,
-                ParseTypeDeclaration,
-                ParseVariableDeclaration,
-                ParseFunctionDeclaration
-            );
+
+            // todo - rewite using lookahead for prediction - 
+            // avoid delegate passing for performance and ease of portability to C/C++
+            if (Lookahead(TokenType.Import,TokenType.StringLiteral))
+                return ParseImportDeclaration();
+            else if (Lookahead(TokenType.Module))
+                return ParseModuleDeclaration();
+            else if (Lookahead(TokenType.LSquareBracket))
+                return ParseAttributeDeclaration();
+            else if (Lookahead(TokenType.Enum))
+                return ParseEnumDeclaration();
+            else if (Lookahead(TokenType.Type))
+                return ParseTypeDeclaration();
+
+            // var and func can have optional import or export, and var can have const
+            var importToken = TryMatch(TokenType.Import);
+            var exportToken = TryMatch(TokenType.Export);
+            var constToken = TryMatch(TokenType.Const);
+
+            if (!Lookahead(TokenType.OpenParen))
+                return ParseVariableDeclaration(importToken, exportToken, constToken);
+            if (constToken != null)
+            {
+                ErrorMessage("Unknown 'const' token");
+                return null;
+            }
+            return ParseFunctionDeclaration(importToken, exportToken);
+
+            //return MatchOr(
+                //ParseImportDeclaration,
+                //ParseModuleDeclaration,
+                //ParseAttributeDeclaration,
+                //ParseEnumDeclaration,
+                //ParseTypeDeclaration,
+                //ParseVariableDeclaration,
+                //ParseFunctionDeclaration
+            //);
         }
 
         Ast ParseOptionalConst()
@@ -123,31 +151,27 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return new HelperAst(TokenStream.Consume());
             return new HelperAst();
         }
-        Ast ParseOptionalImport()
-        {
-            if (TokenStream.Current.TokenValue == "import")
-                return new HelperAst(TokenStream.Consume());
-            return new HelperAst();
-        }
 
         Ast ParseImportDeclaration()
         {
-            return MatchSequence(
+            return MatchSequence2(
                 typeof(ImportAst),
-                Match("import"),
-                Keep(Match(TokenType.StringLiteral)),
-                Match(TokenType.EndOfLine)
+                Match2(TokenType.Import, "Missing 'import' token"),
+                KeepNext(),
+                Match2(TokenType.StringLiteral, "Missing import string"),
+                Match2(TokenType.EndOfLine, "Missing EOL")
             );
         }
 
         Ast ParseModuleDeclaration()
         {
-            return MatchSequence(
+            return MatchSequence2(
                 typeof(ModuleAst),
-                Match("module"),
-                Keep(Match(TokenType.Identifier)),
-                Match(TokenType.EndOfLine)
-                );
+                Match2(TokenType.Module, "Missing 'module' token"),
+                KeepNext(),
+                Match2(TokenType.Identifier, "Missing module identifier"),
+                Match2(TokenType.EndOfLine, "Missing EOL")
+            );
         }
 
         Ast ParseAttributeDeclaration()
@@ -164,33 +188,71 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseEnumDeclaration()
         {
-            return MatchSequence(
+            var ast = MatchSequence2(
                 typeof(EnumAst),
-                Match("enum"),
-                Keep(Match(TokenType.Identifier)),
-                OneOrMore(Match(TokenType.EndOfLine)),
-                Match(TokenType.Indent),
-                Keep(OneOrMore(ParseEnumValue)),
-                Match(TokenType.Undent)
-            );
+                Match2(TokenType.Enum, "Missing 'enum' token"),
+                KeepNext(),
+                Match2(TokenType.Identifier, "Missing enum identifier"),
+                Match2(TokenType.EndOfLine, "Missing EOL"));
+            if (ast == null)
+                return null; // nothing more to do
+            MatchZeroOrMore2(TokenType.EndOfLine);
+
+            if (Match2(TokenType.Indent,"enum missing values") == ParseAction.NotMatched)
+                return null;
+            if (OneOrMore2(ast, ParseEnumValue, "enum missing values") == ParseAction.NotMatched)
+                return null;
+            if (Match2(TokenType.Undent, "enum values don't end") == ParseAction.NotMatched)
+                return null;
+
+            return ast;
+
+//            return MatchSequence(
+//                typeof(EnumAst),
+//                Match(TokenType.Enum),
+//                Keep(Match(TokenType.Identifier)),
+//                OneOrMore(Match(TokenType.EndOfLine)),
+//                Match(TokenType.Indent),
+//                Keep(OneOrMore(ParseEnumValue)),
+//                Match(TokenType.Undent)
+//            );
         }
 
         Ast ParseEnumValue()
         {
-            return MatchOr(
-                    ()=> MatchSequence(
-                        typeof (EnumValueAst),
-                        Keep(Match(TokenType.Identifier)),
-                        OneOrMore(Match(TokenType.EndOfLine))
-                        ),
-                    () => MatchSequence(
-                        typeof (EnumValueAst),
-                        Keep(Match(TokenType.Identifier)),
-                        Match("="), 
-                        Keep(ParseExpression),
-                        OneOrMore(Match(TokenType.EndOfLine))
-                        )
-                    );
+            if (Lookahead(TokenType.Identifier, TokenType.Equals))
+            {
+                var id = TokenStream.Consume();
+                TokenStream.Consume(); // '='
+                var ast = ParseExpression();
+                if (ast == null) return null;
+                if (MatchOneOrMore2(TokenType.EndOfLine, "enum value missing EOL") != ParseAction.Matched)
+                    return null;
+                return Make2(typeof(EnumValueAst), id, ast);
+            }
+            else if (Lookahead(TokenType.Identifier))
+            {
+                var id = TokenStream.Consume();
+                if (MatchOneOrMore2(TokenType.EndOfLine, "enum value missing EOL") != ParseAction.Matched)
+                    return null;
+                return Make2(typeof(EnumValueAst), id);
+            }
+            ErrorMessage("Cannot parse enum value");
+            return null;
+            //return MatchOr(
+            //        ()=> MatchSequence(
+            //            typeof (EnumValueAst),
+            //            Keep(Match(TokenType.Identifier)),
+            //            OneOrMore(Match(TokenType.EndOfLine))
+            //            ),
+            //        () => MatchSequence(
+            //            typeof (EnumValueAst),
+            //            Keep(Match(TokenType.Identifier)),
+            //            Match("="), 
+            //            Keep(ParseExpression),
+            //            OneOrMore(Match(TokenType.EndOfLine))
+            //            )
+            //        );
         }
 
         Ast ParseType()
@@ -204,24 +266,78 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 t.TokenType == TokenType.Char ||
                 t.TokenType == TokenType.Identifier
             )
-            {
-                TokenStream.Consume();
-                return new TypeAst(t);
-            }
+                return new TypeAst(TokenStream.Consume());
             return null;
         }
 
         Ast ParseTypeDeclaration()
         {
-            return MatchSequence(
-                typeof(TypeDeclarationAst),
-                Match("type"),
-                Keep(Match(TokenType.Identifier)),
-                ParseEoLs,
-                Match(TokenType.Indent),
-                Keep(ParseTypeMemberDefinitions),
-                Match(TokenType.Undent)
-                );
+            if (Match2(TokenType.Type, "Missing 'type' token") != ParseAction.Matched)
+                return null;
+            if (!Lookahead(TokenType.Identifier))
+            {
+                ErrorMessage("Missing type identifier");
+                return null;
+            }
+            var idToken = TokenStream.Consume();
+            if (MatchOneOrMore2(TokenType.EndOfLine,"Expected end of line(s)")!= ParseAction.Matched)
+                return null;
+
+            if (Match2(TokenType.Indent, "type missing values") == ParseAction.NotMatched)
+                return null;
+
+            var memberAsts = new List<Ast>();
+
+            while (true)
+            {
+                var ast = TryParse(ParseVariableTypeAndNames);
+                if (ast == null)
+                    break;
+                MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)");
+                memberAsts.Add(ast);
+            }
+
+            if (Match2(TokenType.Undent, "type values don't end") == ParseAction.NotMatched)
+                return null;
+
+            if (!memberAsts.Any())
+            {
+                ErrorMessage("Expected type members");
+                return null;
+            }
+            
+            return Make2(typeof(TypeDeclarationAst), idToken, memberAsts.ToArray());
+
+
+//            var ast = MatchSequence2(
+//                typeof(TypeDeclarationAst),
+//                Match2(TokenType.Type, "Missing 'type' token"),
+//                KeepNext(),
+//                Match2(TokenType.Identifier, "Missing type identifier"),
+//                Match2(TokenType.EndOfLine, "Missing EOL"));
+//            if (ast == null)
+//                return null; // nothing more to do
+//            MatchZeroOrMore2(TokenType.EndOfLine);
+//
+//            if (Match2(TokenType.Indent, "type missing values") == ParseAction.NotMatched)
+//                return null;
+//            if (OneOrMore2(ast, ParseTypeMemberDefinitions, "type missing values") == ParseAction.NotMatched)
+//                return null;
+//            if (Match2(TokenType.Undent, "type values don't end") == ParseAction.NotMatched)
+//                return null;
+//
+//            return ast;
+
+
+//            return MatchSequence(
+//                typeof(TypeDeclarationAst),
+//                Match("type"),
+//                Keep(Match(TokenType.Identifier)),
+//                ParseEoLs,
+//                Match(TokenType.Indent),
+//                Keep(ParseTypeMemberDefinitions),
+//                Match(TokenType.Undent)
+//                );
         }
 
         // one or more end of line
@@ -247,26 +363,76 @@ namespace Lomont.ClScript.CompilerLib.Parser
             );
         }
 
-        Ast ParseVariableDeclaration()
+        Ast ParseVariableDeclaration(Token importToken, Token exportToken, Token constToken)
         {
+#if true
+            if (importToken != null && exportToken != null)
+            {
+                ErrorMessage("Variable declaration cannot have both import and export");
+                return null;
+            }
+
+            Ast typeAst, idsAst, initAst = null;
+            typeAst = ParseType();
+            if (typeAst == null)
+                return null;
+            idsAst = ParseIDList();
+            if (idsAst == null)
+            {
+                ErrorMessage("Missing variable names for variable declaration");
+                return null;
+            }
+
+            if (importToken == null && Lookahead(TokenType.Equals))
+            {
+                TokenStream.Consume();
+                initAst = ParseExpressionList1();
+            }
+
+            var varDeclAst = (VariableDefinitionAst)Make2(typeof(VariableDefinitionAst), typeAst.Token, idsAst, initAst);
+            varDeclAst.ImportToken = importToken;
+            varDeclAst.ExportToken = exportToken;
+            varDeclAst.ConstToken = constToken;
+            return varDeclAst;
+
+
+#else
             return MatchOr(
                 () =>MatchSequence(
-                    typeof(VariableDeclarationAst),
+                    typeof(VariableDefinitionAst),
+#if false
                     Keep(ParseImportVariable),
+#else
+                    Keep(Match("import")),
+                    Keep(ParseOptionalConst),
+                    Keep(ParseType),
+                    Keep(ParseIDList),
+
+#endif
                     Match(TokenType.EndOfLine)
                     ),
                 () => MatchSequence(
-                    typeof(VariableDeclarationAst),
+                    typeof(VariableDefinitionAst),
+#if false
                     Keep(ParseNormalVariable),
+#else
+                    Keep(ParseOptionalExport),
+                    Keep(ParseOptionalConst),
+                    Keep(ParseType),
+                    Keep(ParseIDList),
+                    Keep(ParseVariableInitializer),
+
+#endif
                     Match(TokenType.EndOfLine)
                     )
             );
+#endif
         }
 
         Ast ParseImportVariable()
         {
             return MatchSequence(
-                typeof(VariableDeclarationAst),
+                typeof(VariableDefinitionAst),
                 Keep(Match("import")),
                 Keep(ParseOptionalConst),
                 Keep(ParseVariableTypeAndNames)
@@ -276,7 +442,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         Ast ParseNormalVariable()
         {
             return MatchSequence(
-                typeof(VariableDeclarationAst),
+                typeof(VariableDefinitionAst),
                 Keep(ParseOptionalExport),
                 Keep(ParseOptionalConst),
                 Keep(ParseVariableDefinition)
@@ -294,17 +460,57 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseVariableTypeAndNames()
         {
-            return MatchSequence(
-                typeof(VariableTypeAndNamesAst),
-                Keep(ParseType),
-                Keep(ParseIDList)
-                );
+            var typeAst = ParseType();
+            if (typeAst == null)
+            {
+                ErrorMessage("Expected type");
+                return null;
+            }
+            var idList = ParseIDList();
+            if (idList == null)
+                return null;
+            return Make2(typeof(VariableTypeAndNamesAst),typeAst.Token,idList);
+
+
+//            return MatchSequence(
+//                typeof(VariableTypeAndNamesAst),
+//                Keep(ParseType),
+//                Keep(ParseIDList)
+//                );
         }
 
         Ast ParseIDList()
         {
+#if true
+            var idAsts = new List<Ast>();
+            while (true)
+            {
+                var token = TokenStream.Consume();
+                if (token.TokenType != TokenType.Identifier)
+                {
+                    ErrorMessage("Invalid token in identifier list:");
+                    return null;
+                }
+                idAsts.Add(new HelperAst(token));
+
+                if (Lookahead(TokenType.LSquareBracket))
+                {
+                    // parse array node, make as child
+                    TokenStream.Consume(); // '['
+                    var ast = ParseExpressionList1();
+                    Match2(TokenType.RSquareBracket, "variable declaration missing closing ']'");
+                    idAsts.Last().AddChild(ast);
+                }
+
+                if (!Lookahead(TokenType.Comma))
+                    break; // done
+                TokenStream.Consume();
+            } 
+            return Make2(typeof(TypeMemberDefinitionAst), null, idAsts.ToArray());
+
+#else
             return MatchOr(
-                () => MatchSequence(
+            () => MatchSequence(
                     typeof(TypeMemberDefinitionAst),
                     Keep(Match(TokenType.Identifier)),
                     Keep(ParseOptionalArray),
@@ -317,6 +523,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     Keep(ParseOptionalArray)
                     )
             );
+#endif
         }
 
         Ast ParseOptionalArray()
@@ -348,8 +555,51 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         #region Function parsing statements
 
-        Ast ParseFunctionDeclaration()
+        Ast ParseFunctionDeclaration(Token importToken, Token exportToken)
         {
+#if true
+            if (importToken != null && exportToken != null)
+            {
+                ErrorMessage("Function declaration cannot have both import and export");
+                return null;
+            }
+
+            // prototype (ret vals) func name (params)
+            if (Match2(TokenType.OpenParen,"function expected return values in '(' and ')'") != ParseAction.Matched)
+                return null;
+            var returnTypes = ParseReturnTypes();
+            if (Match2(TokenType.CloseParen, "function expected return values in '(' and ')'") != ParseAction.Matched)
+                return null;
+
+            if (!Lookahead(TokenType.Identifier))
+            {
+                ErrorMessage("Expected identifier as function name");
+                return null;
+            }
+            var idToken = TokenStream.Consume();
+
+            if (Match2(TokenType.OpenParen, "function expected parameter values in '(' and ')'") != ParseAction.Matched)
+                return null;
+            var parameters = ParseFunctionParameters();
+            if (Match2(TokenType.CloseParen, "function expected parameter values in '(' and ')'") != ParseAction.Matched)
+                return null;
+
+//            var proto = ParseFunctionPrototype();
+//            if (proto == null)
+//                return null;
+            if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
+                return null;
+            Ast block  = null;
+            if (importToken == null)
+                block = ParseBlock();
+
+            var funcDecl = (FunctionDeclarationAst)Make2(typeof(FunctionDeclarationAst), idToken, returnTypes,parameters, block);
+
+            funcDecl.ImportToken = importToken;
+            funcDecl.ExportToken = exportToken;
+            return funcDecl;
+
+#else
             return MatchOr(
                 () => MatchSequence(
                     typeof(HelperAst),
@@ -365,34 +615,55 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     ParseBlock
                 )
             );
+#endif
         }
 
         Ast ParseFunctionPrototype()
         {
-            return MatchSequence(
-                typeof(FunctionPrototypeAst),
-                Match("("),
-                Keep(ParseReturnTypes),
-                Match(")"),
-                Keep(ParseFunctionName),
-                Match("("),
-                Keep(ParseFunctionParameters),
-                Match(")")
-                );
+            return null;
+//            return MatchSequence(
+//                typeof(FunctionPrototypeAst),
+//                Match("("),
+//                Keep(ParseReturnTypes),
+//                Match(")"),
+//                Keep(ParseFunctionName),
+//                Match("("),
+//                Keep(ParseFunctionParameters),
+//                Match(")")
+//                );
         }
 
         Ast ParseReturnTypes()
         {
-            var ast = MatchOr(
-                ()=>MatchSequence(
-                    typeof(HelperAst),
-                    Keep(ParseType),
-                    Match(","),
-                    ParseReturnTypes
-                    ),
-                ParseType
-            );
-            return ast ?? new HelperAst();
+            var types = new List<Ast>();
+
+            var t = ParseType();
+            while (t != null)
+            { 
+                types.Add(t);
+                if (!Lookahead(TokenType.Comma))
+                    break;
+                TokenStream.Consume();
+                t = ParseType();
+                if (t == null)
+                {
+                    ErrorMessage("Expected type");
+                    return null;
+                }
+            }
+            var h = new HelperAst();
+            h.Children.AddRange(types);
+            return h;
+//            var ast = MatchOr(
+//                ()=>MatchSequence(
+//                    typeof(HelperAst),
+//                    Keep(ParseType),
+//                    Match(","),
+//                    ParseReturnTypes
+//                    ),
+//                ParseType
+//            );
+//            return ast ?? new HelperAst();
         }
 
         Ast ParseFunctionName()
@@ -412,16 +683,36 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseFunctionParameters()
         {
-            return MatchOr(
-                ()=>MatchSequence(
-                    typeof(HelperAst),
-                    Keep(ParseParameter),
-                    Match(","),
-                    Keep(ParseFunctionParameters)
-                    ),
-                ParseParameter,
-                AlwaysMatch
-                );
+            var parameters = new List<Ast>();
+
+            var p = ParseParameter();
+            while (p != null)
+            {
+                parameters.Add(p);
+                if (!Lookahead(TokenType.Comma))
+                    break;
+                TokenStream.Consume();
+                p = ParseParameter();
+                if (p == null)
+                {
+                    ErrorMessage("Expected parameter");
+                    return null;
+                }
+            }
+            var h = new HelperAst();
+            h.Children.AddRange(parameters);
+            return h;
+
+//            return MatchOr(
+//                ()=>MatchSequence(
+//                    typeof(HelperAst),
+//                    Keep(ParseParameter),
+//                    Match(","),
+//                    Keep(ParseFunctionParameters)
+//                    ),
+//                ParseParameter,
+//                AlwaysMatch
+//                );
         }
 
         Ast ParseParameter()
@@ -429,7 +720,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return MatchSequence(
                 typeof(HelperAst),
                 Keep(ParseType),
-                Keep(OneOf("&","")), // optional reference
+                // Keep(OneOf("&","")), // optional reference - todo parse fails
                 Keep(Match(TokenType.Identifier)),
                 Keep(ParseOptionalEmptyArray)
                 );
@@ -439,11 +730,17 @@ namespace Lomont.ClScript.CompilerLib.Parser
         {
             if (TokenStream.Current.TokenType == TokenType.LSquareBracket)
             {
+                TokenStream.Consume();
                 // empty array denoting size
-                return MatchSequence(
+                var ast = MatchSequence(
                     typeof(HelperAst),
                     Keep(ZeroOrMore(Match(",")))
                 );
+                if (TokenStream.Current.TokenType == TokenType.RSquareBracket)
+                    TokenStream.Consume();
+                else
+                    throw new InvalidSyntax("Required ']'");
+                return ast;
             }
             return new HelperAst(); // nothing
         }
@@ -654,7 +951,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             );
         }
 
-        #endregion
+#endregion
 
         Ast ParseExpressionList0()
         {
@@ -663,8 +960,21 @@ namespace Lomont.ClScript.CompilerLib.Parser
             )();
         }
 
+        // one or more expressions, comma separated
         Ast ParseExpressionList1()
         {
+#if true
+            var exprs = new List<Ast>();
+            while (true)
+            {
+                var ast = ParseExpression();
+                exprs.Add(ast);
+                if (!Lookahead(TokenType.Comma))
+                    break;
+                TokenStream.Consume();
+            }
+            return Make2(typeof(ExpressionListAst),null,exprs.ToArray());
+#else
             return MatchOr(
                 ()=>MatchSequence(
                     typeof(HelperAst),
@@ -674,9 +984,10 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     ),
                 Keep(ParseExpression)
                 );
+#endif
         }
 
-        #region Parse Expression
+#region Parse Expression
 
         Ast ParseExpression()
         {
@@ -688,7 +999,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(ParseLogicalANDExpression),
                         Keep(Match("||")),
                         Keep(ParseLogicalORExpression)
@@ -701,7 +1012,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(ParseInclusiveOrExpression),
                         Keep(Match("&&")),
                         Keep(ParseLogicalANDExpression)
@@ -714,7 +1025,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(ParseExclusiveOrExpression),
                         Keep(Match("|")),
                         Keep(ParseInclusiveOrExpression)
@@ -727,7 +1038,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(ParseAndExpression),
                         Keep(Match("&")),
                         Keep(ParseExclusiveOrExpression)
@@ -740,7 +1051,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(EqualityExpression),
                         Keep(Match("&")),
                         Keep(ParseAndExpression)
@@ -753,7 +1064,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(RelationalExpression),
                         Keep(OneOf("==","!=")),
                         Keep(EqualityExpression)
@@ -767,7 +1078,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(ShiftExpression),
                         Keep(OneOf("<=", ">=", "<", ">")),
                         Keep(RelationalExpression)
@@ -781,7 +1092,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(RotateExpression),
                         Keep(OneOf("<<", ">>")),
                         Keep(ShiftExpression)
@@ -794,7 +1105,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(AdditiveExpression),
                         Keep(OneOf("<<<", ">>>")),
                         Keep(RotateExpression)
@@ -807,7 +1118,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(MultiplicativeExpression),
                         Keep(OneOf("+", "-")),
                         Keep(AdditiveExpression)
@@ -820,7 +1131,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(UnaryExpression),
                         Keep(OneOf("*", "/","%")),
                         Keep(MultiplicativeExpression)
@@ -833,7 +1144,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return
                 MatchOr(
                     () => MatchSequence(
-                        typeof(HelperAst),
+                        typeof(ExpressionAst),
                         Keep(OneOf("++","--","+","-","~","!")),
                         Keep(UnaryExpression)
                     ),
@@ -844,7 +1155,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         {
             return
                 MatchSequence(
-                    typeof(HelperAst),
+                    typeof(ExpressionAst),
                     Keep(PrimaryExpression),
                     Keep(Postfix2));
         }
@@ -856,7 +1167,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     ParseFunctionCall,
                     Match(TokenType.Identifier),
                     ()=>MatchSequence(
-                            typeof(HelperAst),
+                            typeof(ExpressionAst),
                             Keep(Match("(")),
                             Keep(ParseExpression),
                             Keep(Match(")"))
@@ -935,11 +1246,11 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 );
         }
 
-        #endregion
+#endregion
 
-        #endregion
+#endregion
 
-        #region Helpers
+#region Helpers
 
         delegate Ast ParseDelegate();
 
@@ -996,6 +1307,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         void PreCheck()
         {
             TokenStream.TakeSnapshot();
+            ignoreErrors.Push(true);
         }
 
         void PostCheck(bool commit)
@@ -1004,6 +1316,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 TokenStream.RollbackSnapshot();
             else
                 TokenStream.CommitSnapshot();
+            ignoreErrors.Pop();
         }
 
         // wrap a token, ast, or other item to keep when parsing
@@ -1119,6 +1432,23 @@ namespace Lomont.ClScript.CompilerLib.Parser
             };
         }
 
+        // return true if the next lookahead has the following tokens, else false
+        // eats no tokens
+        bool Lookahead(params TokenType[] tokenTypes)
+        {
+            PreCheck();
+            var matches = true;
+            for (var i =0; i < tokenTypes.Length && matches; ++i)
+            {
+                var t = tokenTypes[i];
+                matches &= t == TokenStream.Current.TokenType;
+                TokenStream.Consume();
+            }
+            PostCheck(false);
+            return matches;
+        }
+
+
 
         internal class HelperAst : Ast
         {
@@ -1142,7 +1472,144 @@ namespace Lomont.ClScript.CompilerLib.Parser
             }
         }
 
-        #endregion
+#region New helpers - error methods
+        // match sequence of things, if all match, create type, and 
+        // populate with items marked with keep
+        Ast MatchSequence2(Type astType, params ParseAction [] parseActions)
+        {
+            var matched = true;
+            var kept = new List<Token>();
+            for (var i = 0; i < parseActions.Length; ++i)
+            {
+                var action = parseActions[i];
+                switch (action)
+                {
+                    case ParseAction.Matched:
+                        break;
+                    case ParseAction.NotMatched:
+                        matched = false;
+                        break;
+                    case ParseAction.KeepNext:
+                        kept.Add(TokenStream.Peek(-(parseActions.Length-1-i)));
+                        break;
+                    default: throw new InternalFailure($"Unknown parse action {action}");
+                }
+            }
+
+            if (matched)
+            {
+                var ast = (Ast)Activator.CreateInstance(astType);
+                if (kept.Count > 1)
+                    throw new InternalFailure($"MatchSequence2 Only allows 0 or 1 kept items!");
+                if (kept.Any())
+                    ast.Token = kept[0];
+                return ast;
+            }
+            return null;
+        }
+
+        enum ParseAction
+        {
+            Matched,
+            NotMatched,
+            KeepNext
+        }
+
+        // match next token, show error if present on mismatch, eat token
+        // return Matched on match, else NotMatched
+        ParseAction Match2(TokenType tokenType, string errorMessage)
+        {
+            if (TokenStream.Consume().TokenType == tokenType)
+                return ParseAction.Matched;
+            if (!String.IsNullOrEmpty(errorMessage))
+                ErrorMessage(errorMessage);
+            return ParseAction.NotMatched;
+        }
+
+        ParseAction KeepNext()
+        {
+            return ParseAction.KeepNext;
+        }
+
+        Stack<bool> ignoreErrors = new Stack<bool>();
+        // write error message out and current token (position, line)
+        void ErrorMessage(string error)
+        {
+            if (!ignoreErrors.Peek())
+                environment.Output.WriteLine($"ERROR: {error} at {TokenStream.Peek(-1)}");
+        }
+
+        // while next token matches, eat them
+        // return Matched
+        ParseAction MatchZeroOrMore2(TokenType tokenType)
+        {
+            while (TokenStream.Current.TokenType == tokenType)
+                TokenStream.Consume();
+            return ParseAction.Matched;
+        }
+        // while next token matches, eat them
+        // return Matched if at least one
+        ParseAction MatchOneOrMore2(TokenType tokenType, string errorString)
+        {
+            var matched = TokenStream.Current.TokenType == tokenType;
+            while (TokenStream.Current.TokenType == tokenType)
+                TokenStream.Consume();
+            if (matched)
+                return ParseAction.Matched;
+            ErrorMessage(errorString);
+            return ParseAction.NotMatched;
+        }
+
+        // parse one or more of the following, add to parent if not null.
+        // if none present, show error message
+        // return Matched if some present, else NotMatched
+        ParseAction OneOrMore2(Ast parent, ParseDelegate parseFunc, string errorMessage)
+        {
+            Ast ast = null;
+            var someSeen = false;
+            do
+            {
+                PreCheck();
+                ast = parseFunc();
+                PostCheck(ast != null);
+                if (ast != null)
+                {
+                    someSeen = true;
+                    parent?.Children.Add(ast);
+                }
+            } while (ast != null);
+            if (someSeen)
+                return ParseAction.Matched;
+            ErrorMessage(errorMessage);
+            return ParseAction.NotMatched;
+        }
+
+        // make an ast node of the given type, set the token, and add any children
+        Ast Make2(Type astType, Token token, params Ast[] children)
+        {
+            var ast = (Ast) Activator.CreateInstance(astType);
+            ast.Token = token;
+            foreach (var c in children)
+            {
+                if (c != null)
+                    ast.Children.Add(c);
+            }
+            return ast;
+        }
+
+
+        // if next token is given kind, consume and return, else return null
+        Token TryMatch(TokenType tokenType)
+        {
+            if (Lookahead(tokenType))
+                return TokenStream.Consume();
+            return null;
+        }
+
+#endregion
+
+
+#endregion
 
         public List<Token> GetTokens()
         {

@@ -45,8 +45,11 @@
     <Compile Include="AST\DeclarationsAst.cs" />
     <Compile Include="AST\EnumAst.cs" />
     <Compile Include="AST\EnumValueAst.cs" />
+    <Compile Include="AST\ExpressionAst.cs" />
+    <Compile Include="AST\ExpressionListAst.cs" />
     <Compile Include="AST\ForStatementAst.cs" />
     <Compile Include="AST\FunctionCallAst.cs" />
+    <Compile Include="AST\FunctionDeclarationAst.cs" />
     <Compile Include="AST\FunctionPrototypeAst.cs" />
     <Compile Include="AST\IfStatementAst.cs" />
     <Compile Include="AST\ImportAst.cs" />
@@ -55,7 +58,6 @@
     <Compile Include="AST\TypeAst.cs" />
     <Compile Include="AST\TypeDeclarationAst.cs" />
     <Compile Include="AST\TypeMemberDefinitionAst.cs" />
-    <Compile Include="AST\VariableDeclarationAst.cs" />
     <Compile Include="AST\VariableDefinitionAst.cs" />
     <Compile Include="AST\VariableTypeAndNamesAst.cs" />
     <Compile Include="AST\WhileStatementAst.cs" />

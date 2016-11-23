@@ -98,7 +98,6 @@ Comment Line   = '//'
 ! import: file, variable, func
 ! export: variable, func
 <Optional Export> ::= 'export' | ! variable, func
-<Optional Import> ::= 'import' | ! variable, func, file
 <Optional Const>  ::= 'const'  | ! variable
                    
 
