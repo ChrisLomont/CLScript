@@ -1,3 +1,7 @@
+
+i32 a = 1+2*3&4/5>>6<<7||9
+
+
 /*
 import "bob"   
 
@@ -12,9 +16,9 @@ enum Tokdog
    val = 1234+12
    val1
    val3 = val1
-   */
+ 
    
-/*
+
 type type1
    i32 a
    r32 c,d,e
@@ -43,14 +47,25 @@ bool d = 1==1
 i32 a[3] = 1,2,3
 */
 
-import (i32,r32,myType) importFunc(r32 val, bool f[], i32 jj[,,])
-
-//export () setA()
-//   a = 1
-   
 /*
+export () setA()
+   i32 a = 1
+   i32 b = 2
+   a += 1
+   b %= 2
+
+(i32) func(i32 a)
+   a = 0
+   return 1
+
+import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
+
+   
+
+[Attrib "attrib1" "attrib2"]
 (i32,bool) func1(i32 bob[,], r32 fred)
    i32 a = 1234
+   i32 b
    i32 b[10]
    bool c = true
    for i in b
@@ -61,9 +76,9 @@ import (i32,r32,myType) importFunc(r32 val, bool f[], i32 jj[,,])
       a = 11
    else
       a = 10
-//   return a
-*/
-   
+     
+   return a
+*/ 
  
    
 /*  

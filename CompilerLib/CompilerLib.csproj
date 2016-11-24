@@ -55,6 +55,9 @@
     <Compile Include="AST\ImportAst.cs" />
     <Compile Include="AST\JumpStatementAst.cs" />
     <Compile Include="AST\ModuleAst.cs" />
+    <Compile Include="AST\ParameterAst.cs" />
+    <Compile Include="AST\ParameterListAst.cs" />
+    <Compile Include="AST\ReturnValuesAst.cs" />
     <Compile Include="AST\TypeAst.cs" />
     <Compile Include="AST\TypeDeclarationAst.cs" />
     <Compile Include="AST\TypeMemberDefinitionAst.cs" />

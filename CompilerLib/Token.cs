@@ -34,6 +34,7 @@ namespace Lomont.ClScript.CompilerLib
 
     public enum TokenType
     {
+        None,
         Unknown, 
         
         // keywords
