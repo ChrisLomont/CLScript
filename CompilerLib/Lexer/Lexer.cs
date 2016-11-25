@@ -125,7 +125,6 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 new MatchKeyword(TokenType.XorEq, "^="),
                 new MatchKeyword(TokenType.AndEq, "&="),
                 new MatchKeyword(TokenType.OrEq, "|="),
-                new MatchKeyword(TokenType.NotEq, "!="),
                 new MatchKeyword(TokenType.ModEq, "%="),
                 new MatchKeyword(TokenType.RightShiftEq, ">>="),
                 new MatchKeyword(TokenType.LeftShiftEq, "<<="),
@@ -142,6 +141,9 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 new MatchKeyword(TokenType.LeftRotate, "<<<"),
                 new MatchKeyword(TokenType.LogicalOr, "||"),
                 new MatchKeyword(TokenType.LogicalAnd, "&&"),
+                new MatchKeyword(TokenType.Increment, "++"),
+                new MatchKeyword(TokenType.Decrement, "--"),
+
 
                 // single char
                 new MatchKeyword(TokenType.LSquareBracket, "["),

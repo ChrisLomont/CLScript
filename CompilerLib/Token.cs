@@ -119,7 +119,6 @@ namespace Lomont.ClScript.CompilerLib
         XorEq,
         AndEq,
         OrEq,
-        NotEq,
         ModEq,
         RightShiftEq,
         LeftShiftEq,
@@ -136,6 +135,8 @@ namespace Lomont.ClScript.CompilerLib
         LeftRotate,
         LogicalOr,
         LogicalAnd,
+        Increment,
+        Decrement,
 
         // formatting/blocks
         EndOfLine,
