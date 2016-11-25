@@ -6,11 +6,7 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
-    class AssignStatementAst :Ast
+    class IdListAst : Ast
     {
-        public AssignStatementAst(Token token)
-        {
-            Token = token;
-        }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Parser
@@ -122,7 +123,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             var constToken = TryMatch(TokenType.Const);
 
             if (!Lookahead("", TokenType.OpenParen))
-                return ParseVariableDefinition(importToken, exportToken, constToken);
+                return ParseVariableDefinition(importToken, exportToken, constToken,true);
             if (constToken != null)
             {
                 ErrorMessage("Unknown 'const' token");
@@ -163,7 +164,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             var id = TokenStream.Consume();
 
             var ast = ParseList<AttributeAst>(TokenType.StringLiteral, "Attribute expected string literal", 0,
-                (a, n) => n.AddChild(a), TokenType.None);
+                (a, n) => n.AddChild(new LiteralAst(a.Token)), TokenType.None);
             if (ast == null)
                 return null;
             ast.Token = id;
@@ -256,7 +257,6 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 var ast = TryParse(ParseTypeMember);
                 if (ast == null)
                     break;
-                MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)");
                 memberAsts.Add(ast);
             }
 
@@ -273,21 +273,11 @@ namespace Lomont.ClScript.CompilerLib.Parser
         }
 
         Ast ParseTypeMember()
-        {
-            var typeAst = ParseType();
-            if (typeAst == null)
-            {
-                ErrorMessage("Expected type");
-                return null;
-            }
-            var idList = ParseIdList();
-            if (idList == null)
-                return null;
-
-            return Make2(typeof(TypeMemberDefinitionAst), typeAst.Token, idList.Children.ToArray());
+        { // todo - compact...
+            return ParseVariableDefinition(null,null,null,false);
         }
 
-        Ast ParseVariableDefinition(Token importToken, Token exportToken, Token constToken)
+        Ast ParseVariableDefinition(Token importToken, Token exportToken, Token constToken, bool allowAssignment)
         {
             if (importToken != null && exportToken != null)
             {
@@ -295,38 +285,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             }
 
-            var typeAndNames = ParseVariableTypeAndNames();
-            if (typeAndNames == null)
-            {
-                ErrorMessage("Expected variable type and names");
-                return null;
-            }
 
-            Ast va = null;
-            if (Lookahead("", TokenType.Equals))
-            {
-                TokenStream.Consume();
-                va = ParseExpressionList(1);
-                if (va == null)
-                {
-                    ErrorMessage("Expected variable initializer");
-                    return null;
-                }
-            }
-
-            if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
-                return null;
-            var vd = new VariableDefinitionAst();
-            vd.AddChild(typeAndNames);
-            vd.AddChild(va);
-            vd.ImportToken = importToken;
-            vd.ExportToken = exportToken;
-            vd.ConstToken = constToken;
-            return vd;
-        }
-
-        Ast ParseVariableTypeAndNames()
-        {
             var typeAst = ParseType();
             if (typeAst == null)
             {
@@ -336,8 +295,35 @@ namespace Lomont.ClScript.CompilerLib.Parser
             var idList = ParseIdList();
             if (idList == null)
                 return null;
-            return Make2(typeof(VariableTypeAndNamesAst), typeAst.Token, idList);
+
+            Ast assignments = null;
+            if (allowAssignment)
+            {
+                if (Lookahead("", TokenType.Equals))
+                {
+                    TokenStream.Consume();
+                    assignments = ParseExpressionList(1);
+                    if (assignments == null)
+                    {
+                        ErrorMessage("Expected variable initializer");
+                        return null;
+                    }
+                }
+            }
+
+            if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
+                return null;
+            var vd = new VariableDefinitionAst();
+            vd.Token = typeAst.Token;
+            vd.AddChild(idList);
+            if (assignments != null)
+                vd.AddChild(assignments);
+            vd.ImportToken = importToken;
+            vd.ExportToken = exportToken;
+            vd.ConstToken = constToken;
+            return vd;
         }
+
 
         Ast ParseIdList()
         {
@@ -350,7 +336,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     ErrorMessage("Invalid token in identifier list:");
                     return null;
                 }
-                idAsts.Add(new HelperAst(token));
+                idAsts.Add(new IdentifierAst(token));
 
                 if (Lookahead("", TokenType.LSquareBracket))
                 {
@@ -367,7 +353,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     break; // done
                 TokenStream.Consume();
             }
-            return Make2(typeof(TypeMemberDefinitionAst), null, idAsts.ToArray());
+            return Make2(typeof(IdListAst), null, idAsts.ToArray());
 
         }
 
@@ -384,7 +370,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             // prototype (ret vals) func name (params)
             if (Match2(TokenType.OpenParen, "function expected return values in '(' and ')'") != ParseAction.Matched)
                 return null;
-            var returnTypes = ParseList<ReturnValuesAst>(ParseType, "Expected type", 0, (a, n) => n.Types.Add(a.Token),
+            var returnTypes = ParseList<ReturnValuesAst>(ParseType, "Expected type", 0, (a, n) => n.AddChild(a),
                 TokenType.Comma);
             if (Match2(TokenType.CloseParen, "function expected return values in '(' and ')'") != ParseAction.Matched)
                 return null;
@@ -435,64 +421,6 @@ namespace Lomont.ClScript.CompilerLib.Parser
             )
                 return new HelperAst(TokenStream.Consume());
             return null;
-        }
-
-        // generic list parsing function
-        // parses items, with optional delimiter tokens
-        // TokenType none means no delimiter
-        Ast ParseList<T>(
-            TokenType matchToken,
-            string errorMessage, int minItemCount, Action<Ast, T> storeItem,
-            TokenType delimiter
-        ) where T : Ast, new()
-        {
-            return ParseList<T>(
-                Match(matchToken),
-                errorMessage, minItemCount, storeItem, delimiter
-            );
-        }
-
-        // generic list parsing function
-        // parses items, with optional delimiter tokens
-        // TokenType none means no delimiter
-        Ast ParseList<T>(
-            ParseDelegate itemFunc,
-            string errorMessage,
-            int minItemCount,
-            Action<Ast, T> storeItem,
-            TokenType delimiter
-        ) where T : Ast, new()
-        {
-            var items = new List<Ast>();
-
-            var item = TryParse(itemFunc);
-            while (item != null)
-            {
-                items.Add(item);
-                if (delimiter != TokenType.None)
-                {
-                    // check delimiter
-                    if (!Lookahead("", delimiter))
-                        break;
-                    TokenStream.Consume();
-                }
-                item = TryParse(itemFunc);
-                if (item == null && delimiter != TokenType.None)
-                {
-                    // was a delimiter, needs to be another item
-                    ErrorMessage(errorMessage);
-                    return null;
-                }
-            }
-            if (items.Count < minItemCount)
-            {
-                ErrorMessage(errorMessage);
-                return null;
-            }
-            var h = new T();
-            foreach (var t in items)
-                storeItem(t, h);
-            return h;
         }
 
 
@@ -565,7 +493,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (IsJumpToken())
                 return ParseJumpStatement();
 
-            var vd = TryParse(() => ParseVariableDefinition(null, null, null));
+            var vd = TryParse(() => ParseVariableDefinition(null, null, null,true));
             if (vd != null) return vd;
             return ParseAssignStatement();
 
@@ -610,8 +538,8 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                 return null;
 
-            var h = new HelperAst(op);
-            h.AddChild(assignItems);
+            var h = new AssignStatementAst(op);
+            h.Children.AddRange(assignItems.Children.ToArray());
             if (exprList != null)
                 h.AddChild(exprList);
             return h;
@@ -634,38 +562,41 @@ namespace Lomont.ClScript.CompilerLib.Parser
             // ID[10].f
             // ID.a
             // ID[10,b].a[10]...
-            var ast = new HelperAst();
-            while (true)
+            // ID[1][2]
+            var ast = new AssignItemAst();
+
+            // initial item
+            if (!Lookahead("Expected identifier in assignment", TokenType.Identifier))
+                return null;
+            ast.Token = TokenStream.Consume();
+
+            while (NextTokenOneOf(TokenType.LSquareBracket,TokenType.Dot))
             {
-                if (!Lookahead("Expected identifier in assignment", TokenType.Identifier))
-                    return null;
-                var id = TokenStream.Consume();
-                Ast array = null;
                 if (Lookahead("", TokenType.LSquareBracket))
                 {
                     TokenStream.Consume();
-                    array = ParseExpressionList(1);
-                    if (array == null)
+                    var expressionList = ParseExpressionList(1);
+                    if (expressionList == null)
                     {
                         ErrorMessage("Expected expressions in array");
                         return null;
                     }
                     if (Match2(TokenType.RSquareBracket, "Missing array closure ']'") != ParseAction.Matched)
                         return null;
+                    var arr = new ArrayAst();
+                    arr.AddChild(expressionList);
+                    ast.AddChild(arr);
                 }
-                Token dot = null;
-                if (Lookahead("", TokenType.Dot))
-                    dot = TokenStream.Consume();
 
-                // save any needed, then loop if necessary
-                ast.AddChild(new HelperAst(id));
-                if (array != null)
-                    ast.AddChild(array);
-                if (dot != null)
-                    ast.AddChild(new HelperAst(dot));
-
-                if (array == null && dot == null)
-                    break;
+                else if (Lookahead("", TokenType.Dot))
+                {
+                    TokenStream.Consume();
+                    // needs identifier
+                    if (!Lookahead("Expected identifier in assignment", TokenType.Identifier))
+                        return null;
+                    var id = TokenStream.Consume();
+                    ast.AddChild(new DotAst(id));
+                }
             }
             return ast;
         }
@@ -738,9 +669,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
         {
             if (IsJumpToken())
             {
-                var t = TokenStream.Current.TokenValue;
-                var h = new HelperAst(TokenStream.Consume());
-                if (t == "return")
+                var t = TokenStream.Consume();
+                var h = new JumpStatementAst(t);
+                if (t.TokenType == TokenType.Return)
                 {
                     var retval = ParseExpressionList(0);
                     if (retval != null)
@@ -784,8 +715,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (eolFirst)
                 expr = ParseAssignItem();
             else
-                expr = ParseList<HelperAst>(ParseExpression, "Expected expression", 2, (a, n) => n.Children.Add(a),
-                    TokenType.Comma);
+                expr = ParseExpressionList(2, 3);
             if (expr == null)
             {
                 ErrorMessage("Invalid 'for' limits");
@@ -797,9 +727,15 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ErrorMessage("Too many expressions in 'for' limits");
                 return null;
             }
+            if (MatchOneOrMore2(TokenType.EndOfLine, "Expected") != ParseAction.Matched)
+                return null;
+            Ast block;
+            if ((block = ParseOrError(ParseBlock, "Expected block after 'for'")) == null)
+                return null;
 
             var forAst = new ForStatementAst {Token = id};
             forAst.Children.Add(expr);
+            forAst.AddChild(block);
             return forAst;
         }
 
@@ -816,12 +752,11 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s) after 'while' expression") !=
                 ParseAction.Matched)
                 return null;
-            var block = ParseBlock();
-            if (block == null)
-            {
-                ErrorMessage("Expected block after 'while'");
+
+            Ast block;
+            if ((block = ParseOrError(ParseBlock, "Expected block after 'while'")) == null)
                 return null;
-            }
+
             var whileStatement = new WhileStatementAst();
             whileStatement.Children.Add(expr);
             whileStatement.Children.Add(block);
@@ -966,7 +901,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 "relational",
                 EqualityExpression,
                 "equality",
-                TokenType.Equals, TokenType.NotEqual
+                TokenType.Compare, TokenType.NotEqual
             );
         }
 
@@ -1099,7 +1034,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (ast != null)
                 return ast;
             if (Lookahead("", TokenType.Identifier))
-                return new HelperAst(TokenStream.Consume());
+                return new IdentifierAst(TokenStream.Consume());
             // must be ( expr )
             if (Match2(TokenType.OpenParen, "expected '(' followed by expression") != ParseAction.Matched)
                 return null;
@@ -1367,6 +1302,78 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return TokenStream.Consume();
             return null;
         }
+
+        // todo - rewrite above with this - smaller, cleaner code
+        Ast ParseOrError(ParseDelegate func, string errorMessage)
+        {
+            var ast = func();
+            if (ast == null)
+            {
+                if (!String.IsNullOrEmpty(errorMessage))
+                    ErrorMessage(errorMessage);
+                return null;
+            }
+            return ast;
+        }
+        // generic list parsing function
+        // parses items, with optional delimiter tokens
+        // TokenType none means no delimiter
+        Ast ParseList<T>(
+            TokenType matchToken,
+            string errorMessage, int minItemCount, Action<Ast, T> storeItem,
+            TokenType delimiter
+        ) where T : Ast, new()
+        {
+            return ParseList<T>(
+                Match(matchToken),
+                errorMessage, minItemCount, storeItem, delimiter
+            );
+        }
+
+        // generic list parsing function
+        // parses items, with optional delimiter tokens
+        // TokenType none means no delimiter
+        Ast ParseList<T>(
+            ParseDelegate itemFunc,
+            string errorMessage,
+            int minItemCount,
+            Action<Ast, T> storeItem,
+            TokenType delimiter
+        ) where T : Ast, new()
+        {
+            var items = new List<Ast>();
+
+            var item = TryParse(itemFunc);
+            while (item != null)
+            {
+                items.Add(item);
+                if (delimiter != TokenType.None)
+                {
+                    // check delimiter
+                    if (!Lookahead("", delimiter))
+                        break;
+                    TokenStream.Consume();
+                }
+                item = TryParse(itemFunc);
+                if (item == null && delimiter != TokenType.None)
+                {
+                    // was a delimiter, needs to be another item
+                    ErrorMessage(errorMessage);
+                    return null;
+                }
+            }
+            if (items.Count < minItemCount)
+            {
+                ErrorMessage(errorMessage);
+                return null;
+            }
+            var h = new T();
+            foreach (var t in items)
+                storeItem(t, h);
+            return h;
+        }
+
+
 
         #endregion
 

@@ -6,7 +6,11 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
-    class TypeMemberDefinitionAst : Ast
+    class IdentifierAst : Ast
     {
+        public IdentifierAst(Token token)
+        {
+            Token = token;
+        }
     }
 }

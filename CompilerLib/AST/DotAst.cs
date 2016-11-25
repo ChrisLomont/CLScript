@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
-    class AssignStatementAst :Ast
+    class DotAst :Ast
     {
-        public AssignStatementAst(Token token)
+        public DotAst(Token token)
         {
             Token = token;
         }

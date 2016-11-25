@@ -1,8 +1,4 @@
 
-// i32 a = 1+2*3&4/5>>6<<7||9+f(1,2,a+b)
-
-/*
-
 import "bob"   
 
 module Monkeyballs
@@ -16,23 +12,21 @@ enum Tokdog
    val = 1234+12
    val1
    val3 = val1
- 
-   
+    
 
 type type1
    i32 a
    r32 c,d,e
    bool flags[10,2]
    
+[AttribT "attrib1" "attrib2"]
 type type2
 
    type1 items[2],c
    
    bool live
-*/   
-   
 
-
+[AttribV "attrib1" "attrib2"]
 i32 a1
 i32 a2,a3
 import i32 a,b
@@ -46,22 +40,24 @@ bool c = 1>0
 bool d = 1==1
 i32 a[3] = 1,2,3
 
-
-/*
+(i32,r32,myType) testFunc(i32 a, r32 b, bool arr[,])
+   return 0,1.0,bob
+  
 export () setA()
    i32 a = 1
    i32 b = 2
-   a += 1
+   b,c[1,a].fred[1][4] /= f(10)
+   mtType c[10,2]
+   a,b += 1,4
    b %= 2
 
 (i32) func(i32 a)
-   a = 0
-   return 1
+   i32 b = 1+2*3&4/5>>6<<7||9+f(1,2,a+b)   
+   a += b
+   return a/b
 
 import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
-
-   
-
+  
 [Attrib "attrib1" "attrib2"]
 (i32,bool) func1(i32 bob[,], r32 fred)
    i32 a = 1234
@@ -78,10 +74,8 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
       a = 10
      
    return a
-*/ 
- 
    
-/*  
+   
 () func2()
    i32 a,b = 1,2*3
    a = 10+b
@@ -96,8 +90,7 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
       a -= b
    a = 1
    f2(a,b)
-   //a = f2(a,b) // todo - this needs to be fixed!
-   //a,b = b,a
+   a = f2(a,b) // todo - this needs to be fixed!
+   a,b = b,a
    
    
-  */
