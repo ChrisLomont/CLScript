@@ -1,8 +1,8 @@
 
-i32 a = 1+2*3&4/5>>6<<7||9
-
+// i32 a = 1+2*3&4/5>>6<<7||9+f(1,2,a+b)
 
 /*
+
 import "bob"   
 
 module Monkeyballs
@@ -22,7 +22,7 @@ enum Tokdog
 type type1
    i32 a
    r32 c,d,e
-   bool flags[10]
+   bool flags[10,2]
    
 type type2
 
@@ -32,7 +32,7 @@ type type2
 */   
    
 
-/*
+
 i32 a1
 i32 a2,a3
 import i32 a,b
@@ -45,7 +45,7 @@ i32 a = 10
 bool c = 1>0
 bool d = 1==1
 i32 a[3] = 1,2,3
-*/
+
 
 /*
 export () setA()

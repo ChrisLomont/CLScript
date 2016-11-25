@@ -6,12 +6,11 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
-    class FunctionCallAst :Ast
+    class LiteralAst : Ast
     {
-        public FunctionCallAst(Token identifier, Ast parameters)
+        public LiteralAst(Token token)
         {
-            Token = identifier;
-            Children.AddRange(parameters.Children);
+            Token = token;
         }
     }
 }

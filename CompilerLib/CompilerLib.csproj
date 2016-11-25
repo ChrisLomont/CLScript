@@ -54,6 +54,7 @@
     <Compile Include="AST\IfStatementAst.cs" />
     <Compile Include="AST\ImportAst.cs" />
     <Compile Include="AST\JumpStatementAst.cs" />
+    <Compile Include="AST\LiteralAst.cs" />
     <Compile Include="AST\ModuleAst.cs" />
     <Compile Include="AST\ParameterAst.cs" />
     <Compile Include="AST\ParameterListAst.cs" />
