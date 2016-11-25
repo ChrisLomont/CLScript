@@ -47,10 +47,8 @@ namespace Lomont.ClScript.CompilerLib
                 }
                 parser = new Parser.Parser(lexer);
                 SyntaxTree = parser.Parse(environment);
-                //if (SyntaxTree != null)
-                //{
-                //    SyntaxTree = ProcessTree(SyntaxTree, environment);
-                //}
+                if (SyntaxTree != null)
+                    SyntaxTree = ProcessTree(SyntaxTree, environment);
             }
             catch (Exception ex)
             {
@@ -66,9 +64,7 @@ namespace Lomont.ClScript.CompilerLib
         // do compiler tree transforms
         Ast ProcessTree(Ast ast, Environment environment)
         {
-            //var pass1 = new CollapseHelperVisitor(environment);
-            //pass1.Start(ast);
-
+            BuildSymbolTableVisitor.BuildTable(ast,environment);
             return ast;
         }
 

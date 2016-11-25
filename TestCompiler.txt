@@ -1,4 +1,24 @@
+module A
+i32 a
+() fa(i32 v)
+   a = v+1
 
+module B
+i32 a
+() fa(i32 v)
+   a = v*2
+   
+module C
+
+[Entry]
+(i32) test()
+   A:fa(3) // module syntax
+   B:fa(4)
+   return A:a + B:a
+ 
+
+
+/*
 import "bob"   
 
 module Monkeyballs
@@ -92,5 +112,5 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
    f2(a,b)
    a = f2(a,b) // todo - this needs to be fixed!
    a,b = b,a
-   
+*/   
    
