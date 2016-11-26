@@ -1,3 +1,17 @@
+i32 bob[1,2],dd
+
+type myType 
+   i32 a,fred[10,1]
+   
+(i32,r32,string,myType) ff(i32 b[,], myType c)
+   r32 f,b = 1.0,1.1
+   return 0,1.0
+   
+   
+r32 b[1,2],c[1],d
+
+i32 a
+
 module A
 i32 a
 () fa(i32 v)
@@ -17,8 +31,6 @@ module C
    return A:a + B:a
  
 
-
-/*
 import "bob"   
 
 module Monkeyballs
@@ -33,7 +45,12 @@ enum Tokdog
    val1
    val3 = val1
     
-
+enum Enum1
+   val1 = 0b0001
+   val2 = 0b0010
+   
+Enum1 a = Enum1.val1 | Enum2.val2   
+   
 type type1
    i32 a
    r32 c,d,e
@@ -71,9 +88,10 @@ export () setA()
    a,b += 1,4
    b %= 2
 
-(i32) func(i32 a)
+(i32) func(i32 a, string b)
    i32 b = 1+2*3&4/5>>6<<7||9+f(1,2,a+b)   
    a += b
+   fc("this is the end")
    return a/b
 
 import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
@@ -112,5 +130,4 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
    f2(a,b)
    a = f2(a,b) // todo - this needs to be fixed!
    a,b = b,a
-*/   
-   
+ 
