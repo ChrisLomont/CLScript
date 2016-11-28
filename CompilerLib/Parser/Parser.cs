@@ -220,7 +220,11 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return null;
         }
 
-        Ast ParseType()
+        /// <summary>
+        /// Get token with type, else null
+        /// </summary>
+        /// <returns></returns>
+        Token ParseType()
         {
             var t = TokenStream.Current;
             if (
@@ -231,7 +235,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 t.TokenType == TokenType.Char ||
                 t.TokenType == TokenType.Identifier
             )
-                return new TypeAst(TokenStream.Consume());
+                return TokenStream.Consume();
             return null;
         }
 
@@ -285,13 +289,13 @@ namespace Lomont.ClScript.CompilerLib.Parser
             }
 
 
-            var typeAst = ParseType();
-            if (typeAst == null)
+            var typeToken = ParseType();
+            if (typeToken == null)
             {
                 ErrorMessage("Expected type");
                 return null;
             }
-            var idList = ParseIdList(typeAst.Token,true,true);
+            var idList = ParseIdList(typeToken, true,true);
             if (idList == null)
                 return null;
 
@@ -372,14 +376,16 @@ namespace Lomont.ClScript.CompilerLib.Parser
             var idAsts = new List<Ast>();
             while (true)
             {
-                Token type = type1;
+                Token typeToken = type1;
                 if (type1 == null)
                 {
                     // read a type
-                    Ast tAst;
-                    if ((tAst = ParseOrError(ParseType,"Expected type")) == null)
+                    typeToken = ParseType();
+                    if (typeToken == null)
+                    {
+                        ErrorMessage("Expected type");
                         return null;
-                    type = tAst.Token;
+                    }
                 }
                 Token nameToken = null;
                 if (requireNames)
@@ -391,7 +397,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                         return null;
                     }
                 }
-                idAsts.Add(new TypedItemAst(nameToken,type));
+                idAsts.Add(new TypedItemAst(nameToken,typeToken));
 
                 if (Lookahead("", TokenType.LSquareBracket))
                 {
@@ -500,64 +506,6 @@ namespace Lomont.ClScript.CompilerLib.Parser
             )
                 return new HelperAst(TokenStream.Consume());
             return null;
-        }
-
-
-        Ast ParseParameter()
-        {
-            var type = ParseType();
-            if (type == null)
-            {
-                ErrorMessage("Expected type for parameter");
-                return null;
-            }
-
-            // todo - add optional address here for ref vars
-            // Keep(OneOf("&","")), // optional reference
-
-            if (!Lookahead("Expected identifier after parameter type", TokenType.Identifier))
-                return null;
-            var id = TokenStream.Consume();
-            var arrDepth = 0;
-            if (Lookahead("", TokenType.LSquareBracket))
-            {
-                // todo
-                arrDepth = ParseOptionalEmptyArrayDepth();
-                if (arrDepth < 0)
-                {
-                    ErrorMessage("Error in array parsing");
-                    return null;
-                }
-            }
-
-            return new ParameterAst(type.Token, id); // todo , arrDepth);
-
-
-        }
-
-        // return array count, or -1 on error
-        // parses [,,,] 
-        int ParseOptionalEmptyArrayDepth()
-        {
-            var count = 0;
-            if (TokenStream.Current.TokenType == TokenType.LSquareBracket)
-            {
-                TokenStream.Consume();
-                count = 1;
-                while (Lookahead("", TokenType.Comma))
-                {
-                    TokenStream.Consume();
-                    count++;
-                }
-                if (TokenStream.Current.TokenType == TokenType.RSquareBracket)
-                    TokenStream.Consume();
-                else
-                {
-                    ErrorMessage("Array closing required ']'");
-                    return -1;
-                }
-            }
-            return count;
         }
 
         Ast ParseStatement()

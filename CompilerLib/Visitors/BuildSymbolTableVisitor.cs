@@ -46,8 +46,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 AddVariableDeclSymbols((VariableDefinitionAst)node, state);
             else if (node is FunctionDeclarationAst)
                 AddFunctionDeclSymbols((FunctionDeclarationAst)node, state);
-            else if (node is ParameterAst)
-                state.table.AddSymbol(node, state.scope.Scope, ((ParameterAst)node).Name.TokenValue,GetParameterType(node as ParameterAst));
+//            else if (node is ParameterAst)
+//                state.table.AddSymbol(node, state.scope.Scope, ((ParameterAst)node).Name.TokenValue,GetParameterType(node as ParameterAst));
             else if (node is EnumAst)
                 state.table.AddSymbol(node, state.scope.Scope, ((EnumAst) node).Name, SymbolType.Enum);
             else if (node is EnumValueAst)
@@ -66,15 +66,15 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             state.scope.Exit(node);
         }
 
-        static List<SymbolType> GetParameterType(ParameterAst item)
-        {
-            var types = new List<SymbolType>();
-            types.Add(SymbolTable.GetSymbolType(item.Type.TokenType));
-            var arrayDepth = 0; // todo item.ArrayDepth;
-            if (arrayDepth > 0)
-                types.Add((SymbolType)((int)SymbolType.Array) + arrayDepth - 1);
-            return types;
-        }
+//        static List<SymbolType> GetParameterType(ParameterAst item)
+//        {
+//            var types = new List<SymbolType>();
+//            types.Add(SymbolTable.GetSymbolType(item.Type.TokenType));
+//            var arrayDepth = 0; // todo item.ArrayDepth;
+//            if (arrayDepth > 0)
+//                types.Add((SymbolType)((int)SymbolType.Array) + arrayDepth - 1);
+//            return types;
+//        }
 
         static void AddFunctionDeclSymbols(FunctionDeclarationAst node, SymbolBuilderState state)
         {
@@ -84,9 +84,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // get parameter types
             foreach (var item in node.Children[1].Children)
             {
-                if (!(item is ParameterAst))
-                    throw new InternalFailure("Symbol builder expected ParameterAst in return types");
-                types.AddRange(GetParameterType(item as ParameterAst));
+//                if (!(item is ParameterAst))
+//                    throw new InternalFailure("Symbol builder expected ParameterAst in return types");
+//                types.AddRange(GetParameterType(item as ParameterAst));
             }
             
             // add the function mapping
@@ -95,9 +95,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // get return types
             foreach (var item in node.Children[0].Children)
             {
-                if (!(item is TypeAst))
-                    throw new InternalFailure("Symbol builder expected TypeAst in return types");
-                types.Add(SymbolTable.GetSymbolType(item.Token.TokenType));
+//                if (!(item is TypeAst))
+//                    throw new InternalFailure("Symbol builder expected TypeAst in return types");
+//                types.Add(SymbolTable.GetSymbolType(item.Token.TokenType));
             }
 
             // add item
