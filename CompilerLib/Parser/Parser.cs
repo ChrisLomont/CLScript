@@ -257,7 +257,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 var ast = TryParse(ParseTypeMember);
                 if (ast == null)
                     break;
-                memberAsts.Add(ast);
+                memberAsts.AddRange(ast.Children[0].Children);
             }
 
             if (Match2(TokenType.Undent, "type values don't end") == ParseAction.NotMatched)
@@ -292,7 +292,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ErrorMessage("Expected type");
                 return null;
             }
-            var idList = ParseIdList();
+            var idList = ParseIdList(typeAst.Token,true,true);
             if (idList == null)
                 return null;
 
@@ -314,39 +314,84 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                 return null;
             var vd = new VariableDefinitionAst();
-            vd.Token = typeAst.Token;
-            vd.AddChild(idList);
+            vd.Children.Add(idList);
             if (assignments != null)
                 vd.AddChild(assignments);
-            vd.ImportToken = importToken;
-            vd.ExportToken = exportToken;
-            vd.ConstToken = constToken;
+            foreach (var item1 in idList.Children)
+            {
+                var item = item1 as IdentifierAst;
+                if (item == null)
+                    throw new InternalFailure("Expected IdAst children");
+                item.ImportToken = importToken;
+                item.ExportToken = exportToken;
+                item.ConstToken = constToken;
+            }
             return vd;
         }
 
+        Ast ParseArray(bool requireSizes)
+        {
+            if (!Lookahead("Expected '[' for array", TokenType.LSquareBracket))
+                return null;
+            TokenStream.Consume(); // '['
 
-        Ast ParseIdList()
+            var arrayAst = new ArrayAst();
+
+            // parse array node, make as child
+            if (requireSizes)
+            {
+                var exprList = ParseExpressionList(1);
+                if (exprList == null)
+                {
+                    ErrorMessage("Expected expression for array sizes");
+                    return null;
+                }
+                arrayAst.Children.AddRange(exprList.Children);
+            }
+            else
+            {
+                var count = 1;
+                while (Lookahead("", TokenType.Comma))
+                {
+                    TokenStream.Consume();
+                    count++;
+                }
+                for (var i = 0; i < count; ++i)
+                    arrayAst.Children.Add(new HelperAst()); // todo - 
+            }
+
+            if (Match2(TokenType.RSquareBracket, "variable declaration missing closing ']'") !=
+                ParseAction.Matched)
+                return null;
+            return arrayAst;
+        }
+
+        Ast ParseIdList(Token type, bool requireNames, bool requireSizes)
         {
             var idAsts = new List<Ast>();
             while (true)
             {
-                var token = TokenStream.Consume();
-                if (token.TokenType != TokenType.Identifier)
+                Token nameToken = null;
+                if (requireNames)
                 {
-                    ErrorMessage("Invalid token in identifier list:");
-                    return null;
+                    nameToken = TokenStream.Consume();
+                    if (nameToken.TokenType != TokenType.Identifier)
+                    {
+                        ErrorMessage("Invalid token in identifier list:");
+                        return null;
+                    }
                 }
-                idAsts.Add(new IdentifierAst(token));
+                idAsts.Add(new IdentifierAst(nameToken,type));
 
                 if (Lookahead("", TokenType.LSquareBracket))
                 {
-                    // parse array node, make as child
-                    TokenStream.Consume(); // '['
-                    var ast = ParseExpressionList(1);
-                    Match2(TokenType.RSquareBracket, "variable declaration missing closing ']'");
-                    var arr = new ArrayAst();
-                    arr.Children.AddRange(ast.Children);
-                    idAsts.Last().AddChild(arr);
+                    var arrAst = ParseArray(requireSizes);
+                    if (arrAst == null)
+                    {
+                        ErrorMessage("Expected array");
+                        return null;
+                    }
+                    idAsts.Last().AddChild(arrAst);
                 }
 
                 if (!Lookahead("", TokenType.Comma))
@@ -439,19 +484,25 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (!Lookahead("Expected identifier after parameter type", TokenType.Identifier))
                 return null;
             var id = TokenStream.Consume();
-            var arrDepth = ParseOptionalEmptyArrayDepth();
-            if (arrDepth < 0)
+            var arrDepth = 0;
+            if (Lookahead("", TokenType.LSquareBracket))
             {
-                ErrorMessage("Error in array parsing");
-                return null;
+                // todo
+                arrDepth = ParseOptionalEmptyArrayDepth();
+                if (arrDepth < 0)
+                {
+                    ErrorMessage("Error in array parsing");
+                    return null;
+                }
             }
 
-            return new ParameterAst(type.Token, id, arrDepth);
+            return new ParameterAst(type.Token, id); // todo , arrDepth);
 
 
         }
 
         // return array count, or -1 on error
+        // parses [,,,] 
         int ParseOptionalEmptyArrayDepth()
         {
             var count = 0;
@@ -1010,13 +1061,8 @@ namespace Lomont.ClScript.CompilerLib.Parser
             {
                 if (Lookahead("", TokenType.LSquareBracket))
                 {
-                    TokenStream.Consume(); // '['
-                    var ids = ParseExpressionList(1);
-                    if (Match2(TokenType.RSquareBracket, "Expected closing ']'") != ParseAction.Matched)
-                        return null;
-                    var arr = new ArrayAst();
-                    arr.AddChild(ids);
-                    suffixes.Add(arr);
+                    var arrAst = ParseArray(true);
+                    suffixes.Add(arrAst);
                 }
                 else if (Lookahead("", TokenType.Dot))
                 {
@@ -1048,7 +1094,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (ast != null)
                 return ast;
             if (Lookahead("", TokenType.Identifier))
-                return new IdentifierAst(TokenStream.Consume());
+                return new IdentifierAst(TokenStream.Consume(),new Token(TokenType.Asterix,"TODO")); // todo - parse better
             // must be ( expr )
             if (Match2(TokenType.OpenParen, "expected '(' followed by expression") != ParseAction.Matched)
                 return null;

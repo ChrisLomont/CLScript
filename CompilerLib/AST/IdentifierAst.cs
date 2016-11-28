@@ -8,11 +8,24 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     class IdentifierAst : Ast
     {
-        public IdentifierAst(Token token)
+        public Token ImportToken { get; set; }
+        public Token ExportToken { get; set; }
+        public Token ConstToken { get; set; }
+
+        public IdentifierAst(Token nameToken, Token baseTypeToken)
         {
-            Token = token;
+            Token = nameToken;
+            BaseTypeToken = baseTypeToken;
         }
 
+        public Token BaseTypeToken;
+
         public string Name => Token.TokenValue;
+
+        public override string ToString()
+        {
+            return this.GetType().Name + " " +
+                $"({Name}:{BaseTypeToken.TokenValue}) {ImportToken} {ExportToken} {ConstToken} {Token}";
+        }
     }
 }

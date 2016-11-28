@@ -70,7 +70,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             var types = new List<SymbolType>();
             types.Add(SymbolTable.GetSymbolType(item.Type.TokenType));
-            var arrayDepth = item.ArrayDepth;
+            var arrayDepth = 0; // todo item.ArrayDepth;
             if (arrayDepth > 0)
                 types.Add((SymbolType)((int)SymbolType.Array) + arrayDepth - 1);
             return types;
@@ -106,7 +106,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         static void AddVariableDeclSymbols(VariableDefinitionAst node, SymbolBuilderState state)
         {
-            var ids = node.Children[0] as IdListAst;
+            throw new InternalFailure("Not implemented");
+            var ids = node.Children[0] as VariableDefinitionAst;// todo - was IdListAst;
             if (ids == null)
                 throw new InternalFailure("variable ids not in correct location");
             foreach (var id in ids.Children)
