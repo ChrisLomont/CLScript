@@ -53,7 +53,8 @@
     <Compile Include="AST\FunctionCallAst.cs" />
     <Compile Include="AST\FunctionDeclarationAst.cs" />
     <Compile Include="AST\IdentifierAst.cs" />
-    <Compile Include="AST\IdListAst.cs" />
+    <Compile Include="AST\TypedItemAst.cs" />
+    <Compile Include="AST\TypedItemsAst.cs" />
     <Compile Include="AST\IfStatementAst.cs" />
     <Compile Include="AST\ImportAst.cs" />
     <Compile Include="AST\JumpStatementAst.cs" />

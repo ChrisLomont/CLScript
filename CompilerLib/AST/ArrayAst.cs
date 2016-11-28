@@ -8,5 +8,9 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     class ArrayAst : Ast
     {
+        /// <summary>
+        /// Dimension of the array
+        /// </summary>
+        public int Dimension => Children.Count;
     }
 }

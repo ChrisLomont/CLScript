@@ -6,10 +6,16 @@ type testT
    r32 b
    string fred
 
-(i32,r32) func(i32 a[,,], r32 b[])
+(i32,r32[]) func(i32 a[,,], r32 b[],string c)
+    i32 a,b = 1,2
     return 0,0.0
 
-/*
+() func2()
+   return
+   
+import (i32[]) func3(i32 a[,],i32 b)
+
+
 type myType 
    i32 a,fred[10,1]
    
@@ -139,4 +145,3 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
    f2(a,b)
    a = f2(a,b) // todo - this needs to be fixed!
    a,b = b,a 
-*/

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Parser
@@ -319,7 +318,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 vd.AddChild(assignments);
             foreach (var item1 in idList.Children)
             {
-                var item = item1 as IdentifierAst;
+                var item = item1 as TypedItemAst;
                 if (item == null)
                     throw new InternalFailure("Expected IdAst children");
                 item.ImportToken = importToken;
@@ -366,11 +365,22 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return arrayAst;
         }
 
-        Ast ParseIdList(Token type, bool requireNames, bool requireSizes)
+        // parse comma separated list of types with optional ids, array sizes, etc
+        // if type is null, types are read from the list
+        Ast ParseIdList(Token type1, bool requireNames, bool requireSizes)
         {
             var idAsts = new List<Ast>();
             while (true)
             {
+                Token type = type1;
+                if (type1 == null)
+                {
+                    // read a type
+                    Ast tAst;
+                    if ((tAst = ParseOrError(ParseType,"Expected type")) == null)
+                        return null;
+                    type = tAst.Token;
+                }
                 Token nameToken = null;
                 if (requireNames)
                 {
@@ -381,7 +391,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                         return null;
                     }
                 }
-                idAsts.Add(new IdentifierAst(nameToken,type));
+                idAsts.Add(new TypedItemAst(nameToken,type));
 
                 if (Lookahead("", TokenType.LSquareBracket))
                 {
@@ -398,11 +408,37 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     break; // done
                 TokenStream.Consume();
             }
-            return Make2(typeof(IdListAst), null, idAsts.ToArray());
+            return Make2(typeof(TypedItemsAst), null, idAsts.ToArray());
 
         }
 
         #region Function parsing statements
+
+        // parse parenthesized list of variables (type, name optional)
+        List<Ast> FunctionHelper(string itemName, bool requireNames)
+        {
+            // prototype (ret vals) func name (params)
+            if (Match2(TokenType.OpenParen, $"function expected {itemName} in '(' and ')'") != ParseAction.Matched)
+                return null;
+
+            Ast items = null;
+            if (!Lookahead("", TokenType.CloseParen))
+            {
+                // get types
+                items = ParseIdList(null, requireNames, false);
+                if (items == null)
+                {
+                    ErrorMessage($"Expected {itemName}");
+                    return null;
+                }
+            }
+
+            if (Match2(TokenType.CloseParen, $"function expected {itemName} in '(' and ')'") != ParseAction.Matched)
+                return null;
+            if (items == null)
+                return new List<Ast>();
+            return items.Children;
+        }
 
         Ast ParseFunctionDeclaration(Token importToken, Token exportToken)
         {
@@ -412,13 +448,11 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             }
 
-            // prototype (ret vals) func name (params)
-            if (Match2(TokenType.OpenParen, "function expected return values in '(' and ')'") != ParseAction.Matched)
+            var returnTypes = new ReturnValuesAst();
+            var retItems = FunctionHelper("return values",false);
+            if (retItems == null)
                 return null;
-            var returnTypes = ParseList<ReturnValuesAst>(ParseType, "Expected type", 0, (a, n) => n.AddChild(a),
-                TokenType.Comma);
-            if (Match2(TokenType.CloseParen, "function expected return values in '(' and ')'") != ParseAction.Matched)
-                return null;
+            returnTypes.Children.AddRange(retItems);
 
             if (!Lookahead("Expected identifier as function name", TokenType.Identifier))
                 return null;
@@ -431,15 +465,15 @@ namespace Lomont.ClScript.CompilerLib.Parser
             }
             var idToken = name.Token;
 
-            if (Match2(TokenType.OpenParen, "function expected parameter values in '(' and ')'") != ParseAction.Matched)
+            var parameters = new ParameterListAst();
+            var pItems = FunctionHelper("parameters",true);
+            if (pItems == null)
                 return null;
-            var parameters = ParseList<ParameterListAst>(ParseParameter, "Expected parameter", 0,
-                (a, n) => n.AddChild(a), TokenType.Comma);
-            if (Match2(TokenType.CloseParen, "function expected parameter values in '(' and ')'") != ParseAction.Matched)
-                return null;
+            parameters.Children.AddRange(pItems);
 
             if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                 return null;
+
             Ast block = null;
             if (importToken == null)
                 block = ParseBlock();
@@ -1094,7 +1128,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (ast != null)
                 return ast;
             if (Lookahead("", TokenType.Identifier))
-                return new IdentifierAst(TokenStream.Consume(),new Token(TokenType.Asterix,"TODO")); // todo - parse better
+                return new IdentifierAst(TokenStream.Consume());
             // must be ( expr )
             if (Match2(TokenType.OpenParen, "expected '(' followed by expression") != ParseAction.Matched)
                 return null;

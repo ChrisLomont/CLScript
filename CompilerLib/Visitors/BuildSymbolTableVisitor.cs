@@ -112,9 +112,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 throw new InternalFailure("variable ids not in correct location");
             foreach (var id in ids.Children)
             {
-                if (!(id is IdentifierAst))
+                if (!(id is TypedItemAst))
                     throw new InternalFailure("Expected IdentifierAst");
-                var symbol = state.table.AddSymbol(node, state.scope.Scope, (id as IdentifierAst).Name, SymbolTable.GetSymbolType(node.Token.TokenType));
+                var symbol = state.table.AddSymbol(node, state.scope.Scope, (id as TypedItemAst).Name, SymbolTable.GetSymbolType(node.Token.TokenType));
                 if (id.Children.Any())
                 {
                     if (id.Children.Count != 1 || !(id.Children[0] is ArrayAst))

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
-    class IdListAst :Ast
+    class TypedItemsAst :Ast
     {
     }
 }
