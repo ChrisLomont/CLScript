@@ -46,6 +46,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 AddTypedItem((TypedItemAst)node, state);
             else if (node is FunctionDeclarationAst)
                 AddFunctionDeclSymbols((FunctionDeclarationAst)node, state);
+            else if (node is ReturnValuesAst)
+                return; // these have no names, not added to symbol table
+            else if (node is ParameterListAst)
+                return; // these added to symbol table during block
             else if (node is EnumAst)
                 state.mgr.AddSymbol(node, ((EnumAst)node).Name, SymbolType.Enum);
             else if (node is EnumValueAst)
@@ -55,19 +59,75 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is ModuleAst)
                 state.mgr.AddSymbol(node, ((ModuleAst) node).Name, SymbolType.Module);
 
-            // todo - handle: attribute, import, export, const
-            // todo - handle block - if func or for, add the variable in it
+            // todo - handle: attribute?
 
             state.mgr.EnterAst(node);
+
+            // if we added a block, see if some special variables need added
+            if (node is BlockAst)
+                AddBlock(node as BlockAst, state);
+
             // recurse
             foreach (var child in node.Children)
                 BuildSymbolTable(child, state);
+
+
             state.mgr.ExitAst(node);
+        }
+
+        // add special vars for a block: function parameters and for loop variables
+        static void AddBlock(BlockAst node, SymbolBuilderState state)
+        {
+            if (node.Parent is ForStatementAst)
+            {
+                var varName = (node.Parent as ForStatementAst).Token.TokenValue;
+                state.mgr.AddSymbol(node.Parent, varName, SymbolType.ToBeResolved);
+            }
+            else if (node.Parent is FunctionDeclarationAst)
+            {
+                var par = (node.Parent as FunctionDeclarationAst).Children[1] as ParameterListAst;
+                if (par == null) 
+                    throw new InternalFailure("Function mismatch in symbol builder AddBlock");
+                foreach (var item in par.Children)
+                    AddTypedItem(item as TypedItemAst, state);
+            }
+            
         }
 
         static void AddFunctionDeclSymbols(FunctionDeclarationAst node, SymbolBuilderState state)
         {
-            // todo
+            var s = state.mgr.AddSymbol(node, node.Name, SymbolType.Function);
+            if (node.Children.Count < 2 || !(node.Children[0] is ReturnValuesAst) || !(node.Children[1] is ParameterListAst))
+                throw new InternalFailure("Function internal format mismatched");
+            s.ReturnType = ParseTypelist(node.Children[0].Children,state);
+            s.ParamsType = ParseTypelist(node.Children[1].Children,state);
+            if (node.ImportToken != null)
+                s.Attrib |= SymbolAttribute.Import;
+            if (node.ExportToken != null)
+                s.Attrib |= SymbolAttribute.Export;
+        }
+
+        static string ParseTypelist(List<Ast> nodes, SymbolBuilderState state)
+        {
+            var sb = new StringBuilder();
+            for (var i =0; i < nodes.Count; ++i)
+            {
+                var node = nodes[i];
+                var tItem = node as TypedItemAst;
+                if (tItem == null)
+                    throw new InternalFailure("Id List internals mismatched");
+                sb.Append(tItem.BaseTypeToken.TokenValue);
+
+                if (tItem.Children.Any())
+                { // for now, only support one array
+                    if (tItem.Children.Count != 1 || !(tItem.Children[0] is ArrayAst))
+                        throw new InternalFailure("Only one child array supported");
+                    sb.Append($"[{new string(',',tItem.Children[0].Children.Count-1)}]");
+                }
+                if (i < nodes.Count-1)
+                    sb.Append(" * ");
+            }
+            return sb.ToString();
         }
 
         static void AddTypedItem(TypedItemAst node, SymbolBuilderState state)
@@ -76,6 +136,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var s = state.mgr.AddSymbol(node, node.Name, symbolType);
             if (symbolType == SymbolType.UserType)
                 s.AddUserType(node.BaseTypeToken.TokenValue);
+
+            if (node.ConstToken != null)
+                s.Attrib |= SymbolAttribute.Const;
+            if (node.ImportToken != null)
+                s.Attrib |= SymbolAttribute.Import;
+            if (node.ExportToken != null)
+                s.Attrib |= SymbolAttribute.Export;
+
             if (node.Children.Any())
             { // for now, only support one array
                 if (node.Children.Count != 1 || !(node.Children[0] is ArrayAst))

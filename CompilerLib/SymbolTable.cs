@@ -137,7 +137,12 @@ namespace Lomont.ClScript.CompilerLib
         {
             var item = stack.Pop();
             if (item.Item2)
-                tables.Pop();
+            {
+                var tbl = tables.Pop();
+                // remove empty tables
+                if (!tbl.Entries.Any() && !tbl.Children.Any())
+                    tbl.Parent.Children.Remove(tbl);
+            }
         }
 
         #endregion
@@ -209,6 +214,11 @@ namespace Lomont.ClScript.CompilerLib
         // if greater than zero, is array dimension
         public int ArraySize { get; private set; }
 
+        public string ReturnType { get; set; }
+        public string ParamsType { get; set; }
+
+        public SymbolAttribute Attrib { get; set; } = SymbolAttribute.None;
+
         /// <summary>
         /// If symbol type is user type, and this is a variable, then this is the text of the type
         /// </summary>
@@ -225,6 +235,11 @@ namespace Lomont.ClScript.CompilerLib
         {
             get
             {
+                if (Type == SymbolType.Function)
+                {
+                    return $"{Type} {ParamsType} => {ReturnType}";
+                }
+
                 if (ArraySize == 0 && UserType == null)
                     return Type.ToString();
                 var arrayText = "";
@@ -232,13 +247,19 @@ namespace Lomont.ClScript.CompilerLib
                     arrayText = "[" + new string(',',ArraySize-1) + "]";
                 var userText = !String.IsNullOrEmpty(UserType) ? $" of {UserType}" : "";
                 return $"{Type}{arrayText}{userText}";
-
             }
         }
 
         public override string ToString()
         {
-            return $"T {Name,-15} {TypeText,-15}";//,{Node}";
+            var name = Name;
+            if ((Attrib & SymbolAttribute.Const) != SymbolAttribute.None)
+                name += "+c";
+            if ((Attrib & SymbolAttribute.Export) != SymbolAttribute.None)
+                name += "+e";
+            if ((Attrib & SymbolAttribute.Import) != SymbolAttribute.None)
+                name += "+i";
+            return $"T {name,-15} {TypeText,-15}";//,{Node}";
         }
 
         public void AddArraySize(int arraySize)
@@ -250,6 +271,15 @@ namespace Lomont.ClScript.CompilerLib
         {
             UserType = userType;
         }
+    }
+
+    [Flags]
+    public enum SymbolAttribute
+    {
+        None   = 0x0000,
+        Const  = 0x0001,
+        Import = 0x0002,
+        Export = 0x0004
     }
 
     public enum SymbolType

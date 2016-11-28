@@ -1,3 +1,10 @@
+(i32,r32[],testT) func(i32 a[,,], r32 b[],string c)
+    i32 a2,b2 = 1,2
+    for i in 0,1
+       i32 b
+       r32 c
+       a2 += i
+    return 0,0.0
 
 i32 bob[1,2],dd=1
 
@@ -5,19 +12,17 @@ type testT
    i32 a,b[10,a]
    r32 b
    string fred
+   funk t,s[3,4]
    
 testT newItems,items[1]
 
-(i32,r32[],testT) func(i32 a[,,], r32 b[],string c)
-    i32 a,b = 1,2
-    return 0,0.0
+
 
 () func2()
    return
    
 import (i32[]) func3(i32 a[,],i32 b)
 
-/*
 
 type myType 
    i32 a,fred[10,1]
@@ -68,7 +73,7 @@ enum Enum1
    val2 = 0b0010
    
 Enum1 a = Enum1.val1 | Enum2.val2   
-   
+
 type type1
    i32 a
    r32 c,d,e
@@ -97,7 +102,7 @@ i32 a[3] = 1,2,3
 
 (i32,r32,myType) testFunc(i32 a, r32 b, bool arr[,])
    return 0,1.0,bob
-  
+
 export () setA()
    i32 a = 1
    i32 b = 2
@@ -148,4 +153,3 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
    f2(a,b)
    a = f2(a,b) // todo - this needs to be fixed!
    a,b = b,a 
-*/
