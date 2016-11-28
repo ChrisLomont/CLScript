@@ -30,12 +30,37 @@ namespace Lomont.ClScript.CompilerLib
 
         public SymbolEntry AddSymbol(Ast node, string name, SymbolType symbolType)
         {
-            var e = Lookup(name);
-            if (e != null)
-                environment.Output.WriteLine($"ERROR: duplicate symbol {name} in {node} and {e.Node}");
-            if (e != null)
-                throw new InvalidSyntax($"Symbol {name} already defined, {e.Node} and {node}");
-            return SymbolTable.AddSymbol(node, Scope, name, symbolType);
+            var symbol = SymbolTable.AddSymbol(node, Scope, name, symbolType);
+            var match = CheckDuplicate(SymbolTable, symbol, true);
+            if (match != null)
+            {
+                var msg = $"Symbol {name} already defined, {symbol.Node} and {match.Item1.Node}";
+                if (!ReferenceEquals(match.Item2, SymbolTable))
+                    environment.Output.WriteLine("WARNING: " + msg);
+                else
+                    throw new InvalidSyntax("ERROR: "+ msg);
+            }
+            return symbol;
+        }
+
+        // return symbol and table where found
+        Tuple<SymbolEntry,SymbolTable> CheckDuplicate(SymbolTable table, SymbolEntry entryToMatch, bool inSameScope)
+        {
+            if (table == null)
+                return null;
+            foreach (var entry in table.Entries)
+            {
+                if (ReferenceEquals(entry, entryToMatch))
+                    continue;
+                if (entry.Name == entryToMatch.Name)
+                    return new Tuple<SymbolEntry, SymbolTable>(entry, table);
+            }
+            return CheckDuplicate(table.Parent, entryToMatch, false);
+
+            //if (entryToMatch.Type == SymbolType.EnumValue)
+            //    return false; // do not recurse
+            //if (entryToMatch.Type == SymbolType.)
+            //    return false; // do not recurse
         }
 
         /// <summary>
@@ -54,7 +79,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <param name="table"></param>
         /// <param name="symbol"></param>
         /// <returns></returns>
-        public SymbolEntry Lookup(SymbolTable table, string symbol)
+        SymbolEntry Lookup(SymbolTable table, string symbol)
         {
             if (table == null) return null;
             foreach (var entry in table.Entries)
