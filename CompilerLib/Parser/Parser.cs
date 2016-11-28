@@ -60,9 +60,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
             TokenStream = new ParseableTokenStream(lexer);
         }
 
-        public Ast Parse(Environment environment)
+        public Ast Parse(Environment environment1)
         {
-            this.environment = environment;
+            environment = environment1;
             ignoreErrors.Clear();
             ignoreErrors.Push(false);
             var ast = ParseDeclarations(); // start here
@@ -84,7 +84,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         {
             var decls = new DeclarationsAst();
 
-            Ast decl = null;
+            Ast decl;
             do
             {
                 decl = ParseDeclaration();
@@ -133,29 +133,29 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseImportDeclaration()
         {
-            return MatchSequence2(
+            return MatchSequence(
                 typeof(ImportAst),
-                Match2(TokenType.Import, "Missing 'import' token"),
+                Match(TokenType.Import, "Missing 'import' token"),
                 KeepNext(),
-                Match2(TokenType.StringLiteral, "Missing import string"),
-                Match2(TokenType.EndOfLine, "Missing EOL")
+                Match(TokenType.StringLiteral, "Missing import string"),
+                Match(TokenType.EndOfLine, "Missing EOL")
             );
         }
 
         Ast ParseModuleDeclaration()
         {
-            return MatchSequence2(
+            return MatchSequence(
                 typeof(ModuleAst),
-                Match2(TokenType.Module, "Missing 'module' token"),
+                Match(TokenType.Module, "Missing 'module' token"),
                 KeepNext(),
-                Match2(TokenType.Identifier, "Missing module identifier"),
-                Match2(TokenType.EndOfLine, "Missing EOL")
+                Match(TokenType.Identifier, "Missing module identifier"),
+                Match(TokenType.EndOfLine, "Missing EOL")
             );
         }
 
         Ast ParseAttributeDeclaration()
         {
-            if (Match2(TokenType.LSquareBracket, "Attribute expected '['") != ParseAction.Matched)
+            if (Match(TokenType.LSquareBracket, "Attribute expected '['") != ParseAction.Matched)
                 return null;
 
             if (!Lookahead("Attribute expected an identifier", TokenType.Identifier))
@@ -168,7 +168,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             ast.Token = id;
 
-            if (Match2(TokenType.RSquareBracket, "Attribute expected ']'") != ParseAction.Matched)
+            if (Match(TokenType.RSquareBracket, "Attribute expected ']'") != ParseAction.Matched)
                 return null;
 
             return ast;
@@ -176,21 +176,21 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseEnumDeclaration()
         {
-            var ast = MatchSequence2(
+            var ast = MatchSequence(
                 typeof(EnumAst),
-                Match2(TokenType.Enum, "Missing 'enum' token"),
+                Match(TokenType.Enum, "Missing 'enum' token"),
                 KeepNext(),
-                Match2(TokenType.Identifier, "Missing enum identifier"),
-                Match2(TokenType.EndOfLine, "Missing EOL"));
+                Match(TokenType.Identifier, "Missing enum identifier"),
+                Match(TokenType.EndOfLine, "Missing EOL"));
             if (ast == null)
                 return null; // nothing more to do
-            MatchZeroOrMore2(TokenType.EndOfLine);
+            MatchZeroOrMore(TokenType.EndOfLine);
 
-            if (Match2(TokenType.Indent, "enum missing values") == ParseAction.NotMatched)
+            if (Match(TokenType.Indent, "enum missing values") == ParseAction.NotMatched)
                 return null;
-            if (OneOrMore2(ast, ParseEnumValue, "enum missing values") == ParseAction.NotMatched)
+            if (OneOrMore(ast, ParseEnumValue, "enum missing values") == ParseAction.NotMatched)
                 return null;
-            if (Match2(TokenType.Undent, "enum values don't end") == ParseAction.NotMatched)
+            if (Match(TokenType.Undent, "enum values don't end") == ParseAction.NotMatched)
                 return null;
 
             return ast;
@@ -205,16 +205,16 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 TokenStream.Consume(); // '='
                 var ast = ParseExpression();
                 if (ast == null) return null;
-                if (MatchOneOrMore2(TokenType.EndOfLine, "enum value missing EOL") != ParseAction.Matched)
+                if (MatchOneOrMore(TokenType.EndOfLine, "enum value missing EOL") != ParseAction.Matched)
                     return null;
-                return Make2(typeof(EnumValueAst), id, ast);
+                return MakeAst(typeof(EnumValueAst), id, ast);
             }
             else if (Lookahead("", TokenType.Identifier))
             {
                 var id = TokenStream.Consume();
-                if (MatchOneOrMore2(TokenType.EndOfLine, "enum value missing EOL") != ParseAction.Matched)
+                if (MatchOneOrMore(TokenType.EndOfLine, "enum value missing EOL") != ParseAction.Matched)
                     return null;
-                return Make2(typeof(EnumValueAst), id);
+                return MakeAst(typeof(EnumValueAst), id);
             }
             ErrorMessage("Cannot parse enum value");
             return null;
@@ -241,15 +241,15 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseTypeDeclaration()
         {
-            if (Match2(TokenType.Type, "Missing 'type' token") != ParseAction.Matched)
+            if (Match(TokenType.Type, "Missing 'type' token") != ParseAction.Matched)
                 return null;
             if (!Lookahead("Missing type identifier", TokenType.Identifier))
                 return null;
             var idToken = TokenStream.Consume();
-            if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
+            if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                 return null;
 
-            if (Match2(TokenType.Indent, "type missing values") == ParseAction.NotMatched)
+            if (Match(TokenType.Indent, "type missing values") == ParseAction.NotMatched)
                 return null;
 
             var memberAsts = new List<Ast>();
@@ -263,7 +263,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 memberAsts.AddRange(ast.Children[0].Children);
             }
 
-            if (Match2(TokenType.Undent, "type values don't end") == ParseAction.NotMatched)
+            if (Match(TokenType.Undent, "type values don't end") == ParseAction.NotMatched)
                 return null;
 
             if (!memberAsts.Any())
@@ -272,7 +272,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             }
 
-            return Make2(typeof(TypeDeclarationAst), idToken, memberAsts.ToArray());
+            return MakeAst(typeof(TypeDeclarationAst), idToken, memberAsts.ToArray());
         }
 
         Ast ParseTypeMember()
@@ -314,7 +314,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 }
             }
 
-            if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
+            if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                 return null;
             var vd = new VariableDefinitionAst();
             vd.Children.Add(idList);
@@ -363,7 +363,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     arrayAst.Children.Add(new HelperAst()); // todo - 
             }
 
-            if (Match2(TokenType.RSquareBracket, "variable declaration missing closing ']'") !=
+            if (Match(TokenType.RSquareBracket, "variable declaration missing closing ']'") !=
                 ParseAction.Matched)
                 return null;
             return arrayAst;
@@ -414,7 +414,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     break; // done
                 TokenStream.Consume();
             }
-            return Make2(typeof(TypedItemsAst), null, idAsts.ToArray());
+            return MakeAst(typeof(TypedItemsAst), null, idAsts.ToArray());
 
         }
 
@@ -424,7 +424,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         List<Ast> FunctionHelper(string itemName, bool requireNames)
         {
             // prototype (ret vals) func name (params)
-            if (Match2(TokenType.OpenParen, $"function expected {itemName} in '(' and ')'") != ParseAction.Matched)
+            if (Match(TokenType.OpenParen, $"function expected {itemName} in '(' and ')'") != ParseAction.Matched)
                 return null;
 
             Ast items = null;
@@ -439,7 +439,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 }
             }
 
-            if (Match2(TokenType.CloseParen, $"function expected {itemName} in '(' and ')'") != ParseAction.Matched)
+            if (Match(TokenType.CloseParen, $"function expected {itemName} in '(' and ')'") != ParseAction.Matched)
                 return null;
             if (items == null)
                 return new List<Ast>();
@@ -477,7 +477,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             parameters.Children.AddRange(pItems);
 
-            if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
+            if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                 return null;
 
             Ast block = null;
@@ -485,7 +485,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 block = ParseBlock();
 
             var funcDecl =
-                (FunctionDeclarationAst) Make2(typeof(FunctionDeclarationAst), idToken, returnTypes, parameters, block);
+                (FunctionDeclarationAst) MakeAst(typeof(FunctionDeclarationAst), idToken, returnTypes, parameters, block);
 
             funcDecl.ImportToken = importToken;
             funcDecl.ExportToken = exportToken;
@@ -520,7 +520,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (PredictFunctionCall())
             {
                 var ast = ParseFunctionCall();
-                if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
+                if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                     return null;
                 return ast;
             }
@@ -582,7 +582,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 op = TokenStream.Consume();
             }
 
-            if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
+            if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                 return null;
 
             var h = new AssignStatementAst(op);
@@ -628,7 +628,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                         ErrorMessage("Expected expressions in array");
                         return null;
                     }
-                    if (Match2(TokenType.RSquareBracket, "Missing array closure ']'") != ParseAction.Matched)
+                    if (Match(TokenType.RSquareBracket, "Missing array closure ']'") != ParseAction.Matched)
                         return null;
                     var arr = new ArrayAst();
                     arr.AddChild(expressionList);
@@ -656,7 +656,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             while (true)
             {
 
-                if (Match2(TokenType.If, "Expected 'if' statement") != ParseAction.Matched)
+                if (Match(TokenType.If, "Expected 'if' statement") != ParseAction.Matched)
                     return null;
                 var expr = ParseExpression();
                 if (expr == null)
@@ -664,7 +664,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     ErrorMessage("Expected expression after the 'if'");
                     return null;
                 }
-                if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s) after 'if' expression") !=
+                if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s) after 'if' expression") !=
                     ParseAction.Matched)
                     return null;
                 var block = ParseBlock();
@@ -688,7 +688,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (Lookahead("", TokenType.Else))
             {
                 TokenStream.Consume(); // else
-                if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s) after 'else'") != ParseAction.Matched)
+                if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s) after 'else'") != ParseAction.Matched)
                     return null;
                 finalBlock = ParseBlock();
                 if (finalBlock == null)
@@ -724,7 +724,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     if (retval != null)
                         h.Children.Add(retval);
                 }
-                if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
+                if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                     return null;
                 return h;
             }
@@ -733,12 +733,12 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseForStatement()
         {
-            if (Match2(TokenType.For, "Expected 'for'") != ParseAction.Matched)
+            if (Match(TokenType.For, "Expected 'for'") != ParseAction.Matched)
                 return null;
             if (!Lookahead("Expected identifier after 'for'", TokenType.Identifier))
                 return null;
             var id = TokenStream.Consume();
-            if (Match2(TokenType.In, "Expected 'in' in 'for' statement after identifier") != ParseAction.Matched)
+            if (Match(TokenType.In, "Expected 'in' in 'for' statement after identifier") != ParseAction.Matched)
                 return null;
             // next comes either an array expression, or 2 or 3 expressions comma delimited.
             // to decide, which comes first, ',' or end of line?
@@ -758,7 +758,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 peekIndex++;
             }
 
-            Ast expr = null;
+            Ast expr;
             if (eolFirst)
                 expr = ParseAssignItem();
             else
@@ -774,7 +774,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ErrorMessage("Too many expressions in 'for' limits");
                 return null;
             }
-            if (MatchOneOrMore2(TokenType.EndOfLine, "Expected") != ParseAction.Matched)
+            if (MatchOneOrMore(TokenType.EndOfLine, "Expected") != ParseAction.Matched)
                 return null;
             Ast block;
             if ((block = ParseOrError(ParseBlock, "Expected block after 'for'")) == null)
@@ -788,7 +788,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseWhileStatement()
         {
-            if (Match2(TokenType.While, "Expected 'while'") != ParseAction.Matched)
+            if (Match(TokenType.While, "Expected 'while'") != ParseAction.Matched)
                 return null;
             var expr = ParseExpression();
             if (expr == null)
@@ -796,7 +796,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ErrorMessage("Expected expression following 'while'");
                 return null;
             }
-            if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s) after 'while' expression") !=
+            if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s) after 'while' expression") !=
                 ParseAction.Matched)
                 return null;
 
@@ -812,7 +812,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseBlock()
         {
-            if (Match2(TokenType.Indent, "Expected indented block") != ParseAction.Matched)
+            if (Match(TokenType.Indent, "Expected indented block") != ParseAction.Matched)
                 return null;
 
             var block = ParseList<BlockAst>(ParseStatement, "Expected statement", 1, (a, n) => n.AddChild(a),
@@ -823,9 +823,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             }
             // eat any extra end of lines
-            MatchZeroOrMore2(TokenType.EndOfLine);
+            MatchZeroOrMore(TokenType.EndOfLine);
 
-            if (Match2(TokenType.Undent, "Expected indented block to end") != ParseAction.Matched)
+            if (Match(TokenType.Undent, "Expected indented block to end") != ParseAction.Matched)
                 return null;
             return block;
         }
@@ -1078,7 +1078,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (Lookahead("", TokenType.Identifier))
                 return new IdentifierAst(TokenStream.Consume());
             // must be ( expr )
-            if (Match2(TokenType.OpenParen, "expected '(' followed by expression") != ParseAction.Matched)
+            if (Match(TokenType.OpenParen, "expected '(' followed by expression") != ParseAction.Matched)
                 return null;
             ast = ParseExpression();
             if (ast == null)
@@ -1086,12 +1086,12 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ErrorMessage("Expected expression after '('");
                 return null;
             }
-            if (Match2(TokenType.CloseParen, "expected ')' following expression") != ParseAction.Matched)
+            if (Match(TokenType.CloseParen, "expected ')' following expression") != ParseAction.Matched)
                 return null;
             return ast;
         }
 
-        static TokenType[] literalTokenTypes =
+        static readonly TokenType[] LiteralTokenTypes =
         {
             TokenType.BinaryLiteral, TokenType.HexadecimalLiteral, TokenType.DecimalLiteral,
             TokenType.StringLiteral, TokenType.CharacterLiteral, TokenType.FloatLiteral,
@@ -1100,7 +1100,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast LiteralExpression()
         {
-            if (NextTokenOneOf(literalTokenTypes))
+            if (NextTokenOneOf(LiteralTokenTypes))
                 return new LiteralAst(TokenStream.Consume());
             return null;
         }
@@ -1108,18 +1108,18 @@ namespace Lomont.ClScript.CompilerLib.Parser
         Ast ParseFunctionCall()
         {
             Ast idAst;
-            if ((idAst = ParseOrError(ParseScopedID, "Expected function call")) == null)
+            if ((idAst = ParseOrError(ParseScopedId, "Expected function call")) == null)
                 return null;
             if (!Lookahead("Expected '(' for function call",TokenType.OpenParen))
                 return null;
             TokenStream.Consume(); // '('
             var parameters = ParseExpressionList(0);
-            if (Match2(TokenType.CloseParen, "Expected ')' to close function call") != ParseAction.Matched)
+            if (Match(TokenType.CloseParen, "Expected ')' to close function call") != ParseAction.Matched)
                 return null;
             return new FunctionCallAst(idAst.Token, parameters);
         }
 
-        Ast ParseScopedID()
+        Ast ParseScopedId()
         {
             return ParseList<HelperAst>(TokenType.Identifier, "Expected identifier", 
                 1, 
@@ -1166,21 +1166,6 @@ namespace Lomont.ClScript.CompilerLib.Parser
             else
                 TokenStream.CommitSnapshot();
             ignoreErrors.Pop();
-        }
-
-        // todo remove
-        ParseDelegate Match(TokenType tokenType)
-        {
-            return () =>
-            {
-                if (TokenStream.Current.TokenType == tokenType)
-                {
-                    var h = new HelperAst(TokenStream.Current);
-                    TokenStream.Consume();
-                    return h;
-                }
-                return null;
-            };
         }
 
         // return true if the next lookahead has the following tokens, else false
@@ -1231,7 +1216,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         // match sequence of things, if all match, create type, and 
         // populate with items marked with keep
-        Ast MatchSequence2(Type astType, params ParseAction[] parseActions)
+        Ast MatchSequence(Type astType, params ParseAction[] parseActions)
         {
             var matched = true;
             var kept = new List<Token>();
@@ -1257,7 +1242,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             {
                 var ast = (Ast) Activator.CreateInstance(astType);
                 if (kept.Count > 1)
-                    throw new InternalFailure($"MatchSequence2 Only allows 0 or 1 kept items!");
+                    throw new InternalFailure($"MatchSequence Only allows 0 or 1 kept items!");
                 if (kept.Any())
                     ast.Token = kept[0];
                 return ast;
@@ -1274,7 +1259,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         // match next token, show error if present on mismatch, eat token
         // return Matched on match, else NotMatched
-        ParseAction Match2(TokenType tokenType, string errorMessage)
+        ParseAction Match(TokenType tokenType, string errorMessage)
         {
             if (TokenStream.Consume().TokenType == tokenType)
                 return ParseAction.Matched;
@@ -1298,16 +1283,15 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         // while next token matches, eat them
         // return Matched
-        ParseAction MatchZeroOrMore2(TokenType tokenType)
+        void MatchZeroOrMore(TokenType tokenType)
         {
             while (TokenStream.Current.TokenType == tokenType)
                 TokenStream.Consume();
-            return ParseAction.Matched;
         }
 
         // while next token matches, eat them
         // return Matched if at least one
-        ParseAction MatchOneOrMore2(TokenType tokenType, string errorString)
+        ParseAction MatchOneOrMore(TokenType tokenType, string errorString)
         {
             var matched = TokenStream.Current.TokenType == tokenType;
             while (TokenStream.Current.TokenType == tokenType)
@@ -1321,9 +1305,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
         // parse one or more of the following, add to parent if not null.
         // if none present, show error message
         // return Matched if some present, else NotMatched
-        ParseAction OneOrMore2(Ast parent, ParseDelegate parseFunc, string errorMessage)
+        ParseAction OneOrMore(Ast parent, ParseDelegate parseFunc, string errorMessage)
         {
-            Ast ast = null;
+            Ast ast;
             var someSeen = false;
             do
             {
@@ -1343,7 +1327,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         }
 
         // make an ast node of the given type, set the token, and add any children
-        Ast Make2(Type astType, Token token, params Ast[] children)
+        Ast MakeAst(Type astType, Token token, params Ast[] children)
         {
             var ast = (Ast) Activator.CreateInstance(astType);
             ast.Token = token;
@@ -1376,6 +1360,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             }
             return ast;
         }
+
         // generic list parsing function
         // parses items, with optional delimiter tokens
         // TokenType none means no delimiter
@@ -1385,11 +1370,23 @@ namespace Lomont.ClScript.CompilerLib.Parser
             TokenType delimiter
         ) where T : Ast, new()
         {
-            return ParseList<T>(
-                Match(matchToken),
+            ParseDelegate tokenMatcher = () =>
+            {
+                if (TokenStream.Current.TokenType == matchToken)
+                {
+                    var h = new HelperAst(TokenStream.Current);
+                    TokenStream.Consume();
+                    return h;
+                }
+                return null;
+            };
+
+            return ParseList(
+                tokenMatcher,
                 errorMessage, minItemCount, storeItem, delimiter
             );
         }
+
 
         // generic list parsing function
         // parses items, with optional delimiter tokens
