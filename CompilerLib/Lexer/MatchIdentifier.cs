@@ -15,7 +15,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
         }
         bool IsIdFollow(char ch)
         {
-            return Char.IsLetter(ch) || Char.IsDigit(ch) || ch == '_' || ch == ':';
+            return Char.IsLetter(ch) || Char.IsDigit(ch) || ch == '_';
         }
 
         protected override Token IsMatchImpl(CharacterStream characterStream)

@@ -12,5 +12,7 @@ namespace Lomont.ClScript.CompilerLib.AST
         {
             Token = token;
         }
+
+        public string Name => Token.TokenValue;
     }
 }

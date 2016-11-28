@@ -13,8 +13,6 @@ namespace Lomont.ClScript.CompilerLib.AST
 
         public Token Token { get; set; }
 
-        public SymbolTable SymbolTable { get; set; }
-
         public Ast Parent { get; set; }
 
         public Ast()

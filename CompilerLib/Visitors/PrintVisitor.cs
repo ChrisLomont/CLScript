@@ -37,14 +37,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 indent += "| ";
             }
             output.WriteLine(ast.ToString());
-            if (ast.SymbolTable != null)
-            {
-                output.WriteLine("**************************************");
-                foreach (var s in ast.SymbolTable.Entries)
-                    output.WriteLine(s);
-                output.WriteLine("**************************************");
-            }
-
             for (var i = 0; i < ast.Children.Count; i++)
                 Visit(ast.Children[i],indent, i == ast.Children.Count - 1);
 

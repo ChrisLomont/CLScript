@@ -9,5 +9,6 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     class ModuleAst :Ast
     {
+        public string Name => Token.TokenValue;
     }
 }

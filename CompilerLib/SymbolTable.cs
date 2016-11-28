@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.ServiceModel;
 using System.Text;
@@ -10,21 +11,7 @@ namespace Lomont.ClScript.CompilerLib
 {
     public class SymbolTable
     {
-        public Ast Node { get; set; }
-
-        // disallow external creation
-        SymbolTable(Ast node)
-        {
-            Node = node;
-        }
-
-        static public SymbolTable Create(SymbolTable parent, Ast node)
-        {
-            return new SymbolTable(node) {Parent = parent};
-        }
-
         public List<SymbolEntry> Entries { get;  } = new List<SymbolEntry>();
-        public SymbolTable Parent { get; set; }
 
         public SymbolEntry Lookup(string moduleName, string name)
         {
@@ -36,16 +23,22 @@ namespace Lomont.ClScript.CompilerLib
             return null;
         }
 
-        public SymbolEntry AddSymbol(Ast node, string moduleName, string name, SymbolType symbolType)
+        public SymbolEntry AddSymbol(Ast node, string scope, string name, List<SymbolType> symbolTypes)
         {
-            var e = Lookup(moduleName, name);
+            var entry = new SymbolEntry(node, scope, name, symbolTypes);
+            Entries.Add(entry);
+
+            //var e = Lookup(scope, name);
+            //todo - error on dups, etc.
             //if (e != null)
             //    throw new InvalidSyntax($"Symbol {moduleName}:{name} already defined, {e.Node} and {node}");
             // todo - check duplicates
-            //var entry = new SymbolEntry(node, moduleName, name, symbolType);
-            //Entries.Add(entry);
-            //return entry;
-            return null;
+            return entry;
+        }
+
+        public SymbolEntry AddSymbol(Ast node, string scope, string name, SymbolType symbolType)
+        {
+            return AddSymbol(node, scope, name, new List<SymbolType> { symbolType });
         }
 
         public static SymbolType GetSymbolType(TokenType tokenType)
@@ -69,11 +62,12 @@ namespace Lomont.ClScript.CompilerLib
             }
             return SymbolType.ToBeResolved;
         }
-    }
 
-    public class Scope : List<string>
-    {
-        
+        public void Dump(TextWriter output)
+        {
+            foreach (var entry in Entries)
+                output.WriteLine(entry);
+        }
     }
 
     public class SymbolEntry
@@ -82,7 +76,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// Where is this symbol valid
         /// </summary>
-        public Scope Scope { get; private set; }
+        public string Scope { get; private set; }
         
         /// <summary>
         /// Name of symbol
@@ -92,10 +86,57 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// Type of symbol
         /// </summary>
-        public SymbolType Type { get; private set; }
+        public List<SymbolType> Types { get; } = new List<SymbolType>();
 
-        public SymbolEntry(string moduleName, string name, SymbolType symbolType)
+        public Ast Node { get; private set; }
+
+        public SymbolEntry(Ast node, string scope, string name, List<SymbolType> symbolTypes)
         {
+            Node = node;
+            Name = name;
+            Scope = scope;
+            Types.AddRange(symbolTypes);
+        }
+
+        public string TypeText
+        {
+
+            get
+            {
+                if (Types.Count == 1)
+                    return Types[0].ToString();
+                var sb = new StringBuilder();
+                for (var i = 0; i < Types.Count; ++i)
+                {
+                    var t= Types[i];
+                    if (t == SymbolType.Function)
+                        sb.Append(" -> ");
+                    else if (t >= SymbolType.Array)
+                    {
+                        sb.Append('[');
+                        for (var j = 0; j < t - SymbolType.Array; ++j)
+                            sb.Append(',');
+                        sb.Append(']');
+                    }
+                    else
+                        sb.Append(t);
+                    // if cur or next is function , don't use '*'
+                    // if next is array, dont use '*'
+                    // else if more, use '*'
+                    var isMore      = i < Types.Count - 1;
+                    var curIsFunc   = Types[i] == SymbolType.Function;
+                    var nextIsFunc  = isMore && Types[i+1] == SymbolType.Function;
+                    var nextIsArray = isMore && Types[i + 1] >= SymbolType.Array;
+                    if (isMore && !nextIsFunc && !curIsFunc && !nextIsArray)
+                        sb.Append(" * ");
+                }
+                return sb.ToString();
+            }
+        }
+
+        public override string ToString()
+        {
+            return $"{Scope,-30},{Name,-15},{TypeText,-15},{Node}";
         }
     }
 
@@ -104,12 +145,14 @@ namespace Lomont.ClScript.CompilerLib
         Enum,
         EnumValue,
         UserType,
-        Function,
         Int32,
         Float32,
         String,
         Char,
         Bool,
-        ToBeResolved
+        Module,
+        Function, // comes in type list between parameters and return values: params -> retvals
+        ToBeResolved,
+        Array = 100, // 100+ is array types of size 1,2,....
     }
 }

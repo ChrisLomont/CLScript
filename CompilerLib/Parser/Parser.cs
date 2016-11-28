@@ -483,13 +483,15 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return ParseForStatement();
             if (Lookahead("", TokenType.While))
                 return ParseWhileStatement();
-            if (Lookahead("", TokenType.Identifier, TokenType.OpenParen))
+
+            if (PredictFunctionCall())
             {
                 var ast = ParseFunctionCall();
                 if (MatchOneOrMore2(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                     return null;
                 return ast;
             }
+
             if (IsJumpToken())
                 return ParseJumpStatement();
 
@@ -497,6 +499,18 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (vd != null) return vd;
             return ParseAssignStatement();
 
+        }
+
+        // if identifier(.identifier)*'(' then function call
+        bool PredictFunctionCall()
+        {
+            if (!Lookahead("", TokenType.Identifier))
+                return false;
+            var i = 1;
+            while (TokenStream.Peek(i).TokenType == TokenType.Dot &&
+                   TokenStream.Peek(i + 1).TokenType == TokenType.Identifier)
+                i += 2;
+            return TokenStream.Peek(i).TokenType == TokenType.OpenParen;
         }
 
         static string[] assignOperators =
@@ -1065,14 +1079,33 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseFunctionCall()
         {
-            if (!Lookahead("Expected function call", TokenType.Identifier, TokenType.OpenParen))
+            Ast idAst;
+            if ((idAst = ParseOrError(ParseScopedID, "Expected function call")) == null)
                 return null;
-            var id = TokenStream.Consume();
+            if (!Lookahead("Expected '(' for function call",TokenType.OpenParen))
+                return null;
             TokenStream.Consume(); // '('
             var parameters = ParseExpressionList(0);
             if (Match2(TokenType.CloseParen, "Expected ')' to close function call") != ParseAction.Matched)
                 return null;
-            return new FunctionCallAst(id, parameters);
+            return new FunctionCallAst(idAst.Token, parameters);
+        }
+
+        Ast ParseScopedID()
+        {
+            return ParseList<HelperAst>(TokenType.Identifier, "Expected identifier", 
+                1, 
+                (a, n) =>
+                {
+                    if (n.Token == null)
+                        n.Token = a.Token;
+                    else
+                        n.Token = new Token(
+                            n.Token.TokenType, 
+                            n.Token.TokenValue + "." + a.Token.TokenValue,
+                            n.Token.Position);
+                },
+                TokenType.Dot);
         }
 
         #endregion

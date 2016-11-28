@@ -1,10 +1,11 @@
+
 i32 bob[1,2],dd
 
 type myType 
    i32 a,fred[10,1]
    
 (i32,r32,string,myType) ff(i32 b[,], myType c)
-   r32 f,b = 1.0,1.1
+   r32 f,b = 1.0,1.1+h()
    return 0,1.0
    
    
@@ -26,11 +27,10 @@ module C
 
 [Entry]
 (i32) test()
-   A:fa(3) // module syntax
-   B:fa(4)
-   return A:a + B:a
+   A.fa(3) // module syntax
+   B.fa(4)
+   return A.a + B.a
  
-
 import "bob"   
 
 module Monkeyballs
@@ -129,5 +129,4 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
    a = 1
    f2(a,b)
    a = f2(a,b) // todo - this needs to be fixed!
-   a,b = b,a
- 
+   a,b = b,a 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Lomont.ClScript.CompilerLib.AST;
 
@@ -10,129 +11,123 @@ namespace Lomont.ClScript.CompilerLib.Visitors
     // build symbol tables, attached to nodes
     class BuildSymbolTableVisitor
     {
-/*        public static void BuildTable(Ast ast, Environment environment)
+        class SymbolBuilderState
+        {
+            public Environment env;
+            public SymbolTable table;
+            public ScopeManager scope;
+
+            public SymbolBuilderState(Environment end)
+            {
+                env = end;
+                table = new SymbolTable();
+                scope = new ScopeManager();
+            }
+        }
+
+        public static void BuildTable(Ast ast, Environment environment)
         {
             // attach parents for easy tree walking
             AttachParentsVisitor.AttachParents(ast);
 
             // attach symbol tables
-            var moduleName = "";
-            BuildSymbolTable(ast,ref moduleName);
+            var state = new SymbolBuilderState(environment);
+            BuildSymbolTable(ast,state);
 
-            // attach symbol tables to all nodes, link descendants to parents
-            //LinkTables(ast);
+            state.table.Dump(environment.Output);
 
             //todo - compute symbol table item sizes
         }
 
-        public static void BuildSymbolTable(Ast node, ref string moduleName)
+        static void BuildSymbolTable(Ast node, SymbolBuilderState state)
         {
-            // actions to take on seeing various node types
-            if (node is DeclarationsAst)
-                AddSymbolTable(node); // global table first
-            else if (node is BlockAst)
-            {   // add a symbol table. 
-                AddSymbolTable(node); // block scopes get symbol table
 
-                // Some blocks add their parent variable (such as for variables, function parameters)
-                var forAst = node.Parent as ForStatementAst;
-                if (forAst != null)
-                    AddSymbol(node, forAst, moduleName, forAst.Token.TokenValue, SymbolType.ToBeResolved);
-                
-                var funcAst = node.Parent as FunctionDeclarationAst;
-                if (funcAst != null)
-                {
-                    var paramsAst = funcAst.Children[1] as ParameterListAst;
-                    if (paramsAst == null)
-                        throw new InternalFailure("Function parameters in wrong spot for symbol table");
-                    foreach (var param in paramsAst.Children)
-                    {
-                        var p = param as ParameterAst;
-                        if (p == null)
-                            throw new InternalFailure("parameter in wrong spot in symbol table");
-                        AddSymbol(node, funcAst, moduleName, p.Name.TokenValue, SymbolTable.GetSymbolType(p.Type.TokenType));
-                        // todo - param can be more complex....
-                    }
-                }
-            }
-
+            if (node is VariableDefinitionAst)
+                AddVariableDeclSymbols((VariableDefinitionAst)node, state);
             else if (node is FunctionDeclarationAst)
-            {
-                // todo - more complicated....
-                AddSymbol(node, node, moduleName, node.Token.TokenValue, SymbolType.Function);
-            }
-            else if (node is VariableDefinitionAst)
-                AddVarDefEntry("",(VariableDefinitionAst)node, moduleName);
+                AddFunctionDeclSymbols((FunctionDeclarationAst)node, state);
+            else if (node is ParameterAst)
+                state.table.AddSymbol(node, state.scope.Scope, ((ParameterAst)node).Name.TokenValue,GetParameterType(node as ParameterAst));
+            else if (node is EnumAst)
+                state.table.AddSymbol(node, state.scope.Scope, ((EnumAst) node).Name, SymbolType.Enum);
+            else if (node is EnumValueAst)
+                state.table.AddSymbol(node, state.scope.Scope, ((EnumValueAst) node).Name, SymbolType.EnumValue);
+            else if (node is TypeDeclarationAst)
+                state.table.AddSymbol(node, state.scope.Scope, ((TypeDeclarationAst) node).Name, SymbolType.UserType);
             else if (node is ModuleAst)
-                moduleName = ((ModuleAst) node).Token.TokenValue;
-
-            if (node is EnumAst)
-            {
-                var s = AddSymbol(node, node, moduleName, node.Token.TokenValue, SymbolType.Enum);
-
-                foreach (var child in node.Children)
-                {
-                    var eval = child as EnumValueAst;
-                    if (eval == null)
-                        throw new InternalFailure("Enum child wrong type");
-                    AddSymbol(node, child, moduleName, s.Name + '.' + child.Token.TokenValue, SymbolType.EnumValue);
-                }
-                return; // do not parse children
-            }
-            if (node is TypeDeclarationAst)
-            {
-                AddSymbol(node, node, moduleName, node.Token.TokenValue, SymbolType.UserType);
-                foreach (var child in node.Children)
-                {
-                    var varAst = child as VariableDefinitionAst;
-                    if (varAst == null)
-                        throw new InternalFailure("Type child incorrect in build symbol table");
-                    AddVarDefEntry(node.Token.TokenValue, varAst, moduleName);
-                }
-                return; // do not parse children
-            }
-            if (node is ModuleAst)
-                moduleName = ((ModuleAst)node).Token.TokenValue;
-
-            foreach (var child in node.Children)
-                Recurse(child, table, ref moduleName);
-        }
-
+                state.table.AddSymbol(node, state.scope.Scope, ((ModuleAst) node).Name, SymbolType.Module);
 
             // todo - handle: attribute, import, export, const
 
+            state.scope.Enter(node);
             // recurse
             foreach (var child in node.Children)
-                BuildSymbolTable(child, ref moduleName);
+                BuildSymbolTable(child, state);
+            state.scope.Exit(node);
         }
 
-        static void AddVarDefEntry(string prefix, VariableDefinitionAst node, string moduleName)
+        static List<SymbolType> GetParameterType(ParameterAst item)
+        {
+            var types = new List<SymbolType>();
+            types.Add(SymbolTable.GetSymbolType(item.Type.TokenType));
+            var arrayDepth = item.ArrayDepth;
+            if (arrayDepth > 0)
+                types.Add((SymbolType)((int)SymbolType.Array) + arrayDepth - 1);
+            return types;
+        }
+
+        static void AddFunctionDeclSymbols(FunctionDeclarationAst node, SymbolBuilderState state)
+        {
+            // function type is params -> ret types. Construct list of these types
+            var types = new List<SymbolType>();
+
+            // get parameter types
+            foreach (var item in node.Children[1].Children)
+            {
+                if (!(item is ParameterAst))
+                    throw new InternalFailure("Symbol builder expected ParameterAst in return types");
+                types.AddRange(GetParameterType(item as ParameterAst));
+            }
+            
+            // add the function mapping
+            types.Add(SymbolType.Function);
+
+            // get return types
+            foreach (var item in node.Children[0].Children)
+            {
+                if (!(item is TypeAst))
+                    throw new InternalFailure("Symbol builder expected TypeAst in return types");
+                types.Add(SymbolTable.GetSymbolType(item.Token.TokenType));
+            }
+
+            // add item
+            state.table.AddSymbol(node, state.scope.Scope, node.Name, types);
+        }
+
+        static void AddVariableDeclSymbols(VariableDefinitionAst node, SymbolBuilderState state)
         {
             var ids = node.Children[0] as IdListAst;
             if (ids == null)
                 throw new InternalFailure("variable ids not in correct location");
             foreach (var id in ids.Children)
             {
-                var name = id.Token.TokenValue;
-                if (!String.IsNullOrEmpty(prefix))
-                    name = prefix + '.' + name;
-                var s = AddSymbol(node, node, moduleName, name,
-                    SymbolTable.GetSymbolType(node.Token.TokenType));
+                if (!(id is IdentifierAst))
+                    throw new InternalFailure("Expected IdentifierAst");
+                var symbol = state.table.AddSymbol(node, state.scope.Scope, (id as IdentifierAst).Name, SymbolTable.GetSymbolType(node.Token.TokenType));
                 if (id.Children.Any())
                 {
                     if (id.Children.Count != 1 || !(id.Children[0] is ArrayAst))
                         throw new InvalidSyntax($"Array malformed {id}");
-                    s.ArraySize = id.Children[0].Children.Count;
+                    symbol.Types.Add((SymbolType)((int)SymbolType.Array+id.Children.Count-1));
                 }
             }
-
         }
 
         static void AddSymbolTable(Ast node)
         {
-            if (node.SymbolTable != null)
+            //if (node.SymbolTable != null)
                 throw new InternalFailure("expected null Symbol Table");
-            node.SymbolTable = new SymbolTable(node);
+            //node.SymbolTable = new SymbolTable(node);
         }
         
         // given a node defining a symbol, a name to add, and a symbol type, add the
@@ -148,22 +143,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // given a node, find the symbol table here or at the first ancestor
         static SymbolTable FindTable(Ast node)
         {
-            if (node != null && node.SymbolTable != null)
-                return node.SymbolTable;
+           // if (node != null && node.SymbolTable != null)
+            //    return node.SymbolTable;
             if (node != null && node.Parent != null)
                 return FindTable(node.Parent);
             return null;
         }
-
-        // attach symbol tables to all nodes, link descendants to parents
-        static void LinkTables(Ast ast)
-        {
-            if (ast.SymbolTable == null)
-                ast.SymbolTable = FindTable(ast);
-            else if (ast.Parent != null)
-                ast.SymbolTable.Parent = FindTable(ast.Parent);
-        }
-*/
 
     }
 }

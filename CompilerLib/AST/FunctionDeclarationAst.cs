@@ -10,6 +10,8 @@ namespace Lomont.ClScript.CompilerLib.AST
     {
         public Token ImportToken { get; set; }
         public Token ExportToken { get; set; }
+        public string Name => Token.TokenValue;
+
         public override string ToString()
         {
             return $"{base.ToString()} : {ImportToken} {ExportToken}";
