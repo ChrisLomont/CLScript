@@ -20,8 +20,9 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public SymbolTable SymbolTable => tables.Peek();
 
-        public SymbolTableManager()
+        public SymbolTableManager(Environment env)
         {
+            environment = env;
             var g = "<global>";
             tables.Push(new SymbolTable(null,g));
             stack.Push(new Tuple<string, bool>(g,true));
@@ -29,7 +30,37 @@ namespace Lomont.ClScript.CompilerLib
 
         public SymbolEntry AddSymbol(Ast node, string name, SymbolType symbolType)
         {
+            var e = Lookup(name);
+            if (e != null)
+                environment.Output.WriteLine($"ERROR: duplicate symbol {name} in {node} and {e.Node}");
+            if (e != null)
+                throw new InvalidSyntax($"Symbol {name} already defined, {e.Node} and {node}");
             return SymbolTable.AddSymbol(node, Scope, name, symbolType);
+        }
+
+        /// <summary>
+        /// lookup symbol in current table or any ancestors
+        /// </summary>
+        /// <param name="symbol"></param>
+        /// <returns></returns>
+        public SymbolEntry Lookup(string symbol)
+        {
+            return Lookup(SymbolTable,symbol);
+        }
+
+        /// <summary>
+        /// lookup symbol in this table or any ancestors
+        /// </summary>
+        /// <param name="table"></param>
+        /// <param name="symbol"></param>
+        /// <returns></returns>
+        public SymbolEntry Lookup(SymbolTable table, string symbol)
+        {
+            if (table == null) return null;
+            foreach (var entry in table.Entries)
+                if (symbol == entry.Name)
+                    return entry;
+            return Lookup(table.Parent, symbol);
         }
 
         /// <summary>
@@ -146,6 +177,8 @@ namespace Lomont.ClScript.CompilerLib
         }
 
         #endregion
+
+        Environment environment;
     }
 
     public class SymbolTable
@@ -162,26 +195,10 @@ namespace Lomont.ClScript.CompilerLib
             Scope = scope;
         }
 
-        public SymbolEntry Lookup(string name)
-        {
-            //foreach (var e in Entries)
-            //{
-            //    if (e.Module == moduleName && e.Name == name)
-            //        return e;
-            //}
-            return null;
-        }
-
         public SymbolEntry AddSymbol(Ast node, string scope, string name, SymbolType symbolType)
         {
             var entry = new SymbolEntry(node, name, symbolType);
             Entries.Add(entry);
-
-            //var e = Lookup(scope, name);
-            //todo - error on dups, etc.
-            //if (e != null)
-            //    throw new InvalidSyntax($"Symbol {moduleName}:{name} already defined, {e.Node} and {node}");
-            // todo - check duplicates
             return entry;
         }
 

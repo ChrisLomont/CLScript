@@ -64,7 +64,8 @@ namespace Lomont.ClScript.CompilerLib
         // do compiler tree transforms
         Ast ProcessTree(Ast ast, Environment environment)
         {
-            BuildSymbolTableVisitor.BuildTable(ast,environment);
+            var symbolTable = BuildSymbolTableVisitor.BuildTable(ast,environment);
+
             return ast;
         }
 

@@ -19,11 +19,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             public SymbolBuilderState(Environment env)
             {
                 environment = env;
-                mgr = new SymbolTableManager();
+                mgr = new SymbolTableManager(env);
             }
         }
 
-        public static void BuildTable(Ast ast, Environment environment)
+        public static SymbolTableManager BuildTable(Ast ast, Environment environment)
         {
             // attach parents for easy tree walking
             AttachParentsVisitor.AttachParents(ast);
@@ -37,6 +37,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // todo - compute symbol table item sizes
             // todo - check all items checkable in symbol table
 
+            return state.mgr;
         }
 
         static void BuildSymbolTable(Ast node, SymbolBuilderState state)
