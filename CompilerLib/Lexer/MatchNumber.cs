@@ -12,7 +12,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
     {
 
 
-        // numbers: integers in decimal, hex, binary
+        // numbers: integers in decimal, hex, binary, float
         protected override Token IsMatchImpl(CharacterStream characterStream)
         {
             if (!Char.IsDigit(characterStream.Current) && characterStream.Current != '.')
@@ -20,24 +20,24 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             if (characterStream.StartsWith("0x") || characterStream.StartsWith("0X"))
             {
                 characterStream.Consume(2);
-                GetIntegers(characterStream);
+                GetIntegers(characterStream,"0123456789ABCDEFabcdef");
                 return new Token(TokenType.HexadecimalLiteral);
             }
             if (characterStream.StartsWith("0b") || characterStream.StartsWith("0B"))
             {
                 characterStream.Consume(2);
-                GetIntegers(characterStream);
+                GetIntegers(characterStream,"01");
                 return new Token(TokenType.BinaryLiteral);
             }
 
-            var leftOperand = GetIntegers(characterStream);
+            var leftOperand = GetIntegers(characterStream,"0123456789");
             if (leftOperand != null || characterStream.Current == '.')
             {
                 if (characterStream.Current == '.')
                 {
                     // found a float
                     characterStream.Consume();
-                    var rightOperand = GetIntegers(characterStream);
+                    var rightOperand = GetIntegers(characterStream, "0123456789");
                     if (leftOperand == null && rightOperand == null)
                         return null; // nothing here
 
@@ -60,21 +60,22 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 var c = characterStream.Current;
                 if (c=='-' || c== '+')
                     characterStream.Consume();
-                var exp = GetIntegers(characterStream);
+                var exp = GetIntegers(characterStream, "0123456789");
                 if (String.IsNullOrEmpty(exp))
                     throw new InvalidSyntax("Invalid floating point exponent");
             }
             return "";
         }
 
-        string GetIntegers(CharacterStream characterStream)
+        
+
+        string GetIntegers(CharacterStream characterStream, string charsToMatch)
         {
             string num = null;
-
-            if (characterStream.Current != CharacterStream.EndOfFile && !Char.IsDigit(characterStream.Current))
+            if (characterStream.Current != CharacterStream.EndOfFile && charsToMatch.IndexOf(characterStream.Current) < 0)
                 return null;
 
-            while (characterStream.Current != CharacterStream.EndOfFile && (Char.IsDigit(characterStream.Current)|| characterStream.Current == '_'))
+            while (characterStream.Current != CharacterStream.EndOfFile && (charsToMatch.IndexOf(characterStream.Current) >= 0 || characterStream.Current == '_'))
             {
                 num += characterStream.Current;
                 characterStream.Consume();

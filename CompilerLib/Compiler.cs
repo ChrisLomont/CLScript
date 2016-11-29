@@ -33,18 +33,11 @@ namespace Lomont.ClScript.CompilerLib
 
         public void Compile(string text, Environment environment, out string result)
         {
-            bool dumpLex = false;
             result = "";
-            environment.Output.WriteLine($"Compiling <todo> lines");
+            environment.Info($"Compiling <todo> lines");
             try
             {
                 lexer = new Lexer.Lexer(text, environment);
-                if (dumpLex)
-                {
-                    result = LexToGoldParser(lexer);
-                    environment.Output.WriteLine(result);
-                    lexer = new Lexer.Lexer(text, environment);
-                }
                 parser = new Parser.Parser(lexer);
                 SyntaxTree = parser.Parse(environment);
                 if (SyntaxTree != null)
@@ -54,8 +47,8 @@ namespace Lomont.ClScript.CompilerLib
             {
                 do
                 {
-                    environment.Output.WriteLine($"Error: {ex.Message}");
-                    environment.Output.WriteLine($"Details: {ex}");
+                    environment.Error($"Error: {ex.Message}");
+                    environment.Error($"Details: {ex}");
                     ex = ex.InnerException;
                 } while (ex != null);
             }
@@ -65,6 +58,7 @@ namespace Lomont.ClScript.CompilerLib
         Ast ProcessTree(Ast ast, Environment environment)
         {
             var symbolTable = BuildSymbolTableVisitor.BuildTable(ast,environment);
+            SemanticAnalyzerVisitor.Check(symbolTable, ast, environment);
 
             return ast;
         }

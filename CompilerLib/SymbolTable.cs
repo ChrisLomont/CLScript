@@ -26,25 +26,42 @@ namespace Lomont.ClScript.CompilerLib
             var g = "<global>";
             tables.Push(new SymbolTable(null,g));
             stack.Push(new Tuple<string, bool>(g,true));
+            onlyScan = false;
         }
+
+        /// <summary>
+        /// Ensure is at top of parse
+        /// </summary>
+        public void Start()
+        {
+            onlyScan = true;
+            while (tables.Count > 1)
+                Pop();
+            blockIndex = 0;
+
+        }
+
+        // set to true for walking existing table, else creates table 
+        bool onlyScan = false;
+
 
         public SymbolEntry AddSymbol(Ast node, string name, SymbolType symbolType)
         {
             var symbol = SymbolTable.AddSymbol(node, Scope, name, symbolType);
-            var match = CheckDuplicate(SymbolTable, symbol, true);
+            var match = CheckDuplicate(SymbolTable, symbol);
             if (match != null)
             {
                 var msg = $"Symbol {name} already defined, {symbol.Node} and {match.Item1.Node}";
                 if (!ReferenceEquals(match.Item2, SymbolTable))
-                    environment.Output.WriteLine("WARNING: " + msg);
+                    environment.Warning(msg);
                 else
-                    throw new InvalidSyntax("ERROR: "+ msg);
+                    environment.Error(msg);
             }
             return symbol;
         }
 
         // return symbol and table where found
-        Tuple<SymbolEntry,SymbolTable> CheckDuplicate(SymbolTable table, SymbolEntry entryToMatch, bool inSameScope)
+        Tuple<SymbolEntry,SymbolTable> CheckDuplicate(SymbolTable table, SymbolEntry entryToMatch)
         {
             if (table == null)
                 return null;
@@ -55,7 +72,7 @@ namespace Lomont.ClScript.CompilerLib
                 if (entry.Name == entryToMatch.Name)
                     return new Tuple<SymbolEntry, SymbolTable>(entry, table);
             }
-            return CheckDuplicate(table.Parent, entryToMatch, false);
+            return CheckDuplicate(table.Parent, entryToMatch);
 
             //if (entryToMatch.Type == SymbolType.EnumValue)
             //    return false; // do not recurse
@@ -103,8 +120,8 @@ namespace Lomont.ClScript.CompilerLib
                     return SymbolType.Float32;
                 case TokenType.String:
                     return SymbolType.String;
-                case TokenType.Char:
-                    return SymbolType.Char;
+                case TokenType.Byte:
+                    return SymbolType.Byte;
                 case TokenType.Bool:
                     return SymbolType.Bool;
                 case TokenType.Identifier:
@@ -183,8 +200,18 @@ namespace Lomont.ClScript.CompilerLib
             stack.Push(new Tuple<string, bool>(top + "." + name,newTable));
             if (newTable)
             {
-                var child = new SymbolTable(SymbolTable,Scope);
-                tables.Push(child);
+                if (onlyScan)
+                { // find child table and push it
+                    var tbl = SymbolTable.Children.FirstOrDefault(t => t.Scope == Scope);
+                    if (tbl == null)
+                        throw new InternalFailure("Cannot find table!");
+                    tables.Push(tbl);
+                }
+                else
+                {
+                    var child = new SymbolTable(SymbolTable, Scope);
+                    tables.Push(child);
+                }
             }
         }
 
@@ -195,15 +222,16 @@ namespace Lomont.ClScript.CompilerLib
             if (item.Item2)
             {
                 var tbl = tables.Pop();
-                // remove empty tables
-                if (!tbl.Entries.Any() && !tbl.Children.Any())
-                    tbl.Parent.Children.Remove(tbl);
+                // remove empty tables - cannot do this since walked later in tree walking
+                //if (!tbl.Entries.Any() && !tbl.Children.Any())
+                //    tbl.Parent.Children.Remove(tbl);
             }
         }
 
         #endregion
 
         Environment environment;
+
     }
 
     public class SymbolTable
@@ -330,7 +358,7 @@ namespace Lomont.ClScript.CompilerLib
         Int32,
         Float32,
         String,
-        Char,
+        Byte,
         Enum,
         EnumValue,
         Module,

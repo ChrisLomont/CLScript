@@ -92,7 +92,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     decls.Children.Add(decl);
             } while (decl != null);
             if (TokenStream.Current.TokenType != TokenType.EndOfFile)
-                environment.Output.WriteLine($"Could not parse {TokenStream.Current}");
+                environment.Error($"Could not parse {TokenStream.Current}");
             return decls;
         }
 
@@ -232,7 +232,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 t.TokenType == TokenType.Int32 ||
                 t.TokenType == TokenType.Float32 ||
                 t.TokenType == TokenType.String ||
-                t.TokenType == TokenType.Char ||
+                t.TokenType == TokenType.Byte ||
                 t.TokenType == TokenType.Identifier
             )
                 return TokenStream.Consume();
@@ -1007,10 +1007,12 @@ namespace Lomont.ClScript.CompilerLib.Parser
             );
         }
 
+        static TokenType[] UnaryOperatorTokens = {TokenType.Increment, TokenType.Decrement, TokenType.Plus, TokenType.Minus,
+                TokenType.Tilde, TokenType.Exclamation};
+
         Ast UnaryExpression()
         {
-            if (NextTokenOneOf(TokenType.Increment, TokenType.Decrement, TokenType.Plus, TokenType.Minus,
-                TokenType.Tilde, TokenType.Exclamation))
+            if (NextTokenOneOf(UnaryOperatorTokens))
             {
                 var token = TokenStream.Consume();
                 var ast = UnaryExpression();
@@ -1020,7 +1022,12 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     return null;
                 }
                 if (ast.Token != null)
-                    throw new InternalFailure("Token already set in UnaryExpression");
+                { // wrap it
+                    var expr = new ExpressionAst();
+                    expr.Children.Add(ast);
+                    ast = expr;
+                    //throw new InternalFailure("Token already set in UnaryExpression");
+                }
                 ast.Token = token;
                 return ast;
             }
@@ -1278,7 +1285,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         void ErrorMessage(string error)
         {
             if (!ignoreErrors.Peek())
-                environment.Output.WriteLine($"ERROR: {error} at {TokenStream.Peek(-1)}");
+                environment.Error($"{error} at {TokenStream.Peek(-1)}");
         }
 
         // while next token matches, eat them

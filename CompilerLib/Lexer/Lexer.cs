@@ -90,7 +90,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 new MatchKeyword(TokenType.Int32, "i32",notId),
                 new MatchKeyword(TokenType.Float32, "r32",notId),
                 new MatchKeyword(TokenType.String, "string",notId),
-                new MatchKeyword(TokenType.Char, "char",notId),
+                new MatchKeyword(TokenType.Byte, "byte",notId),
 
                 new MatchKeyword(TokenType.True, "true",notId),
                 new MatchKeyword(TokenType.False, "false",notId),

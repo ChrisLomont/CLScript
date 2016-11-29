@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
-    class IdentifierAst :Ast 
+    class IdentifierAst :Ast
     {
+        public string Name => Token.TokenValue;
+
         public IdentifierAst(Token token)
         {
             Token = token;

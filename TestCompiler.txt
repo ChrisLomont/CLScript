@@ -1,7 +1,19 @@
+i32 axx,bxx,cxx = -3_000,+0b0000_0101,0x00_ff+a
+r32 fxx = -123.45
+
+
+
+enum cdd
+   val
+i32 ax = 1+3+ ~3
+i32 bx = 1+2*3&4/5>>(-6)<<7||9+f(1,2,ax+bx)
+
+
 // testing code for CLScript
 
-// testing of modules
+
 /*
+// testing of modules
 i32 a
 
 module A
@@ -23,7 +35,6 @@ module C
    return A.a + B.a
 */
 
-
 import "bob"   
 
 module Monkeyballs
@@ -34,7 +45,7 @@ enum Bob
    Al
    
 enum Tokdog
-   val = 1234+12
+   val  = 1234+12
    val1
    val3 = val1
 
@@ -42,7 +53,7 @@ enum Enum1
    val1 = 0b0001
    val2 = 0b0010
    
-Enum1 ae = Enum1.val1 | Enum2.val2   
+Enum1 ae = Enum1.val1 | Enum1.val2   
 
 type type1
    i32 a
@@ -71,7 +82,7 @@ bool d12 = 1==1
 i32 a13[3] = 1,2,3
 
 (i32,r32,myType) testFunc(i32 a, r32 b, bool arr[,])
-   return 0,1.0,bob
+   return 0,1.0,"test"
 
 export () setA()
    i32 a = 1

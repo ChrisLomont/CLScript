@@ -15,6 +15,11 @@ namespace Lomont.ClScript.CompilerLib.AST
 
         public Ast Parent { get; set; }
 
+        /// <summary>
+        /// Type of this node for type checking
+        /// </summary>
+        public string Type { get; set; }
+
         public Ast()
         {
             Children = new List<Ast>();
@@ -28,7 +33,11 @@ namespace Lomont.ClScript.CompilerLib.AST
 
         public override string ToString()
         {
-            return this.GetType().Name + " " +
+            var typeStr = "";
+            if (!String.IsNullOrEmpty(Type))
+                typeStr = $":{Type}";
+
+            return this.GetType().Name + $"{typeStr} " +
                    // Children.Aggregate("", (acc, ast) => acc + " " + ast) + 
                    $"{Token}" + 
                    "";

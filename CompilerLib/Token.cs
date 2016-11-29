@@ -49,7 +49,7 @@ namespace Lomont.ClScript.CompilerLib
         Int32,
         Float32,
         String,
-        Char,
+        Byte,
 
         True,
         False,
