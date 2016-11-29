@@ -40,8 +40,8 @@ namespace Lomont.ClScript.CompilerLib
         {
             foreach (var e in types)
             {
-                var symbolMatches = e.symbol == symbolType || symbolType == SymbolType.MatchAny;
-                var userMatches = String.IsNullOrEmpty(userTypename) || userTypename == e.UserType;
+                var symbolMatches = e.Symbol == symbolType || symbolType == SymbolType.MatchAny;
+                var userMatches = String.IsNullOrEmpty(userTypename) || userTypename == e.Text;
                 if (symbolMatches && 
                     arrayDimension == e.ArrayDimension  &&
                     userMatches &&
@@ -74,33 +74,41 @@ namespace Lomont.ClScript.CompilerLib
             return true;
         }
 
-        /// <summary>
-        /// Lookup type, if not created, do so
-        /// </summary>
-        /// <param name="typeString"></param>
-        /// <param name="arrayDimension"></param>
-        /// <returns></returns>
-        public InternalType GetType(string typeString, int arrayDimension)
+        string FormatTypeList(List<InternalType> list)
         {
-            return GetType(SymbolType.MatchAny, arrayDimension,typeString);
+            var sb = new StringBuilder();
+            for (var i = 0; i < list.Count; ++i)
+            {
+                var t = list[i];
+                sb.Append(t);
+                if (i != list.Count-1)
+                    sb.Append(" * ");
+            }
+            return sb.ToString();
         }
 
         public string GetTypeText(int typeIndex)
         {
             var h = types[typeIndex];
-            return h.symbol.ToString() + "[TODO]";
-//            if (Type.IsFunction)
-//            {
-//                return $"{Type} {ParamsType} => {ReturnType}";
-//            }
-//
-//            if (ArrayDimension == 0 && UserType == null)
-//                return Type.ToString();
-//            var arrayText = "";
-//            if (ArrayDimension > 0)
-//                arrayText = "[" + new string(',', ArrayDimension - 1) + "]";
-//            var userText = !String.IsNullOrEmpty(UserType) ? $" of {UserType}" : "";
-//            return $"{Type}{arrayText}{userText}";
+
+            if (h.Symbol == SymbolType.Function)
+            {
+                var ret = FormatTypeList(h.ReturnType);
+                var par = FormatTypeList(h.ParamsType);
+                return $"{h.Symbol} {par} => {ret}";
+            }
+
+
+            if (h.ArrayDimension == 0)
+                return h.Symbol.ToString();
+
+            var arrayText = "";
+            if (h.ArrayDimension > 0)
+                arrayText = "[" + new string(',', h.ArrayDimension - 1) + "]";
+
+            if (!String.IsNullOrEmpty(h.Text))
+                return $"{h.Text}{arrayText}";
+            return $"{h.Symbol}{arrayText}";
         }
 
 
@@ -114,19 +122,17 @@ namespace Lomont.ClScript.CompilerLib
             public HiddenType(SymbolType type, string name, TypeManager mgr, int index, 
                 int arrayDimension = 0, List<InternalType> returnType = null, List<InternalType> paramsType = null)
             {
-                text           = name;
-                symbol         = type;
+                Text           = name;
+                Symbol         = type;
                 InternalType   = new InternalType(mgr, index);
                 ArrayDimension = arrayDimension;
                 ReturnType     = returnType;
                 ParamsType     = paramsType;
             }
 
-            public string UserType;
             public int ArrayDimension;
-            public bool IsFunction;
-            public SymbolType symbol;
-            public string text;
+            public SymbolType Symbol;
+            public string Text;
             public InternalType InternalType;
             public List<InternalType> ReturnType;
             public List<InternalType> ParamsType;
@@ -150,6 +156,7 @@ namespace Lomont.ClScript.CompilerLib
             return typeManager.GetTypeText(index);
         }
 
+        #region Equality
         public override bool Equals(Object obj)
         {
             return obj is InternalType && this == (InternalType)obj;
@@ -166,6 +173,7 @@ namespace Lomont.ClScript.CompilerLib
         {
             return !(x == y);
         }
+        #endregion
 
         readonly TypeManager typeManager;
         readonly int index;

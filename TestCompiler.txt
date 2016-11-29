@@ -1,5 +1,5 @@
 i32 a,b,c
-(i32,r32[]) func(bool a, i32 b[,], string c[])
+(i32,r32[]) func(bool a1, i32 b1[,], string c1[])
    return
 
 /*

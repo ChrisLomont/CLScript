@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -129,11 +130,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         throw new InternalFailure("Only one child array supported");
                     arraySize = tItem.Children[0].Children.Count;
                 }
-                list.Add(
-                    state.mgr.TypeManager.GetType(
-                    tItem.BaseTypeToken.TokenValue, 
-                    arraySize
-                    ));
+                var symbolType = state.mgr.GetSymbolType(tItem.BaseTypeToken.TokenType);
+                list.Add(state.mgr.TypeManager.GetType(symbolType, arraySize));
 
             }
             return list;
