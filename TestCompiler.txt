@@ -1,3 +1,8 @@
+i32 a,b,c
+(i32,r32[]) func(bool a, i32 b[,], string c[])
+   return
+
+/*
 i32 axx,bxx,cxx = -3_000,+0b0000_0101,0x00_ff+a
 r32 fxx = -123.45
 
@@ -135,3 +140,4 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
    a = f2(a,b) // todo - this needs to be fixed!
    a,b = b,a 
 
+*/

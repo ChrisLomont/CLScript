@@ -88,6 +88,7 @@
     <Compile Include="StreamableBase.cs" />
     <Compile Include="SymbolTable.cs" />
     <Compile Include="Token.cs" />
+    <Compile Include="TypeManager.cs" />
     <Compile Include="Visitors\AttachParentsVisitor.cs" />
     <Compile Include="Visitors\BuildSymbolTableVisitor.cs" />
     <Compile Include="Visitors\PrintVisitor.cs" />

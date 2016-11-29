@@ -9,7 +9,6 @@ using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib
 {
-
     /// <summary>
     /// Track symbol tables, interface to externals
     /// </summary>
@@ -20,6 +19,8 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public SymbolTable SymbolTable => tables.Peek();
 
+        public TypeManager TypeManager { get; private set; }
+
         public SymbolTableManager(Environment env)
         {
             environment = env;
@@ -27,6 +28,8 @@ namespace Lomont.ClScript.CompilerLib
             tables.Push(new SymbolTable(null,g));
             stack.Push(new Tuple<string, bool>(g,true));
             onlyScan = false;
+            TypeManager = new TypeManager();
+            AddBasicTypes();
         }
 
         /// <summary>
@@ -45,9 +48,22 @@ namespace Lomont.ClScript.CompilerLib
         bool onlyScan = false;
 
 
-        public SymbolEntry AddSymbol(Ast node, string name, SymbolType symbolType)
+        public SymbolEntry AddSymbol(
+            Ast node, string name, SymbolType symbolType,
+            int arrayDimension = 0, SymbolAttribute attrib = SymbolAttribute.None, string userTypename = "", 
+            List<InternalType> returnType = null, List<InternalType> paramsType = null
+            )
         {
-            var symbol = SymbolTable.AddSymbol(node, Scope, name, symbolType);
+            var iSymbol = TypeManager.GetType(
+                symbolType,
+                arrayDimension,
+                userTypename,
+                returnType,
+                paramsType
+                );
+
+            var symbol = SymbolTable.AddSymbol(node, Scope, name, iSymbol);
+            symbol.Attrib = attrib;
             var match = CheckDuplicate(SymbolTable, symbol);
             if (match != null)
             {
@@ -73,11 +89,6 @@ namespace Lomont.ClScript.CompilerLib
                     return new Tuple<SymbolEntry, SymbolTable>(entry, table);
             }
             return CheckDuplicate(table.Parent, entryToMatch);
-
-            //if (entryToMatch.Type == SymbolType.EnumValue)
-            //    return false; // do not recurse
-            //if (entryToMatch.Type == SymbolType.)
-            //    return false; // do not recurse
         }
 
         /// <summary>
@@ -131,6 +142,8 @@ namespace Lomont.ClScript.CompilerLib
                     throw new InternalFailure($"Unknown symbol type {tokenType}");
             }
         }
+
+
 
         public string Scope => stack.Peek().Item1;
 
@@ -194,6 +207,7 @@ namespace Lomont.ClScript.CompilerLib
             return "Block_" + blockIndex;
         }
 
+
         void Push(string name, bool newTable)
         {
             var top = stack.Peek().Item1;
@@ -232,7 +246,20 @@ namespace Lomont.ClScript.CompilerLib
 
         Environment environment;
 
+        void AddBasicTypes()
+        {
+            TypeManager.AddBasicType(SymbolType.Bool,"bool");
+            TypeManager.AddBasicType(SymbolType.Int32, "i32");
+            TypeManager.AddBasicType(SymbolType.Float32, "r32");
+            TypeManager.AddBasicType(SymbolType.String, "string");
+            TypeManager.AddBasicType(SymbolType.Enum, "enum");
+            TypeManager.AddBasicType(SymbolType.EnumValue, "enum value");
+            TypeManager.AddBasicType(SymbolType.Module, "module");
+            TypeManager.AddBasicType(SymbolType.ToBeResolved, "UNKNOWN");
+            TypeManager.AddBasicType(SymbolType.UserType, "UserType");
     }
+
+}
 
     public class SymbolTable
     {
@@ -248,12 +275,13 @@ namespace Lomont.ClScript.CompilerLib
             Scope = scope;
         }
 
-        public SymbolEntry AddSymbol(Ast node, string scope, string name, SymbolType symbolType)
+        public SymbolEntry AddSymbol(Ast node, string scope, string name, InternalType symbolType)
         {
             var entry = new SymbolEntry(node, name, symbolType);
             Entries.Add(entry);
             return entry;
         }
+
 
         public void Dump(TextWriter output)
         {
@@ -274,50 +302,20 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// Type of symbol, used with a SymbolManager to get detailed type info
         /// </summary>
-        public SymbolType Type { get; }
+        public InternalType Type { get; }
 
         /// <summary>
         /// The defining node (more or less)
         /// </summary>
         public Ast Node { get; private set; }
 
-        // if greater than zero, is array dimension
-        public int ArraySize { get; private set; }
-
-        public string ReturnType { get; set; }
-        public string ParamsType { get; set; }
-
         public SymbolAttribute Attrib { get; set; } = SymbolAttribute.None;
 
-        /// <summary>
-        /// If symbol type is user type, and this is a variable, then this is the text of the type
-        /// </summary>
-        public string UserType { get; private set; }
-
-        public SymbolEntry(Ast node, string name, SymbolType symbolType)
+        public SymbolEntry(Ast node, string name, InternalType symbolType)
         {
             Node = node;
             Name = name;
             Type = symbolType;
-        }
-
-        public string TypeText
-        {
-            get
-            {
-                if (Type == SymbolType.Function)
-                {
-                    return $"{Type} {ParamsType} => {ReturnType}";
-                }
-
-                if (ArraySize == 0 && UserType == null)
-                    return Type.ToString();
-                var arrayText = "";
-                if (ArraySize > 0)
-                    arrayText = "[" + new string(',',ArraySize-1) + "]";
-                var userText = !String.IsNullOrEmpty(UserType) ? $" of {UserType}" : "";
-                return $"{Type}{arrayText}{userText}";
-            }
         }
 
         public override string ToString()
@@ -329,17 +327,7 @@ namespace Lomont.ClScript.CompilerLib
                 name += "+e";
             if ((Attrib & SymbolAttribute.Import) != SymbolAttribute.None)
                 name += "+i";
-            return $"T {name,-15} {TypeText,-15}";//,{Node}";
-        }
-
-        public void AddArraySize(int arraySize)
-        {
-            ArraySize = arraySize;
-        }
-
-        public void AddUserType(string userType)
-        {
-            UserType = userType;
+            return $"T {name,-15} {Type,-15}";//,{Node}";
         }
     }
 
@@ -364,6 +352,8 @@ namespace Lomont.ClScript.CompilerLib
         Module,
         ToBeResolved,
         UserType, 
-        Function  
+        Function,
+
+        MatchAny // used for searches
     }
 }

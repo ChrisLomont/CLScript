@@ -97,60 +97,75 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         static void AddFunctionDeclSymbols(FunctionDeclarationAst node, SymbolBuilderState state)
         {
-            var s = state.mgr.AddSymbol(node, node.Name, SymbolType.Function);
             if (node.Children.Count < 2 || !(node.Children[0] is ReturnValuesAst) || !(node.Children[1] is ParameterListAst))
                 throw new InternalFailure("Function internal format mismatched");
-            s.ReturnType = ParseTypelist(node.Children[0].Children,state);
-            s.ParamsType = ParseTypelist(node.Children[1].Children,state);
+
+            var returnType = ParseTypelist(node.Children[0].Children,state);
+            var paramsType = ParseTypelist(node.Children[1].Children,state);
+
+            var attrib = SymbolAttribute.None;
             if (node.ImportToken != null)
-                s.Attrib |= SymbolAttribute.Import;
+                attrib |= SymbolAttribute.Import;
             if (node.ExportToken != null)
-                s.Attrib |= SymbolAttribute.Export;
+                attrib |= SymbolAttribute.Export;
+
+            state.mgr.AddSymbol(node, node.Name, SymbolType.Function,0,attrib,"",returnType,paramsType);
         }
 
-        static string ParseTypelist(List<Ast> nodes, SymbolBuilderState state)
+        static List<InternalType> ParseTypelist(List<Ast> nodes, SymbolBuilderState state)
         {
-            var sb = new StringBuilder();
+            var list = new List<InternalType>();
             for (var i =0; i < nodes.Count; ++i)
             {
                 var node = nodes[i];
                 var tItem = node as TypedItemAst;
                 if (tItem == null)
                     throw new InternalFailure("Id List internals mismatched");
-                sb.Append(tItem.BaseTypeToken.TokenValue);
 
+                var arraySize = 0;
                 if (tItem.Children.Any())
                 { // for now, only support one array
                     if (tItem.Children.Count != 1 || !(tItem.Children[0] is ArrayAst))
                         throw new InternalFailure("Only one child array supported");
-                    sb.Append($"[{new string(',',tItem.Children[0].Children.Count-1)}]");
+                    arraySize = tItem.Children[0].Children.Count;
                 }
-                if (i < nodes.Count-1)
-                    sb.Append(" * ");
+                list.Add(
+                    state.mgr.TypeManager.GetType(
+                    tItem.BaseTypeToken.TokenValue, 
+                    arraySize
+                    ));
+
             }
-            return sb.ToString();
+            return list;
         }
 
         static void AddTypedItem(TypedItemAst node, SymbolBuilderState state)
         {
             var symbolType = state.mgr.GetSymbolType(node.BaseTypeToken.TokenType);
-            var s = state.mgr.AddSymbol(node, node.Name, symbolType);
+
+            var userTypename = "";
             if (symbolType == SymbolType.UserType)
-                s.AddUserType(node.BaseTypeToken.TokenValue);
+                userTypename = node.BaseTypeToken.TokenValue;
 
+            var attrib = SymbolAttribute.None;
             if (node.ConstToken != null)
-                s.Attrib |= SymbolAttribute.Const;
+                attrib |= SymbolAttribute.Const;
             if (node.ImportToken != null)
-                s.Attrib |= SymbolAttribute.Import;
+                attrib |= SymbolAttribute.Import;
             if (node.ExportToken != null)
-                s.Attrib |= SymbolAttribute.Export;
+                attrib |= SymbolAttribute.Export;
 
+            var arrayDimension = 0;
             if (node.Children.Any())
             { // for now, only support one array
                 if (node.Children.Count != 1 || !(node.Children[0] is ArrayAst))
                     throw new InternalFailure("Only one child array supported");
-                s.AddArraySize(node.Children[0].Children.Count);
+                arrayDimension = node.Children[0].Children.Count;
             }
+
+            state.mgr.AddSymbol(node, node.Name, symbolType,arrayDimension, attrib, userTypename,null,null);
+
+
         }
     }
 }
