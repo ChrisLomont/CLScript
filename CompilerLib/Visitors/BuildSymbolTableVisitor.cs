@@ -57,7 +57,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is EnumValueAst)
                 state.mgr.AddSymbol(node, ((EnumValueAst) node).Name, SymbolType.EnumValue);
             else if (node is TypeDeclarationAst)
-                state.mgr.AddSymbol(node, ((TypeDeclarationAst) node).Name, SymbolType.UserType);
+                state.mgr.AddSymbol(node, ((TypeDeclarationAst) node).Name, SymbolType.Typedef);
             else if (node is ModuleAst)
                 state.mgr.AddSymbol(node, ((ModuleAst) node).Name, SymbolType.Module);
 
@@ -96,6 +96,21 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             
         }
 
+        static List<InternalType> ParseTypelist(List<Ast> nodes, SymbolBuilderState state)
+        {
+            var list = new List<InternalType>();
+            for (var i = 0; i < nodes.Count; ++i)
+            {
+                var node = nodes[i];
+                var tItem = node as TypedItemAst;
+                if (tItem == null)
+                    throw new InternalFailure("Id List internals mismatched");
+
+                list.Add(GetTypedItemType1(tItem, state));
+            }
+            return list;
+        }
+
         static void AddFunctionDeclSymbols(FunctionDeclarationAst node, SymbolBuilderState state)
         {
             if (node.Children.Count < 2 || !(node.Children[0] is ReturnValuesAst) || !(node.Children[1] is ParameterListAst))
@@ -113,45 +128,46 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             state.mgr.AddSymbol(node, node.Name, SymbolType.Function,0,attrib,"",returnType,paramsType);
         }
 
-        static List<InternalType> ParseTypelist(List<Ast> nodes, SymbolBuilderState state)
+
+        /// <summary>
+        /// use this to look up single built in types
+        /// </summary>
+        /// <param name="tokenType"></param>
+        /// <returns></returns>
+        public static SymbolType GetSymbolType(TokenType tokenType)
         {
-            var list = new List<InternalType>();
-            for (var i =0; i < nodes.Count; ++i)
+            switch (tokenType)
             {
-                var node = nodes[i];
-                var tItem = node as TypedItemAst;
-                if (tItem == null)
-                    throw new InternalFailure("Id List internals mismatched");
-
-                var arraySize = 0;
-                if (tItem.Children.Any())
-                { // for now, only support one array
-                    if (tItem.Children.Count != 1 || !(tItem.Children[0] is ArrayAst))
-                        throw new InternalFailure("Only one child array supported");
-                    arraySize = tItem.Children[0].Children.Count;
-                }
-                var symbolType = state.mgr.GetSymbolType(tItem.BaseTypeToken.TokenType);
-                list.Add(state.mgr.TypeManager.GetType(symbolType, arraySize));
-
+                case TokenType.Int32:
+                    return SymbolType.Int32;
+                case TokenType.Float32:
+                    return SymbolType.Float32;
+                case TokenType.String:
+                    return SymbolType.String;
+                case TokenType.Byte:
+                    return SymbolType.Byte;
+                case TokenType.Bool:
+                    return SymbolType.Bool;
+                case TokenType.Identifier:
+                    return SymbolType.ToBeResolved; // todo - can be new type or enum, or use of a type
+                default:
+                    throw new InternalFailure($"Unknown symbol type {tokenType}");
             }
-            return list;
         }
 
-        static void AddTypedItem(TypedItemAst node, SymbolBuilderState state)
+
+        // helper function that gets needed items to create types based on a TypedItemAst
+        static InternalType GetTypedItemType1(TypedItemAst node, SymbolBuilderState state)
         {
-            var symbolType = state.mgr.GetSymbolType(node.BaseTypeToken.TokenType);
+            // typed item has variable name and type name
 
-            var userTypename = "";
-            if (symbolType == SymbolType.UserType)
-                userTypename = node.BaseTypeToken.TokenValue;
-
-            var attrib = SymbolAttribute.None;
-            if (node.ConstToken != null)
-                attrib |= SymbolAttribute.Const;
-            if (node.ImportToken != null)
-                attrib |= SymbolAttribute.Import;
-            if (node.ExportToken != null)
-                attrib |= SymbolAttribute.Export;
+            var symbolType = GetSymbolType(node.BaseTypeToken.TokenType);
+            var userName = "";
+            if (symbolType == SymbolType.ToBeResolved)
+            { // replace with type name
+                symbolType = SymbolType.UserType1;
+                userName = node.BaseTypeToken.TokenValue;
+            }
 
             var arrayDimension = 0;
             if (node.Children.Any())
@@ -161,8 +177,33 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 arrayDimension = node.Children[0].Children.Count;
             }
 
-            state.mgr.AddSymbol(node, node.Name, symbolType,arrayDimension, attrib, userTypename,null,null);
+            return state.mgr.TypeManager.GetType(symbolType, arrayDimension,userName);
+        }
 
+        static void AddTypedItem(TypedItemAst node, SymbolBuilderState state)
+        {
+
+            var attrib = SymbolAttribute.None;
+            if (node.ConstToken != null)
+                attrib |= SymbolAttribute.Const;
+            if (node.ImportToken != null)
+                attrib |= SymbolAttribute.Import;
+            if (node.ExportToken != null)
+                attrib |= SymbolAttribute.Export;
+
+#if true
+            var itemType = GetTypedItemType1(node, state);
+            state.mgr.AddSymbol(node, 
+                node.Name,
+                itemType.SymbolType,
+                itemType.ArrayDimension,
+                attrib, 
+                itemType.UserTypeName, 
+                null, null);
+
+#else
+            state.mgr.AddSymbol(node, node.Name, symbolType, arrayDimension, attrib, userTypename,null,null);
+#endif
 
         }
     }

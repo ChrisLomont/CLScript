@@ -91,21 +91,18 @@ namespace Lomont.ClScript.CompilerLib
         {
             var h = types[typeIndex];
 
+            //return $"{h.Symbol},[{h.ArrayDimension}],{h.Text}";
             if (h.Symbol == SymbolType.Function)
             {
                 var ret = FormatTypeList(h.ReturnType);
                 var par = FormatTypeList(h.ParamsType);
                 return $"{h.Symbol} {par} => {ret}";
             }
-
-
-            if (h.ArrayDimension == 0)
-                return h.Symbol.ToString();
-
+            //if (h.ArrayDimension == 0)
+            //    return h.Symbol.ToString();
             var arrayText = "";
             if (h.ArrayDimension > 0)
                 arrayText = "[" + new string(',', h.ArrayDimension - 1) + "]";
-
             if (!String.IsNullOrEmpty(h.Text))
                 return $"{h.Text}{arrayText}";
             return $"{h.Symbol}{arrayText}";
@@ -117,6 +114,7 @@ namespace Lomont.ClScript.CompilerLib
         List<HiddenType> types = new List<HiddenType>();
 
         // an internal representation to store type items
+        // todo - merge all into InternalType
         class HiddenType
         {
             public HiddenType(SymbolType type, string name, TypeManager mgr, int index, 
@@ -138,6 +136,22 @@ namespace Lomont.ClScript.CompilerLib
             public List<InternalType> ParamsType;
         }
         #endregion
+
+        public SymbolType GetSymbolType(int index)
+        {
+            return types[index].Symbol;
+        }
+
+        public int ArrayDimension(int index)
+        {
+            return types[index].ArrayDimension;
+        }
+
+        public string UserTypeName(int index)
+        {
+            // todo - return "" if not a type usage?
+            return types[index].Text;
+        }
     }
 
     /// <summary>
@@ -150,6 +164,10 @@ namespace Lomont.ClScript.CompilerLib
             this.typeManager = typeManager;
             this.index = index;
         }
+
+        public SymbolType SymbolType => typeManager.GetSymbolType(index);
+        public int ArrayDimension => typeManager.ArrayDimension(index);
+        public string UserTypeName => typeManager.UserTypeName(index);
 
         public override string ToString()
         {

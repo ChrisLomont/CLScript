@@ -1,8 +1,4 @@
-i32 a,b,c
-(i32,r32[]) func(bool a1, i32 b1[,], string c1[])
-   return
 
-/*
 i32 axx,bxx,cxx = -3_000,+0b0000_0101,0x00_ff+a
 r32 fxx = -123.45
 
@@ -72,6 +68,8 @@ type type2
    
    bool live
 
+type1 bobt,fredt
+
 [AttribV "attrib1" "attrib2"]
 i32 a1
 i32 a2,a3
@@ -139,5 +137,3 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
    f2(a,b)
    a = f2(a,b) // todo - this needs to be fixed!
    a,b = b,a 
-
-*/

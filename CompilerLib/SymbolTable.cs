@@ -47,27 +47,43 @@ namespace Lomont.ClScript.CompilerLib
         // set to true for walking existing table, else creates table 
         bool onlyScan = false;
 
-
+        /// <summary>
+        /// Add a symbol
+        /// </summary>
+        /// <param name="node">Ast node that triggered the generation</param>
+        /// <param name="symbolName">Name</param>
+        /// <param name="symbolType">Symbol type</param>
+        /// <param name="arrayDimension">Array dimension if one present, else 0</param>
+        /// <param name="attrib">Attributes</param>
+        /// <param name="typeName">Used if present, used when declaring a variable of a user defined type</param>
+        /// <param name="returnType">List of function return types</param>
+        /// <param name="paramsType">List of function parameter types</param>
+        /// <returns></returns>
         public SymbolEntry AddSymbol(
-            Ast node, string name, SymbolType symbolType,
-            int arrayDimension = 0, SymbolAttribute attrib = SymbolAttribute.None, string userTypename = "", 
-            List<InternalType> returnType = null, List<InternalType> paramsType = null
+            Ast node, 
+            string symbolName, 
+            SymbolType symbolType,
+            int arrayDimension = 0, 
+            SymbolAttribute attrib = SymbolAttribute.None, 
+            string typeName = "", 
+            List<InternalType> returnType = null, 
+            List<InternalType> paramsType = null
             )
         {
             var iSymbol = TypeManager.GetType(
                 symbolType,
                 arrayDimension,
-                userTypename,
+                typeName,
                 returnType,
                 paramsType
                 );
 
-            var symbol = SymbolTable.AddSymbol(node, Scope, name, iSymbol);
+            var symbol = SymbolTable.AddSymbol(node, Scope, symbolName, iSymbol);
             symbol.Attrib = attrib;
             var match = CheckDuplicate(SymbolTable, symbol);
             if (match != null)
             {
-                var msg = $"Symbol {name} already defined, {symbol.Node} and {match.Item1.Node}";
+                var msg = $"Symbol {symbolName} already defined, {symbol.Node} and {match.Item1.Node}";
                 if (!ReferenceEquals(match.Item2, SymbolTable))
                     environment.Warning(msg);
                 else
@@ -115,35 +131,6 @@ namespace Lomont.ClScript.CompilerLib
                     return entry;
             return Lookup(table.Parent, symbol);
         }
-
-        /// <summary>
-        /// use this to look up single types
-        /// </summary>
-        /// <param name="tokenType"></param>
-        /// <returns></returns>
-        public SymbolType GetSymbolType(TokenType tokenType)
-        {
-            switch (tokenType)
-            {
-                case TokenType.Int32:
-                    return SymbolType.Int32;
-                case TokenType.Float32:
-                    return SymbolType.Float32;
-                case TokenType.String:
-                    return SymbolType.String;
-                case TokenType.Byte:
-                    return SymbolType.Byte;
-                case TokenType.Bool:
-                    return SymbolType.Bool;
-                case TokenType.Identifier:
-                    // todo - many types
-                    return SymbolType.UserType;
-                default:
-                    throw new InternalFailure($"Unknown symbol type {tokenType}");
-            }
-        }
-
-
 
         public string Scope => stack.Peek().Item1;
 
@@ -255,11 +242,13 @@ namespace Lomont.ClScript.CompilerLib
             TypeManager.AddBasicType(SymbolType.Enum, "enum");
             TypeManager.AddBasicType(SymbolType.EnumValue, "enum value");
             TypeManager.AddBasicType(SymbolType.Module, "module");
-            TypeManager.AddBasicType(SymbolType.ToBeResolved, "UNKNOWN");
-            TypeManager.AddBasicType(SymbolType.UserType, "UserType");
-    }
+            TypeManager.AddBasicType(SymbolType.Typedef, "Type");
 
-}
+            TypeManager.AddBasicType(SymbolType.ToBeResolved, "UNKNOWN");
+            // TypeManager.AddBasicType(SymbolType.UserType1, "UserType");
+        }
+
+    }
 
     public class SymbolTable
     {
@@ -277,6 +266,7 @@ namespace Lomont.ClScript.CompilerLib
 
         public SymbolEntry AddSymbol(Ast node, string scope, string name, InternalType symbolType)
         {
+            // todo - pass scope in and resolve
             var entry = new SymbolEntry(node, name, symbolType);
             Entries.Add(entry);
             return entry;
@@ -293,22 +283,25 @@ namespace Lomont.ClScript.CompilerLib
     }
 
     public class SymbolEntry
-    {       
+    {
+        /// <summary>
+        /// Type of symbol
+        /// </summary>
+        public InternalType Type { get; }
+
         /// <summary>
         /// Name of symbol
         /// </summary>
         public string Name { get; private set; }
 
         /// <summary>
-        /// Type of symbol, used with a SymbolManager to get detailed type info
-        /// </summary>
-        public InternalType Type { get; }
-
-        /// <summary>
         /// The defining node (more or less)
         /// </summary>
         public Ast Node { get; private set; }
 
+        /// <summary>
+        /// Some symbol attributes
+        /// </summary>
         public SymbolAttribute Attrib { get; set; } = SymbolAttribute.None;
 
         public SymbolEntry(Ast node, string name, InternalType symbolType)
@@ -350,10 +343,11 @@ namespace Lomont.ClScript.CompilerLib
         Enum,
         EnumValue,
         Module,
-        ToBeResolved,
-        UserType, 
+        UserType1,  // use of a user type, with a name
+        Typedef,    // type definition
         Function,
 
-        MatchAny // used for searches
+        ToBeResolved, // cannot yet be matched, like for loop variables
+        MatchAny      // used for searches
     }
 }
