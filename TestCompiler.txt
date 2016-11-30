@@ -1,4 +1,9 @@
+(i32) fib(i32 a)
+   if a < 3
+      return 1
+   return fib(a-1) + fib(a-2)
    
+/*   
 i32 ax,bx = 0,1
 i32 cx = 1+2*3&4/5>>(-6)<<7|9 // todo +f(1,2,ax+bx)
 
@@ -16,7 +21,18 @@ bool t = !false
    i32 aa = 1+af
    r32 bb1 = .1 // todo + bf[3]
    string txts[3],str
-   
+
+   if aa>1
+      aa = 0
+   else if t
+      aa = 1
+   else if false
+      aa = 2
+   else if aa != aa
+      aa = 2
+   else 
+      aa = 3 
+  
    for i in aa,1,-2+aa
       aa += i
    for j in txts
@@ -24,7 +40,7 @@ bool t = !false
    for j in arr
       aa -= j
       // return 0,""
-   
+      
    //for i in 1,10
    //while true
    //break    // error if outside a loop
@@ -38,6 +54,7 @@ bool t = !false
    af,bb1 += 1,4.2
    // todo - arrays bf[1] %= 2
    return 1,"d"
+*/   
    
 /*
 i32 axx,bxx,cxx = -3_000,+0b0000_0101,0x00_ff+a

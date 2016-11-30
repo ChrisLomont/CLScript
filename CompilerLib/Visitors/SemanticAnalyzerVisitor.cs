@@ -82,10 +82,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 ProcessWhileStatement((WhileStatementAst)node, state);
             else if (node is JumpStatementAst)
                 ProcessJumpStatement((JumpStatementAst)node, state);
-            else if (node is FunctionCallAst)
-            {
-                // todo 
-            }
+            else if (node is IfStatementAst)
+                ProcessIfStatement((IfStatementAst)node, state);
             else if (node is FunctionDeclarationAst)
                 ProcessFunctionDeclaration((FunctionDeclarationAst)node, state); 
             else if (node is ExpressionAst)
@@ -110,6 +108,63 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     node.Type = type1;
             }
         }
+
+        // ensure if expressions are boolean
+        static void ProcessIfStatement(IfStatementAst node, State state)
+        {
+            // an if statement is alternating expression and block statements
+            // with perhaps an extra block at the end
+
+            var boolType = state.mgr.TypeManager.GetType(SymbolType.Bool);
+            for (var i = 0; i < node.Children.Count-1; i += 2)
+            {
+                var expr = node.Children[i] as ExpressionAst;
+                if (expr == null)
+                    throw new InternalFailure($"Expected expression in 'if' {node}");
+                if (expr.Type != boolType)
+                    state.env.Error($"'if' expression is not boolean: {expr}");
+            }
+        }
+
+        // check parameter types, (return types checked elsewhere on each return)
+        // set node type to return type, and return it
+        static InternalType ProcessFunctionCall(FunctionCallAst node, State state)
+        {
+            var symbol = state.mgr.Lookup(node.Token.TokenValue);
+            var retVals = symbol.Type.ReturnType;
+            var parms   = symbol.Type.ParamsType;
+
+            // a fuction call has expressions as children
+            if (parms.Count != node.Children.Count)
+            {
+                state.env.Error($"Function requires {parms.Count} parameters but only has {node.Children.Count}, at {node}");
+                return null;
+            }
+            for (var i = 0; i < parms.Count; ++i)
+            {
+                if (node.Children[i].Type != parms[i])
+                {
+                    state.env.Error($"Function required type {parms[i]} in position {i+1}");
+                    return null;
+                }
+            }
+
+            if (retVals.Count > 1)
+            {
+                state.env.Error($"Function returns with more than one parameter not yet supported {node}");
+                return null;
+            }
+            if (retVals.Count == 1)
+            {
+                node.Type = retVals[0];
+                return retVals[0];
+            }
+            return null;
+
+
+        }
+
+
 
         // check types of bounds, set type of loop variable node
         // must be called in scope of for block to set type of variable
@@ -455,23 +510,25 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         static InternalType ProcessUnaryExpression(ExpressionAst node, State state)
         {
-            var child = node.Children[0] as ExpressionAst;
+                var child = node.Children[0] as ExpressionAst;
 
-            foreach (var entry in unaryActionTable)
-            {
-                if (entry.actionType == node.Token.TokenType &&
-                    entry.valueType == child.Type.SymbolType)
+                foreach (var entry in unaryActionTable)
                 {
-                    // matches, do action if child has a value
-                    if (child.HasValue)
-                        entry.action(node, child);
-                    node.Type = child.Type;
-                    return node.Type;
+                    if (entry.actionType == node.Token.TokenType &&
+                        entry.valueType == child.Type.SymbolType)
+                    {
+                        // matches, do action if child has a value
+                        if (child.HasValue)
+                            entry.action(node, child);
+                        node.Type = child.Type;
+                        return node.Type;
+                    }
                 }
-            }
-            state.env.Error($"Unary operator {node.Token.TokenValue} cannot be applied to type {child.Type.SymbolType}");
-            return null;
+                state.env.Error(
+                    $"Unary operator {node.Token.TokenValue} cannot be applied to type {child.Type.SymbolType}");
+                return null;
         }
+
         #endregion
 
         #region BinaryExpressions
@@ -877,7 +934,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // process the expression, checking types, etc, and upgrading constants
         static InternalType ProcessExpression(ExpressionAst node, State state)
         {
-            if (node.Children.Count == 2)
+
+            if (node is FunctionCallAst)
+                return ProcessFunctionCall((FunctionCallAst)node, state);
+            else if (node.Children.Count == 2)
                 return ProcessBinaryExpression(node, state);
             else if (node.Children.Count == 1)
                 return ProcessUnaryExpression(node, state);

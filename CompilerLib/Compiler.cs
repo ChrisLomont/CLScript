@@ -47,7 +47,7 @@ namespace Lomont.ClScript.CompilerLib
             {
                 do
                 {
-                    environment.Error($"Error: {ex.Message}");
+                    environment.Error($"Exception: {ex.Message}");
                     environment.Error($"Details: {ex}");
                     ex = ex.InnerException;
                 } while (ex != null);
