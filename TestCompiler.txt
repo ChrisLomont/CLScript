@@ -7,7 +7,7 @@ bool bb = 1 < 2
 i32 intV = -1
 i32 floatV = -1
 bool t = !false
-// todo byte b = 1
+// todo byte bz1,bz2 = 1,'a'
 
 
 (i32,string) testSemanticAnalysis(i32 af, r32 bf[], bool cf[,])
@@ -23,6 +23,7 @@ bool t = !false
       str = j
    for j in arr
       aa -= j
+      // return 0,""
    
    //for i in 1,10
    //while true

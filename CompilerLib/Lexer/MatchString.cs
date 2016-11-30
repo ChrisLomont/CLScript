@@ -24,8 +24,10 @@ namespace Lomont.ClScript.CompilerLib.Lexer
         {
             var str = new StringBuilder();
 
+            var matched = false;
             if (characterStream.Current == StringDelim)
             {
+                matched = true;
                 characterStream.Consume();
 
                 while (!characterStream.End && characterStream.Current != StringDelim)
@@ -40,9 +42,9 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 }
             }
 
-            if (str.Length > 0)
+            if (matched)
             {
-                if (StringDelim == QUOTE)
+                if (StringDelim == QUOTE) // allow 0 length strings
                     return new Token(TokenType.StringLiteral, str.ToString());
                 else if (str.Length == 1)
                     return new Token(TokenType.ByteLiteral, str.ToString());
