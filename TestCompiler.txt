@@ -1,4 +1,23 @@
+i32 aaa = 1 + -5
+bool bb = 1 < 2
+i32 intV = -1
+i32 floatV = -1
+bool t = !false
+byte b = -0xFF
 
+
+/*
+(i32) testSemanticAnalysis(i32 a, r32 b[], bool c[,])
+   i32 aa = 1.0
+   r32 bb = 2
+   
+   bb,c[1,a].fred[1][4] /= f(10)
+   mtType ca[10,2]
+   a,b += 1,4
+   b %= 2
+   return "test"
+*/   
+/*
 i32 axx,bxx,cxx = -3_000,+0b0000_0101,0x00_ff+a
 r32 fxx = -123.45
 
@@ -137,3 +156,4 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
    f2(a,b)
    a = f2(a,b) // todo - this needs to be fixed!
    a,b = b,a 
+*/

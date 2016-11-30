@@ -78,7 +78,7 @@ namespace Lomont.ClScript.CompilerLib
         HexadecimalLiteral,
         FloatLiteral,
         StringLiteral,
-        CharacterLiteral,
+        ByteLiteral,
 
         // single word identifier
         Identifier,

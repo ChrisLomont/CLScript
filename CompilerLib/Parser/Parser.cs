@@ -1101,7 +1101,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         static readonly TokenType[] LiteralTokenTypes =
         {
             TokenType.BinaryLiteral, TokenType.HexadecimalLiteral, TokenType.DecimalLiteral,
-            TokenType.StringLiteral, TokenType.CharacterLiteral, TokenType.FloatLiteral,
+            TokenType.StringLiteral, TokenType.ByteLiteral, TokenType.FloatLiteral,
             TokenType.True, TokenType.False
         };
 

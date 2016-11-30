@@ -41,7 +41,12 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             }
 
             if (str.Length > 0)
-                return new Token(TokenType.StringLiteral, str.ToString());
+            {
+                if (StringDelim == QUOTE)
+                    return new Token(TokenType.StringLiteral, str.ToString());
+                else if (str.Length == 1)
+                    return new Token(TokenType.ByteLiteral, str.ToString());
+            }
 
             return null;
         }

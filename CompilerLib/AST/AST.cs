@@ -18,7 +18,7 @@ namespace Lomont.ClScript.CompilerLib.AST
         /// <summary>
         /// Type of this node for type checking
         /// </summary>
-        public string Type { get; set; }
+        public InternalType Type { get; set; }
 
         public Ast()
         {
@@ -31,16 +31,19 @@ namespace Lomont.ClScript.CompilerLib.AST
                 Children.Add(child);
         }
 
+        // allows derived nodes to insert some info
+        protected string Format(string insertion)
+        {
+            var typeStr = Type == null ? "" : $" <{Type}>";
+
+            return this.GetType().Name + $"{typeStr} {insertion} {Token}" 
+                   // Children.Aggregate("", (acc, ast) => acc + " " + ast) + 
+                   ;
+        }
+
         public override string ToString()
         {
-            var typeStr = "";
-            if (!String.IsNullOrEmpty(Type))
-                typeStr = $":{Type}";
-
-            return this.GetType().Name + $"{typeStr} " +
-                   // Children.Aggregate("", (acc, ast) => acc + " " + ast) + 
-                   $"{Token}" + 
-                   "";
+            return Format("");
         }
     }
 }

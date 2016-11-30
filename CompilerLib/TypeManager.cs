@@ -185,6 +185,14 @@ namespace Lomont.ClScript.CompilerLib
         }
         public static bool operator ==(InternalType a, InternalType b)
         {
+            // If both are null, or both are same instance, return true.
+            if (ReferenceEquals(a, b))
+                return true;
+
+            // If one is null, but not both, return false.
+            if (((object)a == null) || ((object)b == null))
+                return false;
+
             return ReferenceEquals(a.typeManager, b.typeManager) && a.index == b.index;
         }
         public static bool operator !=(InternalType x, InternalType y)
