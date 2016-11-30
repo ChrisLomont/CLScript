@@ -8,5 +8,6 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     class ForStatementAst :Ast
     {
+        public string ForVariable => Token.TokenValue;
     }
 }

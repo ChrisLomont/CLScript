@@ -60,6 +60,8 @@ namespace Lomont.ClScript.CompilerLib
             var symbolTable = BuildSymbolTableVisitor.BuildTable(ast,environment);
             SemanticAnalyzerVisitor.Check(symbolTable, ast, environment);
 
+            symbolTable.Dump(environment.Output);
+
             return ast;
         }
 

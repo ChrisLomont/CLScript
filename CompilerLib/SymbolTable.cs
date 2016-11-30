@@ -287,7 +287,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// Type of symbol
         /// </summary>
-        public InternalType Type { get; }
+        public InternalType Type { get; set;  }
 
         /// <summary>
         /// Name of symbol

@@ -40,7 +40,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             state.mgr.EnterAst(node);
 
-            // recurse children first
+            // for statement loop variable needs set here, before children processed
+            if (node is BlockAst && node.Parent is ForStatementAst)
+                ProcessForStatement((ForStatementAst)(node.Parent), state);
+
+            // recurse children
             foreach (var child in node.Children)
                 Recurse(child, state);
 
@@ -74,6 +78,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 ProcessAssignment((AssignStatementAst) node, state);
             else if (node is VariableDefinitionAst)
                 ProcessVariableDefinition((VariableDefinitionAst) node, state);
+            else if (node is WhileStatementAst)
+                ProcessWhileStatement((WhileStatementAst)node, state);
             else if (node is JumpStatementAst)
                 ProcessJumpStatement((JumpStatementAst)node, state);
             else if (node is FunctionCallAst)
@@ -103,6 +109,53 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 else
                     node.Type = type1;
             }
+        }
+
+        // check types of bounds, set type of loop variable node
+        // must be called in scope of for block to set type of variable
+        static void ProcessForStatement(ForStatementAst node, State state)
+        {
+            if (node.Children.Count != 2 || !(node.Children[1] is BlockAst))
+                throw new InternalFailure($"For structure invalid {node}");
+            var forVar = state.mgr.Lookup(node.ForVariable);
+            var bounds = node.Children[0];
+            if (bounds is ExpressionListAst)
+            { // tuple of 2 or 3 i32
+                var types = GetTypes(bounds.Children);
+                var count = types.Count;
+                var i32type = state.mgr.TypeManager.GetType(SymbolType.Int32);
+                var allI32 = types.All(tt => tt == i32type); // todo
+                if (count < 2 || 3 < count || !allI32)
+                    state.env.Error($"for range not 2 or 3 i32 values {node}");
+                else
+                {
+                    forVar.Type = types[0];
+                    node.Type = forVar.Type;
+                }
+            }
+            else if (bounds is AssignItemAst)
+            { // array of some item
+                var t = bounds.Type;
+                if (t.ArrayDimension != 1)
+                    state.env.Error($"for bounds needs to be one dimensional array {bounds}");
+                else // strip off array part of type
+                {
+                    forVar.Type = state.mgr.TypeManager.GetType(t.SymbolType);
+                    node.Type = forVar.Type;
+                }
+            }
+            else
+                throw new InternalFailure($"For structure invalid {node}");
+        }
+
+        // ensure expression is boolean
+        static void ProcessWhileStatement(WhileStatementAst node, State state)
+        {
+            if (node.Children.Count != 2 || !(node.Children[0] is ExpressionAst))
+                throw new InternalFailure($"While statement has wrong structure {node}");
+            var e = (ExpressionAst) node.Children[0];
+            if (e.Type != state.mgr.TypeManager.GetType(SymbolType.Bool))
+                state.env.Error($"While expression is not boolean {node}");
         }
 
         static void ProcessJumpStatement(JumpStatementAst node, State state)

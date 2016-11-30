@@ -33,8 +33,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var state = new SymbolBuilderState(environment);
             BuildSymbolTable(ast,state);
 
-            state.mgr.Dump(state.environment.Output);
-
             // todo - compute symbol table item sizes
             // todo - check all items checkable in symbol table
 

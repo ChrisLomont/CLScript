@@ -788,8 +788,12 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseWhileStatement()
         {
-            if (Match(TokenType.While, "Expected 'while'") != ParseAction.Matched)
+            var t = TokenStream.Consume();
+            if (t.TokenType != TokenType.While)
+            {
+                ErrorMessage($"Expected 'while' but got {t}");
                 return null;
+            }
             var expr = ParseExpression();
             if (expr == null)
             {
@@ -804,7 +808,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if ((block = ParseOrError(ParseBlock, "Expected block after 'while'")) == null)
                 return null;
 
-            var whileStatement = new WhileStatementAst();
+            var whileStatement = new WhileStatementAst {Token = t};
             whileStatement.Children.Add(expr);
             whileStatement.Children.Add(block);
             return whileStatement;

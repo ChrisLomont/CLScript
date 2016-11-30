@@ -15,11 +15,22 @@ bool t = !false
    i32 arr[3] // todo = 1,2,3 
    i32 aa = 1+af
    r32 bb1 = .1 // todo + bf[3]
+   string txts[3],str
+   
+   for i in aa,1,-2+aa
+      aa += i
+   for j in txts
+      str = j
+   for j in arr
+      aa -= j
    
    //for i in 1,10
    //while true
    //break    // error if outside a loop
    //continue // error if outside a loop
+   
+   while 1 < aa/3 // check while expr type
+      break
    
    aa,af /= 2,3
    // todo - arrays af,b[3] /= 2,3.0
