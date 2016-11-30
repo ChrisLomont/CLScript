@@ -64,10 +64,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             InternalType internalType = null;
             if (node is IdentifierAst)
                 typeName = ((IdentifierAst) node).Name;
-            else if (node is TypedItemAst)
+            else if (node is TypedItemAst && !(node.Parent.Parent is FunctionDeclarationAst))
                 typeName = ((TypedItemAst)node).Name;
             else if (node is LiteralAst)
                 symbolType = ProcessLiteral(node as LiteralAst, state);
+            else if (node is FunctionCallAst)
+            {
+                // todo 
+            }
             else if (node is ExpressionAst)
                 internalType = ProcessExpression(node as ExpressionAst, state);
 
@@ -197,7 +201,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // bool,byte,i32,r32  : !=,==,
         // byte,i32,r32 : >=,>,<=,<,
         // bool         : ||,&&,
-        // byte,i32     : >>,<<,>>>,<<<, &,|,^,++,--,%
+        // byte,i32     : >>,<<,>>>,<<<, &,|,^,%
         // byte,i32,r32 : +,-,/,*
         //
         // 
@@ -476,8 +480,89 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 (n, l, r) => n.IntValue = l.IntValue >> r.IntValue
                 ),
 
-            // byte,i32     : >>,<<,>>>,<<<, &,|,^,++,--,%
-            //todo
+            // byte,i32     : <<
+            new BinaryTableEntry(
+                TokenType.LeftShift,
+                SymbolType.Byte,SymbolType.Byte,
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue << r.ByteValue)
+                ),
+            new BinaryTableEntry(
+                TokenType.LeftShift,
+                SymbolType.Int32,SymbolType.Int32,
+                (n, l, r) => n.IntValue = l.IntValue << r.IntValue
+                ),
+
+            // byte,i32     : >>>
+            new BinaryTableEntry(
+                TokenType.RightRotate,
+                SymbolType.Byte,SymbolType.Byte,
+                (n, l, r) => n.ByteValue = (byte)RotateRight(l.ByteValue.Value,r.ByteValue.Value,8)
+                ),
+            new BinaryTableEntry(
+                TokenType.RightRotate,
+                SymbolType.Int32,SymbolType.Int32,
+                (n, l, r) => n.IntValue = RotateRight(l.IntValue.Value,r.IntValue.Value,32)
+                ),
+
+            // byte,i32     : <<<
+            new BinaryTableEntry(
+                TokenType.LeftRotate,
+                SymbolType.Byte,SymbolType.Byte,
+                (n, l, r) => n.ByteValue = (byte)RotateRight(l.ByteValue.Value,-r.ByteValue.Value,8)
+                ),
+            new BinaryTableEntry(
+                TokenType.LeftRotate,
+                SymbolType.Int32,SymbolType.Int32,
+                (n, l, r) => n.IntValue = RotateRight(l.IntValue.Value,-r.IntValue.Value,32)
+                ),
+
+            // byte,i32     : &
+            new BinaryTableEntry(
+                TokenType.Ampersand,
+                SymbolType.Byte,SymbolType.Byte,
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue & r.ByteValue)
+                ),
+            new BinaryTableEntry(
+                TokenType.Ampersand,
+                SymbolType.Int32,SymbolType.Int32,
+                (n, l, r) => n.IntValue = l.IntValue & r.IntValue
+                ),
+
+            // byte,i32     : |
+            new BinaryTableEntry(
+                TokenType.Pipe,
+                SymbolType.Byte,SymbolType.Byte,
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue | r.ByteValue)
+                ),
+            new BinaryTableEntry(
+                TokenType.Pipe,
+                SymbolType.Int32,SymbolType.Int32,
+                (n, l, r) => n.IntValue = l.IntValue | r.IntValue
+                ),
+
+            // byte,i32     : ^
+            new BinaryTableEntry(
+                TokenType.Caret,
+                SymbolType.Byte,SymbolType.Byte,
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue ^ r.ByteValue)
+                ),
+            new BinaryTableEntry(
+                TokenType.Caret,
+                SymbolType.Int32,SymbolType.Int32,
+                (n, l, r) => n.IntValue = l.IntValue ^ r.IntValue
+                ),
+
+            // byte,i32     : %
+            new BinaryTableEntry(
+                TokenType.Percent,
+                SymbolType.Byte,SymbolType.Byte,
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue % r.ByteValue)
+                ),
+            new BinaryTableEntry(
+                TokenType.Percent,
+                SymbolType.Int32,SymbolType.Int32,
+                (n, l, r) => n.IntValue = l.IntValue % r.IntValue
+                ),
 
             // byte,i32,r32 : +
             new BinaryTableEntry(
@@ -546,10 +631,41 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 ),
         };
 
+        // right rotate the number of bits, negative rotation rotates left
+        static int RotateRight(int value, int shift, int numBits)
+        {
+            if (numBits < 0  || 32 < numBits)
+                throw new InvalidExpression($"Cannot shift number of bits {numBits}");
+            if (numBits == 0)
+                return value;
+            if (shift < 0)
+            {
+                // left shift by K is same as right shift by numbits-K
+                shift = numBits - ((-shift)%numBits);
+                if (shift < 0 || numBits < shift)
+                    throw new InternalFailure("Invalid rotate assumption");
+            }
+            shift %= numBits;
+
+            uint v = (uint)value; // work unsigned
+
+            var l = (v >> shift)&((1U<<(numBits-shift))-1); // low bits
+            var h = (v << (numBits - shift));               // high bits
+
+            v = (h | l); // merged back
+            if (numBits < 32)
+                v&=((1U<<numBits)-1); // merged back
+
+            return (int) v;
+        }
+
         static InternalType ProcessBinaryExpression(ExpressionAst node, State state)
         {
             var left  = node.Children[0] as ExpressionAst;
             var right = node.Children[1] as ExpressionAst;
+
+            if (left == null || right == null)
+                throw new InternalFailure("Expected ExpressionAst");
 
             if (left.Type != right.Type)
             {
@@ -594,56 +710,5 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         #endregion
-
-#if false
-
-        // types bool,byte,enum,i32,r32,string
-        //
-        // Binary operators: and types they apply to
-        // all          : !=,==,
-        // byte,i32,r32 : >=,>,<=,<,
-        // bool         : ||,&&,
-        // byte,i32     : >>,<<,>>>,<<<, &,|,^,++,--,%
-        // byte,i32,r32 : +,-,/,*
-        //
-        // byte promoted to i32 for ops, enum turned to i32
-        // i32  promoted to r32
-        // only demotion is assignment
-        // 
-        // Unary operators and types they apply to
-        // +,-,!,~
-        //
-
-        /// <summary>
-        /// Does everything possible to an expression
-        /// Expressions are literals, function calls, and identifiers
-        /// </summary>
-        /// <param name="node"></param>
-        static void ProcessExpression(Ast node, State state)
-        {
-            todo - make table based - table tells what can be done, else errors
-
-            // process children first, bubble up
-            foreach (var ch in node.Children)
-                ProcessExpression(ch, state);
-
-            // now process individual node types
-
-
-            else if (node is IdentifierAst)
-            {
-                state.env.Output.WriteLine("TODO - check constant and enum literals in expression");
-            }
-
-            else if (node is ExpressionAst)
-            {
-
-            }
-            else
-            {
-                throw new InternalFailure($"Unknown ExpressionAst derived node {node}");
-            }
-    }
-#endif
     }
 }

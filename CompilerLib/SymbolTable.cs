@@ -143,8 +143,8 @@ namespace Lomont.ClScript.CompilerLib
                 Push(((ModuleAst)node).Name,false);
             else if (node is TypeDeclarationAst)
                 Push(((TypeDeclarationAst)node).Name,true);
-            else if (node is FunctionDeclarationAst)
-                Push(((FunctionDeclarationAst)node).Name,true);
+//            else if (node is FunctionDeclarationAst)
+//                Push(((FunctionDeclarationAst)node).Name,true);
             else if (node is BlockAst)
                 Push(GetBlockName(),true);
 
@@ -158,8 +158,8 @@ namespace Lomont.ClScript.CompilerLib
                 Pop();
             else if (node is TypeDeclarationAst)
                 Pop();
-            else if (node is FunctionDeclarationAst)
-                Pop();
+//            else if (node is FunctionDeclarationAst)
+//                Pop();
             else if (node is BlockAst)
                 Pop();
         }

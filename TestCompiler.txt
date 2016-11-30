@@ -1,3 +1,10 @@
+   
+
+
+
+i32 ax,bx = 0,1
+i32 cx = 1+2*3&4/5>>(-6)<<7|9 // todo +f(1,2,ax+bx)
+
 i32 aaa = 1 + -5
 bool bb = 1 < 2
 i32 intV = -1
@@ -6,17 +13,16 @@ bool t = !false
 byte b = -0xFF
 
 
-/*
-(i32) testSemanticAnalysis(i32 a, r32 b[], bool c[,])
+(i32) testSemanticAnalysis(i32 af, r32 bf[], bool cf[,])
    i32 aa = 1.0
    r32 bb = 2
    
-   bb,c[1,a].fred[1][4] /= f(10)
+   bb,cf[1,a].fred[1][4] /= f(10)
    mtType ca[10,2]
-   a,b += 1,4
+   af,bf += 1,4
    b %= 2
    return "test"
-*/   
+   
 /*
 i32 axx,bxx,cxx = -3_000,+0b0000_0101,0x00_ff+a
 r32 fxx = -123.45
@@ -156,4 +162,36 @@ import (i32,r32,myType) importFunc(r32 val[], bool f1, i32 jj[,,])
    f2(a,b)
    a = f2(a,b) // todo - this needs to be fixed!
    a,b = b,a 
+
+/*******************************************************************/
+// testing expressions 
+
+// Binary operators: and types they apply to
+// bool,byte,i32,r32  : !=,==,
+// byte,i32,r32 : >=,>,<=,<,
+// bool         : ||,&&,
+// byte,i32     : >>,<<,>>>,<<<, &,|,^,%
+// byte,i32,r32 : +,-,/,*
+//
+// 
+// Unary operators and types they apply to
+// 
+// bool          : !
+// byte, i32     : ~
+// byte,i32,r32  : +,-
+
+(i32) addOne(i32 a)
+   i32 b = 1
+   return a+b
+   
+(bool) TestConstantExpressions()
+   // i32 testing: >,>=,==,<=,<,!=,unary +-
+   i32 e1,e2,e3,e4,e5 = 1>-1,-1>=1,4==4,3<=4,-6<-3,3!=1
+   // i32 testing: >>,<<,>>>,<<<
+   i32 f1,f2,f3,f4 = 0xF0>>2,0X0F<<2,0b1001>>>2,0xF000_000E<<<3
+   // i32 testing &,|,^,%,+,-,*,/,~,
+   i32 g1 =(~4+(4|6)*-2/3)^(3&7)%2
+   // i32 testing variables and functions
+   i32 h1 = g1+2//*addOne(5)
+   return true // todo- check values
 */

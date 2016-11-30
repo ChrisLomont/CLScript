@@ -6,6 +6,13 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib
 {
+    public class InvalidExpression : Exception
+    {
+        public InvalidExpression(string format) : base(format)
+        {
+        }
+    }
+
     public class InternalFailure : Exception
     {
         public InternalFailure(string format) : base(format)

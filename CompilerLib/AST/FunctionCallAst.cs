@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
-    class FunctionCallAst :Ast
+    class FunctionCallAst : ExpressionAst
     {
         public FunctionCallAst(Token identifier, Ast parameters)
         {
