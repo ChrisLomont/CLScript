@@ -68,10 +68,20 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 typeName = ((TypedItemAst)node).Name;
             else if (node is LiteralAst)
                 symbolType = ProcessLiteral(node as LiteralAst, state);
+            else if (node is AssignItemAst)
+                internalType = ProcessAssignItem((AssignItemAst)node, state);
+            else if (node is AssignStatementAst)
+                ProcessAssignment((AssignStatementAst) node, state);
+            else if (node is VariableDefinitionAst)
+                ProcessVariableDefinition((VariableDefinitionAst) node, state);
+            else if (node is JumpStatementAst)
+                ProcessJumpStatement((JumpStatementAst)node, state);
             else if (node is FunctionCallAst)
             {
                 // todo 
             }
+            else if (node is FunctionDeclarationAst)
+                ProcessFunctionDeclaration((FunctionDeclarationAst)node, state); 
             else if (node is ExpressionAst)
                 internalType = ProcessExpression(node as ExpressionAst, state);
 
@@ -93,6 +103,121 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 else
                     node.Type = type1;
             }
+        }
+
+        static void ProcessJumpStatement(JumpStatementAst node, State state)
+        {
+            var tt = node.Token.TokenType;
+
+            if (tt == TokenType.Return)
+            {
+                // ensure return statements match return types
+                Ast p = node;
+                while (p != null && !(p is FunctionDeclarationAst))
+                    p = p.Parent;
+                if (p == null)
+                    state.env.Error($"Return without enclosing function {node}");
+                else
+                {
+                    var func = p as FunctionDeclarationAst;
+                    var symbol   = state.mgr.Lookup(func.Name);
+                    var funcReturnTypes = symbol.Type.ReturnType;
+                    if (funcReturnTypes.Count == 0 && node.Children.Count == 0)
+                        return; // nothing to do
+                    var returnStatementTypes = GetTypes(node.Children[0].Children);
+
+                    CheckAssignments(node,funcReturnTypes,returnStatementTypes,state);
+                }
+            }
+            else if (tt == TokenType.Continue || tt == TokenType.Break)
+            {
+                // todo - ensure break, continue are in loops
+                Ast p = node;
+                while (p != null && !(p is ForStatementAst) && !(p is WhileStatementAst))
+                    p = p.Parent;
+                if (p == null)
+                    state.env.Error($"Jump statement needs to be in a for or while loop: {node.Token}");
+            }
+        }
+
+        static List<InternalType> GetTypes(List<Ast> children)
+        {
+            return children.Select(c => c.Type).ToList();
+        }
+
+        // ensure function declarations that need one end with a return statement 
+        static void ProcessFunctionDeclaration(FunctionDeclarationAst node, State state)
+        {
+            if (node.Children.Count != 3 || !(node.Children[2] is BlockAst))
+                throw new InternalFailure($"Function {node} has wrong structure");
+
+            var symbol = state.mgr.Lookup(node.Name);
+            var funcReturnTypes = symbol.Type.ReturnType;
+            if (funcReturnTypes.Count == 0)
+                return; // nothing to do here - any actual return statements checked elsewhere
+
+            var block = (BlockAst) (node.Children[2]);
+            if (!(block.Children.LastOrDefault() is JumpStatementAst))
+                state.env.Error($"Function {node} requires a return statement at end.");
+        }
+
+        static InternalType ProcessAssignItem(AssignItemAst node, State state)
+        {
+            var symbol = state.mgr.Lookup(node.Token.TokenValue);
+            if (symbol == null)
+                state.env.Error($"Cannot find symbol {node}");
+            return symbol?.Type;
+        }
+
+        static void CheckAssignments(Ast node, List<InternalType> left, List<InternalType> right, State state)
+        {
+            // todo - check type symbols exist for user defined
+            // todo - allow assigning list of items to structures...
+
+            if (left.Count != right.Count)
+            {
+                state.env.Error($"Mismatched number of expressions to assignments {node}");
+                return;
+            }
+            for (var i = 0; i < left.Count; ++i)
+            {
+                // todo - check type exists
+                if (left[i] != right[i])
+                    state.env.Error($"Types at position {i + 1} mismatched in assignment {node}");
+            }
+
+        }
+
+        // check var type exists
+        // check variable type exists, counts and types match
+        static void ProcessAssignment(AssignStatementAst node, State state)
+        {
+            // todo - check type symbols exist for user defined
+            // todo - allow assigning list of items to structures...
+            if (node.Children.Count != 2)
+                throw new InternalFailure($"Expected 2 children {node}");
+            var items = node.Children[0] as AssignItemsAst;
+            var exprs = node.Children[1] as ExpressionListAst;
+            if (items == null || exprs == null)
+                throw new InternalFailure($"Variable nodes incorrect {node}");
+            CheckAssignments(node, GetTypes(items.Children), GetTypes(exprs.Children), state);
+        }
+
+        // check var type exists
+        // check variable type exists, counts and types match
+        static void ProcessVariableDefinition(VariableDefinitionAst node, State state)
+        {
+            // todo - check type symbols exist for user defined
+            // todo - allow assigning list of items to structures...
+            if (node.Children.Count == 1)
+                return; // nothing to check - only names variables
+            if (node.Children.Count != 2)
+                throw new InternalFailure($"Expected 2 children {node}");
+            var items = node.Children[0] as TypedItemsAst;
+            var exprs = node.Children[1] as ExpressionListAst;
+            if (items == null || exprs == null)
+                throw new InternalFailure($"Variable nodes incorrect {node}");
+            CheckAssignments(node, GetTypes(items.Children),GetTypes(exprs.Children),state);
         }
 
         static Int32 ParseInt(Ast node, State state)

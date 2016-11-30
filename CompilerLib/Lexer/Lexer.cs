@@ -178,12 +178,14 @@ namespace Lomont.ClScript.CompilerLib.Lexer
 
             matchers.Add(new MatchString(MatchString.QUOTE));
             matchers.Add(new MatchString(MatchString.TIC));
+            // this must come before operators to prevent '.1' being DOT ONE as opoosed to floating point 0.1
+            matchers.Add(new MatchNumber());
+
             matchers.AddRange(specialCharacters);
             matchers.AddRange(keywords);
             matchers.AddRange(new List<MatchBase>
             {
                 new MatchWhiteSpace(),
-                new MatchNumber(),
                 new MatchIdentifier()
             });
 

@@ -586,7 +586,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
 
             var h = new AssignStatementAst(op);
-            h.Children.AddRange(assignItems.Children.ToArray());
+            h.Children.Add(new AssignItemsAst(assignItems.Children));
             if (exprList != null)
                 h.AddChild(exprList);
             return h;

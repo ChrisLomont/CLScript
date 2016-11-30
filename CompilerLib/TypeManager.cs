@@ -152,6 +152,16 @@ namespace Lomont.ClScript.CompilerLib
             // todo - return "" if not a type usage?
             return types[index].Text;
         }
+
+        public List<InternalType> ReturnType(int index)
+        {
+            return types[index].ReturnType;
+        }
+
+        public List<InternalType> ParamsType(int index)
+        {
+            return types[index].ParamsType;
+        }
     }
 
     /// <summary>
@@ -168,6 +178,9 @@ namespace Lomont.ClScript.CompilerLib
         public SymbolType SymbolType => typeManager.GetSymbolType(index);
         public int ArrayDimension => typeManager.ArrayDimension(index);
         public string UserTypeName => typeManager.UserTypeName(index);
+
+        public List<InternalType> ReturnType => typeManager.ReturnType(index);
+        public List<InternalType> ParamsType => typeManager.ParamsType(index);
 
         public override string ToString()
         {
