@@ -41,7 +41,9 @@ namespace Lomont.ClScript.CompilerLib
                 parser = new Parser.Parser(lexer);
                 SyntaxTree = parser.Parse(environment);
                 if (SyntaxTree != null)
-                    SyntaxTree = ProcessTree(SyntaxTree, environment);
+                {
+                    var success = ProcessTree(SyntaxTree, environment);
+                }
             }
             catch (Exception ex)
             {
@@ -55,14 +57,17 @@ namespace Lomont.ClScript.CompilerLib
         }
 
         // do compiler tree transforms
-        Ast ProcessTree(Ast ast, Environment environment)
+        // return true on success
+        bool ProcessTree(Ast ast, Environment environment)
         {
             var symbolTable = BuildSymbolTableVisitor.BuildTable(ast,environment);
             SemanticAnalyzerVisitor.Check(symbolTable, ast, environment);
+            var cg = new CodeGeneratorVisitor();
+            cg.Generate(symbolTable, ast, environment);
 
             symbolTable.Dump(environment.Output);
 
-            return ast;
+            return environment.ErrorCount == 0;
         }
 
         // helper function to tag items for gold parser

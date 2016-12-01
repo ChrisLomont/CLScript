@@ -83,6 +83,7 @@
     <Compile Include="Lexer\MatchWhitespace.cs" />
     <Compile Include="Lexer\CharacterStream.cs" />
     <Compile Include="Lexer\ThrowExceptionMatcher.cs" />
+    <Compile Include="Opcode.cs" />
     <Compile Include="Parser\Parser.cs" />
     <Compile Include="Parser\TokenStream.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -92,6 +93,7 @@
     <Compile Include="TypeManager.cs" />
     <Compile Include="Visitors\AttachParentsVisitor.cs" />
     <Compile Include="Visitors\BuildSymbolTableVisitor.cs" />
+    <Compile Include="Visitors\CodeGeneratorVisitor.cs" />
     <Compile Include="Visitors\PrintVisitor.cs" />
     <Compile Include="Visitors\SemanticAnalyzerVisitor.cs" />
   </ItemGroup>
