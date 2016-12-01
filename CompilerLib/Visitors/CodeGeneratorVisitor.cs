@@ -21,20 +21,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         Stack<string> loopBreakLabels = new Stack<string>();
         Stack<string> loopContinueLabels = new Stack<string>();
 
-        public void Generate(SymbolTableManager symbolTable, Ast ast, Environment environment)
+        public List<Opcode> Generate(SymbolTableManager symbolTable, Ast ast, Environment environment)
         {
             env = environment;
             mgr = symbolTable;
             symbolTable.Start();
             Recurse(ast);
-
-            Dump(instructions, env.Output);
-        }
-
-        void Dump(List<Opcode> instructions, TextWriter output)
-        {
-            foreach (var inst in instructions)
-                output.WriteLine(inst);
+            return instructions;
         }
 
         void Recurse(Ast node)

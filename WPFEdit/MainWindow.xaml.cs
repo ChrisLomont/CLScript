@@ -15,8 +15,9 @@ namespace Lomont.ClScript.WPFEdit
 
         void OnLoaded(object sender, RoutedEventArgs e)
         {
-            (this.DataContext as MainViewModel).Editor = textEditor;
+            (this.DataContext as MainViewModel).CodeEditor = textEditor;
             (this.DataContext as MainViewModel).TreeText = treeView;
+            (this.DataContext as MainViewModel).CodegenText = codegenView;
             textEditor.ShowLineNumbers = true;
         }
     }

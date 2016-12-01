@@ -8,6 +8,7 @@ using ICSharpCode.AvalonEdit;
 using Lomont.ClScript.CompilerLib;
 using Microsoft.Win32;
 using Environment = Lomont.ClScript.CompilerLib.Environment;
+using System.ComponentModel;
 
 namespace Lomont.ClScript.WPFEdit.ViewModel
 {
@@ -28,7 +29,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
         /// <summary>
         /// Initializes a new instance of the MainViewModel class.
         /// </summary>
-        public MainViewModel()
+        public MainViewModel() 
         {
             ////if (IsInDesignMode)
             ////{
@@ -49,17 +50,18 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
         public RelayCommand SaveCommand { get; private set; }
         public RelayCommand LoadCommand { get; private set; }
         public RelayCommand ExportCommand { get; private set; }
-        public TextEditor Editor { get; set; }
+        public TextEditor CodeEditor { get; set; }
         public TextEditor TreeText { get; set; }
+        public TextEditor CodegenText { get; set; }
         public ObservableCollection<string> Messages { get; } = new ObservableCollection<string>();
 
         public ObservableCollection<Token> Tokens { get; } = new ObservableCollection<Token>();
-        
+
         void Save()
         {
             if (!string.IsNullOrEmpty(filename))
             {
-                File.WriteAllText(filename, Editor.Text);
+                File.WriteAllText(filename, CodeEditor.Text);
                 Messages.Add($"File {filename} saved");
             }
             
@@ -72,7 +74,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             if (ofd.ShowDialog() == true)
             {
                 var text = File.ReadAllText(ofd.FileName);
-                Editor.Text = text;
+                CodeEditor.Text = text;
                 filename = ofd.FileName;
                 Messages.Add($"File {filename} loaded");
             }
@@ -97,18 +99,24 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
         {
             try
             {
+                TreeText.Text = "";
+                CodegenText.Text = "";
                 var output = new StringWriter();
-                var text = Editor.Text;
-                compiler = new CompilerLib.Compiler();
-                string goldText;
-                compiler.Compile(text, new Environment(output), out goldText);
-                File.WriteAllText("goldOut.txt", goldText);
+                var sourceCodeText = CodeEditor.Text;
+
+                compiler = new Compiler();
+
+                compiler.Compile(sourceCodeText, new Environment(output));
+
+                // output messages
                 var msgs = output.ToString().Split('\n');
                 Messages.Clear();
                 foreach (var msg in msgs)
                     Messages.Add(msg.Replace("\r", "").Replace("\n", ""));
 
+                // some output
                 TreeText.Text = compiler.SyntaxTreeToText();
+                CodegenText.Text = compiler.CodegenToText();
                 Tokens.Clear();
                 foreach (var t in compiler.GetTokens())
                     Tokens.Add(t);

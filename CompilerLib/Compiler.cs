@@ -4,6 +4,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Linq;
+using System.Reflection.Emit;
+using System.ServiceModel;
 using System.Text;
 using Lomont.ClScript.CompilerLib.AST;
 using Lomont.ClScript.CompilerLib.Parser;
@@ -31,12 +33,22 @@ namespace Lomont.ClScript.CompilerLib
             return "No syntax tree to show\n";
         }
 
-        public void Compile(string text, Environment environment, out string result)
+        public string CodegenToText()
         {
-            result = "";
+            var sb = new StringBuilder();
+            foreach (var inst in codeGen)
+                sb.AppendLine(inst.ToString());
+            return sb.ToString();
+        }
+
+        List<Opcode> codeGen = new List<Opcode>();
+
+        public void Compile(string text, Environment environment)
+        {
             environment.Info($"Compiling <todo> lines");
             try
             {
+                codeGen.Clear();
                 lexer = new Lexer.Lexer(text, environment);
                 parser = new Parser.Parser(lexer);
                 SyntaxTree = parser.Parse(environment);
@@ -63,7 +75,9 @@ namespace Lomont.ClScript.CompilerLib
             var symbolTable = BuildSymbolTableVisitor.BuildTable(ast,environment);
             SemanticAnalyzerVisitor.Check(symbolTable, ast, environment);
             var cg = new CodeGeneratorVisitor();
-            cg.Generate(symbolTable, ast, environment);
+
+            var code = cg.Generate(symbolTable, ast, environment);
+            codeGen.AddRange(code);
 
             symbolTable.Dump(environment.Output);
 
@@ -97,5 +111,6 @@ namespace Lomont.ClScript.CompilerLib
                 return parser.GetTokens();
             return new List<Token>();
         }
+
     }
 }
