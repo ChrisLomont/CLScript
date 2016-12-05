@@ -162,7 +162,7 @@ namespace Lomont.ClScript.CompilerLib
 
                 foreach (var t in types)
                 {
-                    var tbl = GetTableWithScope(t.Name);
+                    var tbl = GetTableWithScope(t.Type.UserTypeName);
                     if (tbl == null)
                     {
                         env.Error($"Cannot find symbol table for {t} members");
@@ -185,7 +185,7 @@ namespace Lomont.ClScript.CompilerLib
                 }
 
                 // find which got matched, and remove them
-                var removeList = types.Where(t => t.Type.Size.HasValue);
+                var removeList = types.Where(t => t.Type.Size.HasValue).ToList();
                 foreach (var r in removeList)
                     types.Remove(r);
 
