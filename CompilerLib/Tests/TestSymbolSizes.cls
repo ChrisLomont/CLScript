@@ -1,6 +1,6 @@
 bool b1,b2,b3
-string s1 = "test"
-byte c1,c2,c3
+//string s1 = "test"
+export byte c1,c2,c3
 i32 i1,i2 = 1234,123*45<<3
 r32 r1,r2,r3 = 1.0,2.0,3.0
 
@@ -25,3 +25,18 @@ type2 t4,t5
 
 i32 end, val1 = 1,2
    
+(i32) func(i32 i1, byte b, r32 r1, type2 t1, i32 aa)
+   i32 local1 = 1
+   for i in 1..10
+      local1 = i   
+   if i1 > 10
+      i32 l2 = 1
+      i32 l3 = 0
+      local1 = l2 + l3
+   else
+      i32 t = -1
+      for i in 8..5 //  by t
+         i32 bob = 0
+         local1 += i + bob-t       
+         
+   return i1+local1

@@ -100,6 +100,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 new MatchKeyword(TokenType.While, "while",notId),
                 new MatchKeyword(TokenType.For, "for",notId),
                 new MatchKeyword(TokenType.In, "in",notId),
+                new MatchKeyword(TokenType.By, "by",notId),
 
                 new MatchKeyword(TokenType.Return, "return",notId),
                 new MatchKeyword(TokenType.Break, "break",notId),
@@ -143,6 +144,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 new MatchKeyword(TokenType.LogicalAnd, "&&"),
                 new MatchKeyword(TokenType.Increment, "++"),
                 new MatchKeyword(TokenType.Decrement, "--"),
+                new MatchKeyword(TokenType.Range, ".."),
 
 
                 // single char

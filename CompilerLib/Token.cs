@@ -59,6 +59,7 @@ namespace Lomont.ClScript.CompilerLib
         While,
         For,
         In,
+        By,
         Return,
         Break,
         Continue,
@@ -137,6 +138,7 @@ namespace Lomont.ClScript.CompilerLib
         LogicalAnd,
         Increment,
         Decrement,
+        Range,
 
         // formatting/blocks
         EndOfLine,

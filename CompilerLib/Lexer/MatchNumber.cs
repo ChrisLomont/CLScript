@@ -10,8 +10,6 @@ namespace Lomont.ClScript.CompilerLib.Lexer
 {
     public class MatchNumber : MatchBase
     {
-
-
         // numbers: integers in decimal, hex, binary, float
         protected override Token IsMatchImpl(CharacterStream characterStream)
         {
@@ -31,9 +29,9 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             }
 
             var leftOperand = GetIntegers(characterStream,"0123456789");
-            if (leftOperand != null || characterStream.Current == '.')
+            if (leftOperand != null || IsDecimalDot(characterStream))
             {
-                if (characterStream.Current == '.')
+                if (IsDecimalDot(characterStream))
                 {
                     // found a float
                     characterStream.Consume();
@@ -50,6 +48,12 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             }
 
             return null;
+        }
+
+        // decimal dot is differentiated from the range token '..'
+        bool IsDecimalDot(CharacterStream characterStream)
+        {
+            return characterStream.Current == '.' && characterStream.Peek(1) != '.';
         }
 
         string GetExponent(CharacterStream characterStream)

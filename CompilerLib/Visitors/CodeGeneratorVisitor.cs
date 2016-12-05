@@ -37,26 +37,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return instructions;
         }
 
-        void LayoutMemory(Ast node)
-        {
-            // size each type
-            mgr.ComputeSizes(env);
-            // size each block
-            // RecurseSize(symbolTable.SymbolTable);
-        }
-
-//        static void RecurseSize(SymbolTable table)
-//        {
-//            foreach (var e in table.Entries)
-//            {
-//                if (e.Type.HasSize())
-//                    e.Offset = e.Type.GetSize();
-//            }
-//            foreach (var ch in table.Children)
-//                RecurseSize(ch);
-//        }
-
-
         void Recurse(Ast node)
         {
             if (node is ExpressionAst)
@@ -485,6 +465,79 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         throw new InternalFailure($"Cannot emit binary op {node}");
     }
 
-    #endregion Process
-}
+        #endregion Process
+
+        #region Memory Layout
+        void LayoutMemory(Ast node)
+        {
+            // size each symbol type
+            mgr.ComputeSizes(env);
+
+            // size all blocks
+            SizeBlocks(mgr.SymbolTable);
+
+            // final stack locations for locals
+            foreach (var child in mgr.RootTable.Children.Where(t=>t.IsFunctionBlock))
+                PlaceLocals(child, 0);
+        }
+
+        // place local variables on stack relative to parent
+        void PlaceLocals(SymbolTable table, int shift)
+        {
+            var total = 0;
+            foreach (var entry in table.Entries.Where(t=>t.VariableUse == VariableUse.Local || t.VariableUse == VariableUse.ForLoop))
+            {
+                total += entry.Type.Size.Value;
+                entry.Address += shift;
+            }
+            foreach (var child in table.Children)
+                PlaceLocals(child,total+shift);
+        }
+
+        // compute
+        void SizeBlocks(SymbolTable tbl)
+        {
+            // do children first
+            foreach (var ch in tbl.Children)
+                SizeBlocks(ch);
+
+            // now layout this one
+            var size = 0;
+            var paramSize = 0;
+            var lastParamSize = 0;
+            foreach (var e in tbl.Entries.Where(e => e.Type.Size.HasValue))
+            {
+                if (e.VariableUse == VariableUse.Param)
+                {
+                    e.Address = paramSize;
+                    paramSize += e.Type.Size.Value;
+                    lastParamSize = e.Type.Size.Value;
+                }
+                else if (e.VariableUse == VariableUse.ForLoop)
+                { // todo - rethink this....
+                    e.Address = size; // stores here
+                    size += e.Type.Size.Value;
+                }
+                else
+                {
+                    e.Address = size; // stores here
+                    size += e.Type.Size.Value;
+                }
+            }
+            
+            // invert parameter sizes
+            foreach (var e in tbl.Entries.Where(e => e.Type.Size.HasValue))
+            {
+                if (e.VariableUse == VariableUse.Param)
+                    e.Address = -(paramSize - e.Address.Value - lastParamSize);
+            }
+ 
+            // max of child block sizes:
+            var maxChildSize = tbl.Children.Any() ? tbl.Children.Max(ch => ch.StackSize) : 0;
+            tbl.StackSize = size + maxChildSize;
+        }
+
+        #endregion
+
+    }
 }

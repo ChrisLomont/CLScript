@@ -67,6 +67,7 @@ namespace Lomont.ClScript.CompilerLib
             Ast node, 
             string symbolName, 
             SymbolType symbolType,
+            VariableUse usage, 
             int arrayDimension = 0, 
             SymbolAttribute attrib = SymbolAttribute.None, 
             string typeName = "", 
@@ -82,7 +83,7 @@ namespace Lomont.ClScript.CompilerLib
                 paramsType
                 );
 
-            var symbol = SymbolTable.AddSymbol(node, Scope, symbolName, iSymbol);
+            var symbol = SymbolTable.AddSymbol(node, Scope, symbolName, usage, iSymbol);
             symbol.Attrib = attrib;
             var match = CheckDuplicate(SymbolTable, symbol);
             if (match != null)
@@ -361,10 +362,26 @@ namespace Lomont.ClScript.CompilerLib
 
     public class SymbolTable
     {
+        /// <summary>
+        /// stack size required for this block
+        /// </summary>
+        public int StackSize { get; set; }
+
         public string Scope { get; private set; }
         public List<SymbolEntry> Entries { get; } = new List<SymbolEntry>();
         public SymbolTable Parent { get;}
         public List<SymbolTable> Children { get; } = new List<SymbolTable>();
+
+        // is this a function block table?
+        public bool IsFunctionBlock
+        {
+            get
+            {
+                // form:  global.block_...
+                var words = Scope.Split('.');
+                return words.Length > 1 && words[1].StartsWith("Block_");
+            }
+        }
 
         public SymbolTable(SymbolTable parent, string scope)
         {
@@ -373,10 +390,10 @@ namespace Lomont.ClScript.CompilerLib
             Scope = scope;
         }
 
-        public SymbolEntry AddSymbol(Ast node, string scope, string name, InternalType symbolType)
+        public SymbolEntry AddSymbol(Ast node, string scope, string name, VariableUse usage, InternalType symbolType)
         {
             // todo - pass scope in and resolve
-            var entry = new SymbolEntry(node, name, symbolType);
+            var entry = new SymbolEntry(node, name, usage, symbolType);
             Entries.Add(entry);
             return entry;
         }
@@ -384,7 +401,7 @@ namespace Lomont.ClScript.CompilerLib
 
         public void Dump(TextWriter output)
         {
-            output.WriteLine($"Symbol Table Scope: {Scope}");
+            output.WriteLine($"Symbol Table Scope: {Scope} :{StackSize}:");
             foreach (var entry in Entries)
                 output.WriteLine(entry);
             output.WriteLine("****************************");
@@ -413,27 +430,43 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public SymbolAttribute Attrib { get; set; } = SymbolAttribute.None;
 
+        /// <summary>
+        /// How used if a variable
+        /// </summary>
+        public VariableUse VariableUse { get;  private set; }
+
+        /// <summary>
+        /// Value if the symbol has a fixed value
+        /// </summary>
         public int? Value { get; set; }
 
-        public SymbolEntry(Ast node, string name, InternalType symbolType)
+        /// <summary>
+        /// Address offset if the symbol has a fixed value
+        /// </summary>
+        public int? Address { get; set; }
+
+        public SymbolEntry(Ast node, string name, VariableUse usage, InternalType symbolType)
         {
             Node = node;
             Name = name;
             Type = symbolType;
+            VariableUse = usage;
         }
 
         public override string ToString()
         {
             var name = Name;
+            var flags = "";
             if ((Attrib & SymbolAttribute.Const) != SymbolAttribute.None)
-                name += "+c";
+                flags += "c";
             if ((Attrib & SymbolAttribute.Export) != SymbolAttribute.None)
-                name += "+e";
+                flags += "e";
             if ((Attrib & SymbolAttribute.Import) != SymbolAttribute.None)
-                name += "+i";
+                flags += "i";
             var value = Value.HasValue?Value.ToString():"";
+            var addr  = Address.HasValue ? Address.ToString() : "";
 
-            return $"{name,-15} {Type,-15} {value,-8}";//,{Node}";
+            return $"{name,-12} {flags,-3} {value,-8} {addr,-8} {VariableUse,-6} {Type,-15} ";
         }
     }
 
@@ -444,6 +477,17 @@ namespace Lomont.ClScript.CompilerLib
         Const  = 0x0001,
         Import = 0x0002,
         Export = 0x0004
+    }
+
+    public enum VariableUse
+    {
+        None,
+        Const,
+        Member,
+        ForLoop,
+        Local,
+        Global,
+        Param
     }
 
     public enum SymbolType

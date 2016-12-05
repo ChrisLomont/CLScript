@@ -5,6 +5,7 @@ using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Visitors
@@ -43,7 +44,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
 
             if (node is TypedItemAst)
-                AddTypedItem((TypedItemAst)node, state);
+                AddTypedItem((TypedItemAst)node, state, NodeVariableType(node));
             else if (node is FunctionDeclarationAst)
                 AddFunctionDeclSymbols((FunctionDeclarationAst)node, state);
             else if (node is ReturnValuesAst)
@@ -51,13 +52,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is ParameterListAst)
                 return; // these added to symbol table during block
             else if (node is EnumAst)
-                state.mgr.AddSymbol(node, ((EnumAst)node).Name, SymbolType.Enum);
+                state.mgr.AddSymbol(node, ((EnumAst)node).Name, SymbolType.Enum, VariableUse.None);
             else if (node is EnumValueAst)
-                state.mgr.AddSymbol(node, ((EnumValueAst) node).Name, SymbolType.EnumValue);
+                state.mgr.AddSymbol(node, ((EnumValueAst) node).Name, SymbolType.EnumValue, VariableUse.Const);
             else if (node is TypeDeclarationAst)
-                state.mgr.AddSymbol(node, ((TypeDeclarationAst) node).Name, SymbolType.Typedef);
+                state.mgr.AddSymbol(node, ((TypeDeclarationAst) node).Name, SymbolType.Typedef, VariableUse.None);
             else if (node is ModuleAst)
-                state.mgr.AddSymbol(node, ((ModuleAst) node).Name, SymbolType.Module);
+                state.mgr.AddSymbol(node, ((ModuleAst) node).Name, SymbolType.Module, VariableUse.None);
 
             // todo - handle: attribute?
 
@@ -75,13 +76,31 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             state.mgr.ExitAst(node);
         }
 
+        static VariableUse NodeVariableType(Ast node)
+        {
+            var p = node.Parent;
+            while (p != null)
+            {
+                if (p is TypeDeclarationAst)
+                    return VariableUse.Member;
+                if (p is FunctionDeclarationAst)
+                    return VariableUse.Param;
+                if (p is BlockAst)
+                    return VariableUse.Local;
+                if (p is DeclarationsAst)
+                    return VariableUse.Global;
+                p = p.Parent;
+            }
+            throw new InternalFailure($"Could not determine variable usage {node}");
+        }
+
         // add special vars for a block: function parameters and for loop variables
         static void AddBlock(BlockAst node, SymbolBuilderState state)
         {
             if (node.Parent is ForStatementAst)
             {
                 var varName = (node.Parent as ForStatementAst).Token.TokenValue;
-                state.mgr.AddSymbol(node.Parent, varName, SymbolType.ToBeResolved);
+                state.mgr.AddSymbol(node.Parent, varName, SymbolType.ToBeResolved, VariableUse.ForLoop);
             }
             else if (node.Parent is FunctionDeclarationAst)
             {
@@ -89,7 +108,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (par == null) 
                     throw new InternalFailure("Function mismatch in symbol builder AddBlock");
                 foreach (var item in par.Children)
-                    AddTypedItem(item as TypedItemAst, state);
+                    AddTypedItem(item as TypedItemAst, state, VariableUse.Param);
             }
             
         }
@@ -123,7 +142,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node.ExportToken != null)
                 attrib |= SymbolAttribute.Export;
 
-            state.mgr.AddSymbol(node, node.Name, SymbolType.Function,0,attrib,"",returnType,paramsType);
+            state.mgr.AddSymbol(node, node.Name, SymbolType.Function, VariableUse.Param, 0, attrib,"",returnType,paramsType);
         }
 
 
@@ -178,7 +197,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return state.mgr.TypeManager.GetType(symbolType, arrayDimension,userName);
         }
 
-        static void AddTypedItem(TypedItemAst node, SymbolBuilderState state)
+        static void AddTypedItem(TypedItemAst node, SymbolBuilderState state, VariableUse usage)
         {
 
             var attrib = SymbolAttribute.None;
@@ -194,6 +213,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             state.mgr.AddSymbol(node, 
                 node.Name,
                 itemType.SymbolType,
+                usage,
                 itemType.ArrayDimension,
                 attrib, 
                 itemType.UserTypeName, 

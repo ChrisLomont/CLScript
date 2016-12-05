@@ -731,6 +731,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return null;
         }
 
+        //
         Ast ParseForStatement()
         {
             if (Match(TokenType.For, "Expected 'for'") != ParseAction.Matched)
@@ -740,15 +741,16 @@ namespace Lomont.ClScript.CompilerLib.Parser
             var id = TokenStream.Consume();
             if (Match(TokenType.In, "Expected 'in' in 'for' statement after identifier") != ParseAction.Matched)
                 return null;
-            // next comes either an array expression, or 2 or 3 expressions comma delimited.
-            // to decide, which comes first, ',' or end of line?
+
+            // next comes either an array expression, or things of form "a..b" followed by optional "by id"
+            // to decide: which comes first, '..' or end of line?
 
             var peekIndex = 0;
             var eolFirst = false;
             while (true)
             {
                 var tt = TokenStream.Peek(peekIndex).TokenType;
-                if (tt == TokenType.Comma)
+                if (tt == TokenType.Range)
                     break;
                 if (tt == TokenType.EndOfLine)
                 {
@@ -758,18 +760,37 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 peekIndex++;
             }
 
-            Ast expr;
+            Ast rangeDef;
             if (eolFirst)
-                expr = ParseAssignItem();
+                rangeDef = ParseAssignItem();
             else
-                expr = ParseExpressionList(2, 3);
-            if (expr == null)
+            { // create expression list of 2 or 3 items
+                Ast e1, e2, e3 = null;
+                if ((e1 = ParseOrError(ParseExpression,"'for' expected range expression")) == null)
+                    return null;
+                if (Match(TokenType.Range, "Expected range '..' in 'for' statement after identifier") != ParseAction.Matched)
+                    return null;
+                if ((e2 = ParseOrError(ParseExpression, "'for' expected range expression")) == null)
+                    return null;
+                if (Lookahead("", TokenType.By))
+                {
+                    TokenStream.Consume(); // skip 'by'
+                    if ((e3 = ParseOrError(ParseExpression, "'for' expected range expression")) == null)
+                        return null;
+                }
+
+                rangeDef = new ExpressionListAst();
+                rangeDef.AddChild(e1);
+                rangeDef.AddChild(e2);
+                rangeDef.AddChild(e3);
+            }
+            if (rangeDef == null)
             {
                 ErrorMessage("Invalid 'for' limits");
                 return null;
             }
 
-            if (expr.Children.Count > 3)
+            if (rangeDef.Children.Count > 3)
             {
                 ErrorMessage("Too many expressions in 'for' limits");
                 return null;
@@ -781,7 +802,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
 
             var forAst = new ForStatementAst {Token = id};
-            forAst.Children.Add(expr);
+            forAst.Children.Add(rangeDef);
             forAst.AddChild(block);
             return forAst;
         }
