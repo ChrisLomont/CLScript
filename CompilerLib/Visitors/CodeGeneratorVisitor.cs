@@ -43,7 +43,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             mgr.ComputeSizes(env);
             // size each block
             // RecurseSize(symbolTable.SymbolTable);
-
         }
 
 //        static void RecurseSize(SymbolTable table)
