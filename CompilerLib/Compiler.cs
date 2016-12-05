@@ -16,7 +16,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 1. Redo array syntax - only C like, not multidim
  * 2. assignment of complex types needs done
  * 3. const implemented - values in ROM
- * 4. 
+ * 4. remove warning when type member and global var has same name
  * 
  */
 

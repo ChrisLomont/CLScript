@@ -11,6 +11,7 @@
         Closing="OnClosing"
         >
     <Window.Resources>
+        <vm:HiddenConverter x:Key="HiddenConverter"/>
     </Window.Resources>
     <Window.Title>
         <MultiBinding StringFormat="CL Script Editor v0.1 2016 : {0}{1}">
@@ -28,6 +29,11 @@
             <Button Command="{Binding SaveCommand}">Save</Button>
             <Button Command="{Binding CompileCommand}">Compile</Button>
             <Button Command="{Binding RunCommand}">Run</Button>
+            <CheckBox IsChecked="{Binding ShowCode}">Show Code</CheckBox>
+            <CheckBox IsChecked="{Binding ShowAst}">Show Ast</CheckBox>
+            <CheckBox IsChecked="{Binding ShowSymbols}">Show Symbols</CheckBox>
+            <CheckBox IsChecked="{Binding ShowCodegen}">Show Codegen</CheckBox>
+            <CheckBox IsChecked="{Binding ShowLexer}">Show Lexer</CheckBox>
         </StackPanel>
         <GroupBox Header="Messages" DockPanel.Dock="Bottom">
             <ListBox 
@@ -36,14 +42,20 @@
                 ItemsSource="{Binding Messages}"
                 />
         </GroupBox>
-        <Expander DockPanel.Dock="Right" Header="Lexer">
+        
+        <GroupBox 
+            DockPanel.Dock="Right" 
+            Header="Lexer" 
+            Visibility="{Binding ShowLexer, Converter={StaticResource HiddenConverter}}"
+            >
             <ListBox
             DockPanel.Dock="Right"
             ItemsSource="{Binding Tokens}"
             />
-        </Expander>
-        
-        <Expander DockPanel.Dock="Right" Header="Codegen" IsExpanded ="True">
+        </GroupBox>
+
+        <GroupBox DockPanel.Dock="Right" Header="Codegen" 
+                  Visibility="{Binding ShowCodegen, Converter={StaticResource HiddenConverter}}">
             <avalonEdit:TextEditor 
                 Background="LightCyan"
                 xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
@@ -51,8 +63,9 @@
                 FontFamily="Consolas"
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>
-        </Expander>
-        <Expander DockPanel.Dock="Right" Header="Symbol table" IsExpanded ="True">
+        </GroupBox>
+        <GroupBox DockPanel.Dock="Right" Header="Symbol table" 
+                  Visibility="{Binding ShowSymbols, Converter={StaticResource HiddenConverter}}">
             <avalonEdit:TextEditor 
                 Background="Cornsilk"
                 xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
@@ -60,9 +73,13 @@
                 FontFamily="Consolas"
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>
-        </Expander>
+        </GroupBox>
 
-        <Expander DockPanel.Dock="Right" Header="AST" IsExpanded="True">
+        <GroupBox 
+            DockPanel.Dock="Right" 
+            Header="AST" 
+            Visibility="{Binding ShowAst, Converter={StaticResource HiddenConverter}}"
+            >
             <avalonEdit:TextEditor 
                 Background="LightCyan"
                 xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
@@ -70,11 +87,11 @@
                 FontFamily="Consolas"
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>
-        </Expander>
+        </GroupBox>
 
-        <Expander Header="Code"
-                      IsExpanded="True">
-                <avalonEdit:TextEditor 
+        <GroupBox Header="Code"
+                      Visibility="{Binding ShowCode, Converter={StaticResource HiddenConverter}}">
+            <avalonEdit:TextEditor 
             Grid.Column="0"
             Background="Bisque"
     xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
@@ -82,6 +99,6 @@
     FontFamily="Consolas"
     SyntaxHighlighting="C#"
     FontSize="10pt"/>
-                </Expander>
+                </GroupBox>
     </DockPanel>
 </Window>

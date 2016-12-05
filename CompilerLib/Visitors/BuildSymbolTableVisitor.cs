@@ -54,7 +54,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is EnumAst)
                 state.mgr.AddSymbol(node, ((EnumAst)node).Name, SymbolType.Enum, VariableUse.None);
             else if (node is EnumValueAst)
-                state.mgr.AddSymbol(node, ((EnumValueAst) node).Name, SymbolType.EnumValue, VariableUse.Const);
+                (node as EnumValueAst).Symbol = state.mgr.AddSymbol(node, ((EnumValueAst) node).Name, SymbolType.EnumValue, VariableUse.Const);
             else if (node is TypeDeclarationAst)
                 state.mgr.AddSymbol(node, ((TypeDeclarationAst) node).Name, SymbolType.Typedef, VariableUse.None);
             else if (node is ModuleAst)
@@ -72,10 +72,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             foreach (var child in node.Children)
                 BuildSymbolTable(child, state);
 
-
             state.mgr.ExitAst(node);
         }
 
+        // determine use of this variable
         static VariableUse NodeVariableType(Ast node)
         {
             var p = node.Parent;
@@ -99,8 +99,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             if (node.Parent is ForStatementAst)
             {
-                var varName = (node.Parent as ForStatementAst).Token.TokenValue;
-                state.mgr.AddSymbol(node.Parent, varName, SymbolType.ToBeResolved, VariableUse.ForLoop);
+                var forNode = node.Parent as ForStatementAst;
+                var varName = forNode.Token.TokenValue;
+                var symbol = state.mgr.AddSymbol(node.Parent, varName, SymbolType.ToBeResolved, VariableUse.ForLoop);
+                forNode.VariableSymbol = symbol;
             }
             else if (node.Parent is FunctionDeclarationAst)
             {
@@ -208,9 +210,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node.ExportToken != null)
                 attrib |= SymbolAttribute.Export;
 
-#if true
             var itemType = GetTypedItemType1(node, state);
-            state.mgr.AddSymbol(node, 
+            var s  = state.mgr.AddSymbol(node, 
                 node.Name,
                 itemType.SymbolType,
                 usage,
@@ -218,11 +219,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 attrib, 
                 itemType.UserTypeName, 
                 null, null);
-
-#else
-            state.mgr.AddSymbol(node, node.Name, symbolType, arrayDimension, attrib, userTypename,null,null);
-#endif
-
+            node.Symbol = s;
         }
     }
 }

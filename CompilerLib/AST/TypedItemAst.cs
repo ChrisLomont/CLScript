@@ -21,6 +21,7 @@ namespace Lomont.ClScript.CompilerLib.AST
         public Token BaseTypeToken;
 
         public string Name => Token?.TokenValue;
+        public SymbolEntry Symbol { get; set; }
 
         public override string ToString()
         {

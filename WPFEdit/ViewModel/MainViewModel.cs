@@ -191,6 +191,73 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
         }
 
+        #region Shown panels
+
+        bool showCode = true;
+        public bool ShowCode
+        {
+            get
+            {
+                return showCode;
+            }
+            set
+            {
+                Set(() => this.ShowCode, ref showCode, value);
+            }
+        }
+
+        bool showAst = true;
+        public bool ShowAst
+        {
+            get
+            {
+                return showAst;
+            }
+            set
+            {
+                Set(() => this.ShowAst, ref showAst, value);
+            }
+        }
+        bool showSymbols = true;
+        public bool ShowSymbols
+        {
+            get
+            {
+                return showSymbols;
+            }
+            set
+            {
+                Set(() => this.ShowSymbols, ref showSymbols, value);
+            }
+        }
+
+        bool showCodegen = true;
+        public bool ShowCodegen
+        {
+            get
+            {
+                return showCodegen;
+            }
+            set
+            {
+                Set(() => this.ShowCodegen, ref showCodegen, value);
+            }
+        }
+        bool showLexer = true;
+        public bool ShowLexer
+        {
+            get
+            {
+                return showLexer;
+            }
+            set
+            {
+                Set(() => this.ShowLexer, ref showLexer, value);
+            }
+        }
+        #endregion
+
+
         public TextEditor SymbolText { get; set; }
 
 
@@ -199,12 +266,26 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             var filename = Properties.Settings.Default.LastFilename;
             if (!String.IsNullOrEmpty(filename) && File.Exists(filename))
                 Load(filename);
+
+            var v = Properties.Settings.Default.OpenViews;
+            ShowCode    = (v &  1) != 0;
+            ShowAst     = (v &  2) != 0;
+            ShowSymbols = (v &  4) != 0;
+            ShowCodegen = (v &  8) != 0;
+            ShowLexer   = (v & 16) != 0;
         }
 
         public void Closing()
         {
             Save();
             Properties.Settings.Default.LastFilename = Filename;
+            var v =
+                (!ShowCode    ? 0 :  1) +
+                (!ShowAst     ? 0 :  2) +
+                (!ShowSymbols ? 0 :  4) +
+                (!ShowCodegen ? 0 :  8) +
+                (!ShowLexer   ? 0 : 16);
+            Properties.Settings.Default.OpenViews = v;
             Properties.Settings.Default.Save();
         }
 

@@ -155,7 +155,8 @@ namespace Lomont.ClScript.CompilerLib
             }
 
             // walk symbol table, computing type sizes until all are done
-            var types = RootTable.Entries.Where(t => t.Type.SymbolType == SymbolType.UserType1).ToList();
+            var types = new List<SymbolEntry>();
+            GetTypesInUse(RootTable, types, new HashSet<string>());
 
             while (types.Any())
             {
@@ -204,6 +205,17 @@ namespace Lomont.ClScript.CompilerLib
                 }
             }
 
+        }
+
+        void GetTypesInUse(SymbolTable table, List<SymbolEntry> entries, HashSet<string> seen)
+        {
+            foreach (var h in table.Entries.Where(t => t.Type.SymbolType == SymbolType.UserType1))
+            {
+                if (seen.Add(h.Name))
+                    entries.Add(h);
+            }
+            foreach (var child in table.Children)
+                GetTypesInUse(child,entries, seen);
         }
 
 

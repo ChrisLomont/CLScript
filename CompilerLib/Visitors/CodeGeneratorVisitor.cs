@@ -18,15 +18,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // where we store instructions as they are generated
         List<Instruction> instructions = new List<Instruction>();
 
+        // stack of labels for break and continue
         Stack<string> loopBreakLabels = new Stack<string>();
         Stack<string> loopContinueLabels = new Stack<string>();
 
         public List<Instruction> Generate(SymbolTableManager symbolTable, Ast ast, Environment environment)
         {
+            // set object fields 
             env = environment;
             mgr = symbolTable;
 
-            // variable memory layout
+            // layout variables in memory
             symbolTable.Start();
             LayoutMemory(ast);
 
@@ -131,17 +133,19 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             Emit2(Emit.Return());
         }
 
-        const int ForLoopStackSize = 3; // stack entries
+        // for loop stores a counter and a delta
+        const int ForLoopStackSize = 8; // for loop stack entries
+
         void EmitForStatement(ForStatementAst node)
         {
             // for statement: index var is on stack, then limit, then (if array) array address
             var exprs = node.Children[0];
 
             // put three integers on stack: 
-            // a - current loop index
-            // b - end index
-            // c - increment
-
+            // a - start loop index
+            // b - end loop index
+            // c - increment if known, else 0
+            var arrayLoop = false;
             if (exprs.Children.Count == 3)
             { // a,b,c form, var from a to b by c
                 EmitExpression(exprs.Children[0] as ExpressionAst);
@@ -152,17 +156,27 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             { // a,b form, var from a to b by c, where c is determined here
                 EmitExpression(exprs.Children[0] as ExpressionAst);
                 EmitExpression(exprs.Children[1] as ExpressionAst);
-                Emit2(Emit.ForStart()); // computes +1 or -1 increment
+                Emit2(Emit.Push(0));
             }
             else 
             { // array form, or error 
                 // todo - array form
                 throw new InternalFailure("For loop on array not done");
+                arrayLoop = true;
+                Emit2(Emit.Push(0)); // array start
+                Emit2(Emit.Push(0)); // array end - 1 TODO
+                Emit2(Emit.Push(1)); // increment
             }
+
+            var forLoopVariable = node.VariableSymbol.Name;
+
+            // compute for loop start into this spot
+            Emit2(Emit.ForStart(forLoopVariable));
 
             var startLabel    = "for_" + GetLabel();
             var continueLabel = "for_" + GetLabel();
             var endLabel      = "for_" + GetLabel();
+
             loopContinueLabels.Push(continueLabel);
             loopBreakLabels.Push(endLabel);
 
@@ -170,15 +184,19 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             EmitBlock(node.Children[1] as BlockAst);
 
             Emit2(Emit.Label(continueLabel));
+
             // if more to do, go to top
-            Emit2(Emit.ForLoop(startLabel)); // update increment, loop if more
+            if (arrayLoop)
+                throw new InternalFailure("Loop not implemented");
+            else
+                EmitExpression(exprs.Children[1] as ExpressionAst);
+
+            Emit2(Emit.ForLoop(forLoopVariable, startLabel)); // update increment, loop if more
 
             // end of for loop
             Emit2(Emit.Label(endLabel));
-            
-            // clean a,b,c off stack
-            Emit2(Emit.Pop(ForLoopStackSize)); // clean 'for' frame
 
+            // pop labels
             loopContinueLabels.Pop();
             loopBreakLabels.Pop();
 
@@ -318,11 +336,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else
             {
                 if (node is FunctionCallAst)
-                {
-                    foreach (var child in node.Children)
-                        EmitExpression((ExpressionAst) child); // do parameters
-                    Emit2(Emit.Call(node.Token.TokenValue));
-                }
+                    EmitFunctionCall(node as FunctionCallAst);
                 else if (node.Children.Count == 2)
                 {
                     EmitExpression((ExpressionAst) node.Children[0]); // do left
@@ -348,6 +362,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 else
                     throw new InternalFailure($"Expression must have 0 to 2 children! {node}");
             }
+        }
+
+        void EmitFunctionCall(FunctionCallAst node)
+        {
+            // call stack: ideally, each parameter is a single value on stack or address
+            // but some are local expressions, etc... 
+            foreach (var child in node.Children)
+                EmitExpression((ExpressionAst) child); // do parameters
+            Emit2(Emit.Call(node.Token.TokenValue));
+            // todo - get values back?
+            // Emit2(Emit.Pop(stackSize)); // clean stack
         }
 
         void EmitUnaryOp(ExpressionAst node)
@@ -515,8 +540,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 }
                 else if (e.VariableUse == VariableUse.ForLoop)
                 { // todo - rethink this....
-                    e.Address = size; // stores here
-                    size += e.Type.Size.Value;
+                    e.Address = size; // stores for loop info here
+                    size += ForLoopStackSize; 
                 }
                 else
                 {

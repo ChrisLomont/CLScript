@@ -169,15 +169,20 @@ namespace Lomont.ClScript.CompilerLib
             return new Instruction(Opcode.BrAlways, OperandType.None, label);
         }
 
-        public static Instruction ForStart()
-        { // create -1 or 1 on stack, for loop delta, based on start and end value on stack
-            return new Instruction(Opcode.ForStart, OperandType.None);
+        public static Instruction ForStart(string label)
+        { // start, end, delta values on stack. If delta = 0, compute delta +1 or -1
+          // store start at memory location, delta at location +1
+          // pops 2 from stack
+            return new Instruction(Opcode.ForStart, OperandType.None, label);
         }
 
         // update for stack frame, branch if more to do
-        public static Instruction ForLoop(string label)
+        public static Instruction ForLoop(string variable, string label)
         {
-            return new Instruction(Opcode.ForLoop, OperandType.None, label);
+            // end value on stack, 
+            // add memory (at label plus 4) to memory, check if end. 
+            // pop end value. If more, loop, else don't
+            return new Instruction(Opcode.ForLoop, OperandType.None, variable, label);
         }
 
         // empty instruction

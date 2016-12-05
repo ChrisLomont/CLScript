@@ -161,13 +161,19 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         static InternalType ProcessFunctionCall(FunctionCallAst node, State state)
         {
             var symbol = state.mgr.Lookup(node.Token.TokenValue);
+            if (symbol == null)
+            {
+                state.env.Error($"Cannot find function definition for {node}");
+                return null;
+            }
+
             var retVals = symbol.Type.ReturnType;
             var parms   = symbol.Type.ParamsType;
 
             // a fuction call has expressions as children
             if (parms.Count != node.Children.Count)
             {
-                state.env.Error($"Function requires {parms.Count} parameters but only has {node.Children.Count}, at {node}");
+                state.env.Error($"Function requires {parms.Count} parameters but has {node.Children.Count}, at {node}");
                 return null;
             }
             for (var i = 0; i < parms.Count; ++i)

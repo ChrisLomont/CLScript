@@ -107,10 +107,11 @@ namespace Lomont.ClScript.CompilerLib
 
         public int? Size { get; set; }
 
-
-        public override string ToString()
+        string FormatType(bool showSizes)
         {
             var sizeText = Size.HasValue ? ":" + Size.ToString() + ":" : "";
+            if (showSizes == false)
+                sizeText = "";
             //return $"{h.Symbol},[{h.ArrayDimension}],{h.Text}";
             if (SymbolType == SymbolType.Function)
             {
@@ -128,15 +129,20 @@ namespace Lomont.ClScript.CompilerLib
             return $"{SymbolType}{arrayText}{sizeText}";
         }
 
+        public override string ToString()
+        {
+            return FormatType(true);
+        }
+
         static string FormatTypeList(List<InternalType> list)
         {
             var sb = new StringBuilder();
             for (var i = 0; i < list.Count; ++i)
             {
                 var t = list[i];
-                sb.Append(t);
+                sb.Append(t.FormatType(false));
                 if (i != list.Count - 1)
-                    sb.Append(" * ");
+                    sb.Append("*");
             }
             return sb.ToString();
         }

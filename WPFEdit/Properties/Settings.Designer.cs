@@ -34,5 +34,17 @@ namespace Lomont.ClScript.WPFEdit.Properties {
                 this["LastFilename"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
+        public int OpenViews {
+            get {
+                return ((int)(this["OpenViews"]));
+            }
+            set {
+                this["OpenViews"] = value;
+            }
+        }
     }
 }
