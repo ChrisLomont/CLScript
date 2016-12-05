@@ -21,12 +21,18 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public SymbolTable SymbolTable => tables.Peek();
 
+        /// <summary>
+        /// The root symbol table
+        /// </summary>
+        public SymbolTable RootTable { get; private set;  }
+
         public TypeManager TypeManager { get; private set; }
 
         public SymbolTableManager(Environment env)
         {
             environment = env;
-            tables.Push(new SymbolTable(null,GlobalScope));
+            RootTable = new SymbolTable(null, GlobalScope);
+            tables.Push(RootTable);
             stack.Push(new Tuple<string, bool>(GlobalScope, true));
             onlyScan = false;
             TypeManager = new TypeManager();
@@ -44,9 +50,6 @@ namespace Lomont.ClScript.CompilerLib
             blockIndex = 0;
 
         }
-
-        // set to true for walking existing table, else creates table 
-        bool onlyScan = false;
 
         /// <summary>
         /// Add a symbol
@@ -107,6 +110,102 @@ namespace Lomont.ClScript.CompilerLib
             }
             return CheckDuplicate(table.Parent, entryToMatch);
         }
+
+        public SymbolTable GetTableWithScope(string typeName)
+        {
+            return SearchScope(RootTable, typeName);
+        }
+
+        SymbolTable SearchScope(SymbolTable table, string typeName)
+        {
+            if (table.Scope == NestScope(GlobalScope, typeName))
+                return table;
+            foreach (var child in table.Children)
+            {
+                var subTbl = SearchScope(child, typeName);
+                if (subTbl != null)
+                    return subTbl;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Compute type sizes in bytes, filling type size fields
+        /// </summary>
+        /// <param name="env"></param>
+        public void ComputeSizes(Environment env)
+        {
+            // fill in basic types in type table
+            foreach (var t in TypeManager.Types)
+            {
+                switch (t.SymbolType)
+                {
+                    case SymbolType.Byte:
+                    case SymbolType.Bool:
+                        t.Size = 1;
+                        break;
+                    case SymbolType.String:
+                    case SymbolType.EnumValue:
+                    case SymbolType.Float32:
+                    case SymbolType.Int32:
+                        t.Size = 4;
+                        break;
+                }
+            }
+
+            // walk symbol table, computing type sizes until all are done
+            var types = RootTable.Entries.Where(t => t.Type.SymbolType == SymbolType.UserType1).ToList();
+
+            while (types.Any())
+            {
+                var countAtTopOfPass = types.Count;
+
+                foreach (var t in types)
+                {
+                    var tbl = GetTableWithScope(t.Name);
+                    if (tbl == null)
+                    {
+                        env.Error($"Cannot find symbol table for {t} members");
+                        return;
+                    }
+                    var size = 0;
+                    var allFound = true;
+                    foreach (var e in tbl.Entries)
+                    {
+                        if (e.Type.Size.HasValue)
+                            size += e.Type.Size.Value;
+                        else
+                        {
+                            allFound = false;
+                            break;
+                        }
+                    }
+                    if (allFound)
+                        t.Type.Size = size; // note this may set multiple types if same member structure
+                }
+
+                // find which got matched, and remove them
+                var removeList = types.Where(t => t.Type.Size.HasValue);
+                foreach (var r in removeList)
+                    types.Remove(r);
+
+                var countAfterPass = types.Count;
+
+                if (countAfterPass == 0)
+                    break;
+
+                if (countAfterPass == countAtTopOfPass)
+                {
+                    // pick one that was not resolvable
+                    var unsizedType = types[0];
+                    env.Error($"Could not resolve type sizes {unsizedType}");
+                    break;
+                }
+            }
+
+        }
+
+
 
         /// <summary>
         /// lookup symbol in current table or any ancestors
@@ -195,11 +294,16 @@ namespace Lomont.ClScript.CompilerLib
             return "Block_" + blockIndex;
         }
 
+        // how scope text representations are formed
+        static string NestScope(string outerScope, string innerScope)
+        {
+            return outerScope + "." + innerScope;
+        }
 
         void Push(string name, bool newTable)
         {
             var top = stack.Peek().Item1;
-            stack.Push(new Tuple<string, bool>(top + "." + name,newTable));
+            stack.Push(new Tuple<string, bool>(NestScope(top,name),newTable));
             if (newTable)
             {
                 if (onlyScan)
@@ -249,6 +353,10 @@ namespace Lomont.ClScript.CompilerLib
             // TypeManager.AddBasicType(SymbolType.UserType1, "UserType");
         }
 
+        // set to true for walking existing table, else creates table 
+        bool onlyScan = false;
+
+
     }
 
     public class SymbolTable
@@ -276,10 +384,10 @@ namespace Lomont.ClScript.CompilerLib
 
         public void Dump(TextWriter output)
         {
-            output.WriteLine($"*********** symbol tbl {Scope} ********************");
+            output.WriteLine($"Symbol Table Scope: {Scope}");
             foreach (var entry in Entries)
                 output.WriteLine(entry);
-            output.WriteLine("*****************************************************");
+            output.WriteLine("****************************");
         }
     }
 

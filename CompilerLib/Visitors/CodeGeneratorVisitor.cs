@@ -37,10 +37,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return instructions;
         }
 
-        static void LayoutMemory(Ast node)
+        void LayoutMemory(Ast node)
         {
+            // size each type
+            mgr.ComputeSizes(env);
             // size each block
-            //RecurseSize(symbolTable.SymbolTable);
+            // RecurseSize(symbolTable.SymbolTable);
 
         }
 

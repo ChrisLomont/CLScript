@@ -43,9 +43,8 @@ namespace Lomont.ClScript.CompilerLib
             {
                 success = 
                     GenerateSyntaxTree(text) &&
-                    AnalyzeSyntaxTree();// && 
-                    //GenerateCode();
-                symbolTable.Dump(environment.Output);
+                    AnalyzeSyntaxTree() && 
+                    GenerateCode();
             }
             catch (Exception ex)
             {
@@ -72,6 +71,14 @@ namespace Lomont.ClScript.CompilerLib
                 return output.ToString();
             }
             return "No syntax tree to show\n";
+        }
+
+        public string SymbolTableToText()
+        {
+            var st = new StringWriter();
+            if (symbolTable != null)
+                symbolTable.Dump(st);
+            return st.ToString();
         }
 
         public string CodegenToText()

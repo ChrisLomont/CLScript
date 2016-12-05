@@ -121,9 +121,8 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
 
                 TreeText.Text = "";
                 CodegenText.Text = "";
+                SymbolText.Text = "";
                 var sourceCodeText = CodeEditor.Text;
-
-
                 compiler.Compile(sourceCodeText, env);
 
                 // output messages
@@ -135,6 +134,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 // some output
                 TreeText.Text = compiler.SyntaxTreeToText();
                 CodegenText.Text = compiler.CodegenToText();
+                SymbolText.Text = compiler.SymbolTableToText();
                 Tokens.Clear();
                 foreach (var t in compiler.GetTokens())
                     Tokens.Add(t);
@@ -190,6 +190,8 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 Set<string>(() => this.Modified, ref modified, value);
             }
         }
+
+        public TextEditor SymbolText { get; set; }
 
 
         public void Loaded()

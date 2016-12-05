@@ -42,6 +42,7 @@
             ItemsSource="{Binding Tokens}"
             />
         </Expander>
+        
         <Expander DockPanel.Dock="Right" Header="Codegen" IsExpanded ="True">
             <avalonEdit:TextEditor 
                 Background="LightCyan"
@@ -51,6 +52,16 @@
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>
         </Expander>
+        <Expander DockPanel.Dock="Right" Header="Symbol table" IsExpanded ="True">
+            <avalonEdit:TextEditor 
+                Background="Cornsilk"
+                xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
+                x:Name="symbolView"
+                FontFamily="Consolas"
+                SyntaxHighlighting="C#"
+                FontSize="10pt"/>
+        </Expander>
+
         <Expander DockPanel.Dock="Right" Header="AST" IsExpanded="True">
             <avalonEdit:TextEditor 
                 Background="LightCyan"
