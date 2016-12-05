@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.ComponentModel;
+using System.Windows;
 using Lomont.ClScript.WPFEdit.ViewModel;
 
 namespace Lomont.ClScript.WPFEdit
@@ -19,6 +20,14 @@ namespace Lomont.ClScript.WPFEdit
             (this.DataContext as MainViewModel).TreeText = treeView;
             (this.DataContext as MainViewModel).CodegenText = codegenView;
             textEditor.ShowLineNumbers = true;
+
+            (this.DataContext as MainViewModel).Loaded();
+
+        }
+
+        void OnClosing(object sender, CancelEventArgs e)
+        {
+            (this.DataContext as MainViewModel).Closing();
         }
     }
 }

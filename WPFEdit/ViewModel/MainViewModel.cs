@@ -42,14 +42,16 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             /// 
             CompileCommand = new RelayCommand(Compile);
             SaveCommand = new RelayCommand(Save);
-            LoadCommand = new RelayCommand(Load);
-            ExportCommand = new RelayCommand(Export);
+            LoadCommand = new RelayCommand(LoadFromDialog);
+            RunCommand = new RelayCommand(Run);
+            NewCommand = new RelayCommand(New);
         }
 
         public RelayCommand CompileCommand { get; private set; }
         public RelayCommand SaveCommand { get; private set; }
+        public RelayCommand NewCommand { get; private set; }
         public RelayCommand LoadCommand { get; private set; }
-        public RelayCommand ExportCommand { get; private set; }
+        public RelayCommand RunCommand { get; private set; }
         public TextEditor CodeEditor { get; set; }
         public TextEditor TreeText { get; set; }
         public TextEditor CodegenText { get; set; }
@@ -57,56 +59,72 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
 
         public ObservableCollection<Token> Tokens { get; } = new ObservableCollection<Token>();
 
-        void Save()
+        void New()
         {
-            if (!string.IsNullOrEmpty(filename))
-            {
-                File.WriteAllText(filename, CodeEditor.Text);
-                Messages.Add($"File {filename} saved");
-            }
-            
+            if (CodeEditor.IsModified &&
+                MessageBox.Show($"File {Filename} dirty, save first?", "", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                Save();
+            CodeEditor.Text = "";
+            Filename = "";
+            CodeEditor.IsModified = false;
         }
 
-        string filename = "";
-        void Load()
+        void Save()
+        {
+            if (String.IsNullOrEmpty(filename))
+            {
+                var sfd = new SaveFileDialog();
+                //sfd.DefaultExt = ""
+                if (sfd.ShowDialog() == true)
+                    Filename = sfd.FileName;
+            }
+            if (CodeEditor.IsModified)
+            {
+                if (!string.IsNullOrEmpty(filename))
+                {
+                    File.WriteAllText(filename, CodeEditor.Text);
+                    Messages.Add($"File {Filename} saved");
+                    CodeEditor.IsModified = false;
+                }
+            }
+        }
+
+        void LoadFromDialog()
         {
             var ofd = new OpenFileDialog();
             if (ofd.ShowDialog() == true)
-            {
-                var text = File.ReadAllText(ofd.FileName);
-                CodeEditor.Text = text;
-                filename = ofd.FileName;
-                Messages.Add($"File {filename} loaded");
-            }
+                Load(ofd.FileName);
         }
 
-        void Export()
+        void Load(string filename)
         {
-            if (!string.IsNullOrEmpty(filename))
-            {
-                Compile();
-
-                //compiler.todo();
-
-                var localName = filename + ".export";
-                Messages.Add($"Tokenized file {localName} saved");
-            }
+            var text = File.ReadAllText(filename);
+            CodeEditor.Text = text;
+            Filename = filename;
+            CodeEditor.IsModified = false;
+            Messages.Add($"File {Filename} loaded");
         }
 
         Compiler compiler;
+        Environment env;
 
+        // compile, check env after to check success
         void Compile()
         {
             try
             {
+                Save();
+
+                var output = new StringWriter();
+                compiler = new Compiler();
+                env = new Environment(output);
+
                 TreeText.Text = "";
                 CodegenText.Text = "";
-                var output = new StringWriter();
                 var sourceCodeText = CodeEditor.Text;
 
-                compiler = new Compiler();
 
-                compiler.Compile(sourceCodeText, new Environment(output));
+                compiler.Compile(sourceCodeText, env);
 
                 // output messages
                 var msgs = output.ToString().Split('\n');
@@ -126,12 +144,67 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 Messages.Clear();
                 Messages.Add($"FATAL: Compiler leaked exception {ex}");
             }
+        }
 
+        void Run()
+        {
+            Compile();
+            if (env.ErrorCount == 0)
+            {
+                var r = new Runtime();
+                r.Run(env);
+
+                // output messages
+                Messages.Clear();
+                var msgs = env.Output.ToString().Split('\n');
+                Messages.Clear();
+                foreach (var msg in msgs)
+                    Messages.Add(msg.Replace("\r", "").Replace("\n", ""));
+            }
         }
 
         // editor article at http://www.codeproject.com/Articles/42490/Using-AvalonEdit-WPF-Text-Editor
 
+        string filename = "";
+        public string Filename
+        {
+            get
+            {
+                return filename;
+            }
+            set
+            {
+                Set<string>(() => this.Filename, ref filename, value);
+            }
+        }
 
+        string modified = "";
+        public string Modified
+        {
+            get
+            {
+                return modified;
+            }
+            set
+            {
+                Set<string>(() => this.Modified, ref modified, value);
+            }
+        }
+
+
+        public void Loaded()
+        {
+            var filename = Properties.Settings.Default.LastFilename;
+            if (!String.IsNullOrEmpty(filename) && File.Exists(filename))
+                Load(filename);
+        }
+
+        public void Closing()
+        {
+            Save();
+            Properties.Settings.Default.LastFilename = Filename;
+            Properties.Settings.Default.Save();
+        }
 
     }
 }
