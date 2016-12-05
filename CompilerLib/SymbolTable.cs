@@ -14,6 +14,8 @@ namespace Lomont.ClScript.CompilerLib
     /// </summary>
     public class SymbolTableManager
     {
+        public static string GlobalScope { get; } = "<global>";
+
         /// <summary>
         /// The current symbol table
         /// </summary>
@@ -24,9 +26,8 @@ namespace Lomont.ClScript.CompilerLib
         public SymbolTableManager(Environment env)
         {
             environment = env;
-            var g = "<global>";
-            tables.Push(new SymbolTable(null,g));
-            stack.Push(new Tuple<string, bool>(g,true));
+            tables.Push(new SymbolTable(null,GlobalScope));
+            stack.Push(new Tuple<string, bool>(GlobalScope, true));
             onlyScan = false;
             TypeManager = new TypeManager();
             AddBasicTypes();
@@ -304,6 +305,8 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public SymbolAttribute Attrib { get; set; } = SymbolAttribute.None;
 
+        public int? Value { get; set; }
+
         public SymbolEntry(Ast node, string name, InternalType symbolType)
         {
             Node = node;
@@ -320,7 +323,9 @@ namespace Lomont.ClScript.CompilerLib
                 name += "+e";
             if ((Attrib & SymbolAttribute.Import) != SymbolAttribute.None)
                 name += "+i";
-            return $"T {name,-15} {Type,-15}";//,{Node}";
+            var value = Value.HasValue?Value.ToString():"";
+
+            return $"{name,-15} {Type,-15} {value,-8}";//,{Node}";
         }
     }
 

@@ -16,19 +16,45 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         Environment env;
 
         // where we store instructions as they are generated
-        List<Opcode> instructions = new List<Opcode>();
+        List<Instruction> instructions = new List<Instruction>();
 
         Stack<string> loopBreakLabels = new Stack<string>();
         Stack<string> loopContinueLabels = new Stack<string>();
 
-        public List<Opcode> Generate(SymbolTableManager symbolTable, Ast ast, Environment environment)
+        public List<Instruction> Generate(SymbolTableManager symbolTable, Ast ast, Environment environment)
         {
             env = environment;
             mgr = symbolTable;
+
+            // variable memory layout
+            symbolTable.Start();
+            LayoutMemory(ast);
+
+            // generate code
             symbolTable.Start();
             Recurse(ast);
+
             return instructions;
         }
+
+        static void LayoutMemory(Ast node)
+        {
+            // size each block
+            //RecurseSize(symbolTable.SymbolTable);
+
+        }
+
+//        static void RecurseSize(SymbolTable table)
+//        {
+//            foreach (var e in table.Entries)
+//            {
+//                if (e.Type.HasSize())
+//                    e.Offset = e.Type.GetSize();
+//            }
+//            foreach (var ch in table.Children)
+//                RecurseSize(ch);
+//        }
+
 
         void Recurse(Ast node)
         {
@@ -85,10 +111,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             switch (node.Token.TokenType)
             {
                 case TokenType.Continue:
-                    Emit(Opcode.BrAlways(loopContinueLabels.Peek()));
+                    Emit2(Emit.BrAlways(loopContinueLabels.Peek()));
                     break;
                 case TokenType.Break:
-                    Emit(Opcode.BrAlways(loopBreakLabels.Peek()));
+                    Emit2(Emit.BrAlways(loopBreakLabels.Peek()));
                     break;
                 case TokenType.Return: 
                     EmitReturn(node);
@@ -104,7 +130,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             if (node != null)
             {
-                // needs to clean for stack if in loops
+                // needs to clean for stack if in 'for' loops
                 var count = 0;
                 Ast p = node;
                 while (!(p is FunctionDeclarationAst))
@@ -114,14 +140,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     p = p.Parent;
                 }
                 if (count > 0)
-                    Emit(Opcode.Pop(count));
+                    Emit2(Emit.Pop(count));
 
                 // todo - parameters
                 var exprs = node.Children[0].Children;
                 foreach (var expr in exprs)
                     EmitExpression(expr as ExpressionAst);
             }
-            Emit(Opcode.Return());
+            Emit2(Emit.Return());
         }
 
         const int ForLoopStackSize = 3; // stack entries
@@ -145,7 +171,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             { // a,b form, var from a to b by c, where c is determined here
                 EmitExpression(exprs.Children[0] as ExpressionAst);
                 EmitExpression(exprs.Children[1] as ExpressionAst);
-                Emit(Opcode.ForStart()); // computes +1 or -1 increment
+                Emit2(Emit.ForStart()); // computes +1 or -1 increment
             }
             else 
             { // array form, or error 
@@ -159,18 +185,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             loopContinueLabels.Push(continueLabel);
             loopBreakLabels.Push(endLabel);
 
-            Emit(Opcode.Label(startLabel));
+            Emit2(Emit.Label(startLabel));
             EmitBlock(node.Children[1] as BlockAst);
 
-            Emit(Opcode.Label(continueLabel));
+            Emit2(Emit.Label(continueLabel));
             // if more to do, go to top
-            Emit(Opcode.ForLoop(startLabel)); // update increment, loop if more
+            Emit2(Emit.ForLoop(startLabel)); // update increment, loop if more
 
             // end of for loop
-            Emit(Opcode.Label(endLabel));
+            Emit2(Emit.Label(endLabel));
             
             // clean a,b,c off stack
-            Emit(Opcode.Pop(ForLoopStackSize)); // clean 'for' frame
+            Emit2(Emit.Pop(ForLoopStackSize)); // clean 'for' frame
 
             loopContinueLabels.Pop();
             loopBreakLabels.Pop();
@@ -185,12 +211,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             loopContinueLabels.Push(startLabel);
             loopBreakLabels.Push(endLabel);
 
-            Emit(Opcode.Label(startLabel));
+            Emit2(Emit.Label(startLabel));
             EmitExpression(node.Children[0] as ExpressionAst);
-            Emit(Opcode.BrFalse(endLabel));
+            Emit2(Emit.BrFalse(endLabel));
             EmitBlock(node.Children[1] as BlockAst);
-            Emit(Opcode.BrAlways(startLabel));
-            Emit(Opcode.Label(endLabel));
+            Emit2(Emit.BrAlways(startLabel));
+            Emit2(Emit.Label(endLabel));
 
             loopContinueLabels.Pop();
             loopBreakLabels.Pop();
@@ -205,16 +231,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 var label = "if_" + GetLabel();
                 EmitExpression(node.Children[i] as ExpressionAst);
-                Emit(Opcode.BrFalse(label)); // branch if false to next case
+                Emit2(Emit.BrFalse(label)); // branch if false to next case
                 EmitBlock(node.Children[i+1] as BlockAst);
-                Emit(Opcode.BrAlways(finalLabel)); // done, leave if statement
-                Emit(Opcode.Label(label)); // label next block
+                Emit2(Emit.BrAlways(finalLabel)); // done, leave if statement
+                Emit2(Emit.Label(label)); // label next block
             }
             if ((node.Children.Count & 1) == 1)
             { // final else
                 EmitBlock(node.Children.Last() as BlockAst);
             }
-            Emit(Opcode.Label(finalLabel)); // end of if
+            Emit2(Emit.Label(finalLabel)); // end of if
         }
 
         int labelCount = 0;
@@ -226,7 +252,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         void EmitFunction(FunctionDeclarationAst node)
         {
-            Emit(Opcode.Label(node.Name));
+            Emit2(Emit.Label(node.Name));
             var block = node.Children[2] as BlockAst;
             EmitBlock(block);
             if (block.Children.Last().Token.TokenType != TokenType.Return)
@@ -251,8 +277,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 // todo - need ops like +=, -=, etc.
                 var name = items[items.Count - i - 1].Token.TokenValue;
-                Emit(Opcode.LoadAddress(name));
-                Emit(Opcode.Store());
+                Emit2(Emit.LoadAddress(name));
+                Emit2(Emit.Store());
             }
 
         }
@@ -274,9 +300,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        void Emit(Opcode opcode)
+        void Emit2(Instruction instruction)
         {
-            instructions.Add(opcode);
+            instructions.Add(instruction);
         }
 
         #region Process
@@ -292,16 +318,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 switch (node.Type.SymbolType)
                 {
                     case SymbolType.Bool:
-                        Emit(Opcode.Push32(node.BoolValue.Value ? 1 : 0));
+                        Emit2(Emit.Push(node.BoolValue.Value ? 1 : 0));
                         break;
                     case SymbolType.Int32:
-                        Emit(Opcode.Push32(node.IntValue.Value));
+                        Emit2(Emit.Push(node.IntValue.Value));
                         break;
                     case SymbolType.Float32:
-                        Emit(Opcode.PushF(node.FloatValue.Value));
+                        Emit2(Emit.Push(node.FloatValue.Value, OperandType.Float32));
                         break;
                     case SymbolType.Byte:
-                        Emit(Opcode.Push32(node.ByteValue.Value));
+                        Emit2(Emit.Push(node.ByteValue.Value, OperandType.Int32));
                         break;
                     default:
                         throw new InternalFailure($"Unsupported type in expression {node}");
@@ -314,7 +340,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 {
                     foreach (var child in node.Children)
                         EmitExpression((ExpressionAst) child); // do parameters
-                    Emit(Opcode.Call(node.Token.TokenValue));
+                    Emit2(Emit.Call(node.Token.TokenValue));
                 }
                 else if (node.Children.Count == 2)
                 {
@@ -332,7 +358,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     if (node is IdentifierAst)
                     {
                         var name = ((IdentifierAst) node).Name;
-                        Emit(Opcode.Load(name));
+                        Emit2(Emit.Load(name));
                     }
                     else
                         throw new InternalFailure($"ExpressionAst not emitted {node}");
@@ -349,12 +375,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 case TokenType.Exclamation:
                 {  // bool toggle
-                    Emit(Opcode.Push32(1));
-                    Emit(Opcode.Xor());
+                    Emit2(Emit.Push(1));
+                    Emit2(Emit.Xor());
                 }
                     break;
                 case TokenType.Tilde:
-                    Emit(Opcode.Not()); // i32 bitflip
+                    Emit2(Emit.Not()); // i32 bitflip
                     break;
                 case TokenType.Plus:
                     // do nothing
@@ -362,9 +388,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 case TokenType.Minus:
                     var s = node.Type.SymbolType;
                     if (s == SymbolType.Byte || s == SymbolType.Int32)
-                        Emit(Opcode.Neg());
+                        Emit2(Emit.Neg());
                     else if (s == SymbolType.Float32)
-                        Emit(Opcode.NegF());
+                        Emit2(Emit.Neg(OperandType.Float32));
                     else
                         throw new InternalFailure($"Unknown negation emitted {node}");
                     break;
@@ -377,13 +403,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             public TokenType TokenType;
             public SymbolType [] SymbolType;
-            public Opcode Opcode;
+            public Instruction Instruction;
 
-            public BinOp(TokenType t, Opcode op, params SymbolType [] s)
+            public BinOp(TokenType t, Instruction op, params SymbolType [] s)
             {
                 TokenType = t;
                 SymbolType = s;
-                Opcode = op;
+                Instruction = op;
             }
 
         }
@@ -391,53 +417,53 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         static BinOp [] binTbl =
         {
             // !=
-            new BinOp(TokenType.NotEqual,Opcode.NotEqual(),SymbolType.Bool,SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.NotEqual,Opcode.NotEqualF(),SymbolType.Float32),
+            new BinOp(TokenType.NotEqual,Emit.NotEqual(),SymbolType.Bool,SymbolType.Byte,SymbolType.Int32),
+            new BinOp(TokenType.NotEqual,Emit.NotEqual(OperandType.Float32),SymbolType.Float32),
 
             // ==
-            new BinOp(TokenType.Compare,Opcode.Compare(),SymbolType.Bool,SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.Compare,Opcode.CompareF(),SymbolType.Float32),
+            new BinOp(TokenType.Compare,Emit.IsEqual(),SymbolType.Bool,SymbolType.Byte,SymbolType.Int32),
+            new BinOp(TokenType.Compare,Emit.IsEqual(OperandType.Float32),SymbolType.Float32),
 
             // >
-            new BinOp(TokenType.GreaterThan,Opcode.GreaterThan(),SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.GreaterThan,Opcode.GreaterThanF(),SymbolType.Float32),
+            new BinOp(TokenType.GreaterThan,Emit.GreaterThan(),SymbolType.Byte,SymbolType.Int32),
+            new BinOp(TokenType.GreaterThan,Emit.GreaterThan(OperandType.Float32),SymbolType.Float32),
 
             // >=
-            new BinOp(TokenType.GreaterThanOrEqual,Opcode.GreaterThanOrEqual(),SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.GreaterThanOrEqual,Opcode.GreaterThanOrEqualF(),SymbolType.Float32),
+            new BinOp(TokenType.GreaterThanOrEqual,Emit.GreaterThanOrEqual(),SymbolType.Byte,SymbolType.Int32),
+            new BinOp(TokenType.GreaterThanOrEqual,Emit.GreaterThanOrEqual(OperandType.Float32),SymbolType.Float32),
 
             // <=
-            new BinOp(TokenType.LessThanOrEqual,Opcode.LessThanOrEqual(),SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.LessThanOrEqual,Opcode.LessThanOrEqualF(),SymbolType.Float32),
+            new BinOp(TokenType.LessThanOrEqual,Emit.LessThanOrEqual(),SymbolType.Byte,SymbolType.Int32),
+            new BinOp(TokenType.LessThanOrEqual,Emit.LessThanOrEqual(OperandType.Float32),SymbolType.Float32),
 
             // <
-            new BinOp(TokenType.LessThan,Opcode.LessThan(),SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.LessThan,Opcode.LessThanF(),SymbolType.Float32),
+            new BinOp(TokenType.LessThan,Emit.LessThan(),SymbolType.Byte,SymbolType.Int32),
+            new BinOp(TokenType.LessThan,Emit.LessThan(OperandType.Float32),SymbolType.Float32),
 
             // ||, &&
-            new BinOp(TokenType.LogicalOr,Opcode.Or(),SymbolType.Bool),
-            new BinOp(TokenType.LogicalAnd,Opcode.And(),SymbolType.Bool),
+            new BinOp(TokenType.LogicalOr,Emit.Or(),SymbolType.Bool),
+            new BinOp(TokenType.LogicalAnd,Emit.And(),SymbolType.Bool),
 
             // >>, <<, >>>, <<<, &, |, ^, %
-            new BinOp(TokenType.RightShift,Opcode.RightShift(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.LeftShift,Opcode.LeftShift(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.RightRotate,Opcode.RightRotate(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.LeftRotate,Opcode.LeftRotate(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Ampersand,Opcode.And(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Pipe,Opcode.Or(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Caret,Opcode.Xor(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Percent,Opcode.Mod(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.RightShift,Emit.RightShift(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.LeftShift,Emit.LeftShift(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.RightRotate,Emit.RightRotate(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.LeftRotate,Emit.LeftRotate(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Ampersand,Emit.And(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Pipe,Emit.Or(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Caret,Emit.Xor(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Percent,Emit.Mod(),SymbolType.Byte, SymbolType.Int32),
 
             // +,-,*,/
-            new BinOp(TokenType.Plus,Opcode.Add(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Minus,Opcode.Sub(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Asterix,Opcode.Mul(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Slash,Opcode.Div(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Plus,Emit.Add(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Minus,Emit.Sub(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Asterix,Emit.Mul(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Slash,Emit.Div(),SymbolType.Byte, SymbolType.Int32),
 
-            new BinOp(TokenType.Plus,Opcode.AddF(),SymbolType.Float32),
-            new BinOp(TokenType.Minus,Opcode.SubF(),SymbolType.Float32),
-            new BinOp(TokenType.Asterix,Opcode.MulF(),SymbolType.Float32),
-            new BinOp(TokenType.Slash,Opcode.DivF(),SymbolType.Float32)
+            new BinOp(TokenType.Plus,Emit.Add(OperandType.Float32),SymbolType.Float32),
+            new BinOp(TokenType.Minus,Emit.Sub(OperandType.Float32),SymbolType.Float32),
+            new BinOp(TokenType.Asterix,Emit.Mul(OperandType.Float32),SymbolType.Float32),
+            new BinOp(TokenType.Slash,Emit.Div(OperandType.Float32),SymbolType.Float32)
 
         };
 
@@ -451,7 +477,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node.Token.TokenType == entry.TokenType &&
                 entry.SymbolType.Contains(s))
             {
-                Emit(entry.Opcode);
+                Emit2(entry.Instruction);
                 return;
             }
         }

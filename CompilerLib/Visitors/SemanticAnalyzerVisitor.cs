@@ -21,6 +21,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
          * Accessing out of scope variable
          * Actual and formal parameter mismatch
          * Resolving types of unknown items - such as for loop variables, etc...
+         * 
+         * Also fills in values of enums, memory item sizes, etc
          */
 
         class State
@@ -35,6 +37,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var state = new State {mgr = symbolTable, env = environment};
             Recurse(ast,state);
         }
+
 
         static void Recurse(Ast node, State state)
         {
@@ -88,6 +91,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 ProcessFunctionDeclaration((FunctionDeclarationAst)node, state); 
             else if (node is ExpressionAst)
                 internalType = ProcessExpression(node as ExpressionAst, state);
+            else if (node is EnumAst)
+                ProcessEnum(node as EnumAst, state);
 
             if (internalType != null)
                 node.Type = internalType;
@@ -106,6 +111,31 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     state.env.Error($"Cannot find symbol definition {node}");
                 else
                     node.Type = type1;
+            }
+        }
+
+        // assign enum values, must all be constant now
+        static void ProcessEnum(EnumAst node, State state)
+        {
+            var value = 0; // start default value
+            foreach (var child in node.Children)
+            {
+                if (!(child is EnumValueAst))
+                    throw new InternalFailure($"Enum child not proper AST {child}");
+                if (child.Children.Any())
+                {
+                    var ex = child.Children[0] as ExpressionAst;
+                    if (ex == null || !(ex.ByteValue.HasValue || ex.IntValue.HasValue))
+                        state.env.Error($"Enum value {node.Children[0]} not constant");
+                    else
+                        value = ex.IntValue ?? ex.ByteValue ?? -1; // will be one of the first two
+                }
+                var symbol = state.mgr.Lookup((child as EnumValueAst).Name);
+                if (symbol == null)
+                    state.env.Error($"Symbol table missing enum val {child}");
+                else
+                    symbol.Value = value;
+                value++;
             }
         }
 
