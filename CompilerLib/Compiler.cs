@@ -141,6 +141,7 @@ namespace Lomont.ClScript.CompilerLib
         bool GenerateCode()
         {
             var cg = new CodeGeneratorVisitor(env);
+            env.Info("Intermediate Code Generation...");
             var code = cg.Generate(symbolTable, SyntaxTree);
             if (env.ErrorCount > 0)
                 return false;
@@ -148,6 +149,7 @@ namespace Lomont.ClScript.CompilerLib
             generatedInstructions.Clear();
             generatedInstructions.AddRange(code);
             bytecode = new BytecodeGen(env);
+            env.Info("Bytecode Generation...");
             return bytecode.Generate(symbolTable, generatedInstructions);
         }
 

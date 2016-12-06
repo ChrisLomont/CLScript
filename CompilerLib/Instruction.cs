@@ -24,6 +24,8 @@ namespace Lomont.ClScript.CompilerLib
         Pop,
         Pick,
         Dup,
+        Swap,
+
         // mem
         Load,
         Store,
@@ -67,12 +69,14 @@ namespace Lomont.ClScript.CompilerLib
         public Opcode Opcode { get; private set; }
         public object[] Operands { get; private set; }
         public OperandType OperandType { get; private set; }
+        public string Comment { get; set; }
 
-        public Instruction(Opcode opcode, OperandType operandType, params object[] operands)
+        public Instruction(Opcode opcode, OperandType operandType, string comment, params object[] operands)
         {
             Opcode = opcode;
             Operands = operands;
             OperandType = operandType;
+            Comment = comment;
         }
 
         public override string ToString()
@@ -95,6 +99,8 @@ namespace Lomont.ClScript.CompilerLib
             }
             else
                 sb.Append($"{Operands[0]}:");
+            if (!String.IsNullOrEmpty(Comment))
+                sb.Append($" ; {Comment}");
             return sb.ToString();
         }
 
@@ -106,74 +112,78 @@ namespace Lomont.ClScript.CompilerLib
 
         #region Stack
 
-        public static Instruction Push(object value, OperandType type = OperandType.Int32)
+        public static Instruction Push(object value, OperandType type = OperandType.Int32, string comment = "")
         {
-            return new Instruction(Opcode.Push,type,value);
+            return new Instruction(Opcode.Push,type, comment,value);
         }
 
         public static Instruction Pop(int count, OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.Pop, type, count);
+            return new Instruction(Opcode.Pop, type, "", count);
         }
 
         public static Instruction Pick(int value)
         {
-            return new Instruction(Opcode.Pick, OperandType.None, value);
+            return new Instruction(Opcode.Pick, OperandType.None, "", value);
         }
         public static Instruction Dup(int count)
         {
-            return new Instruction(Opcode.Dup, OperandType.None, count);
+            return new Instruction(Opcode.Dup, OperandType.None, "", count);
+        }
+        public static Instruction Swap()
+        {
+            return new Instruction(Opcode.Swap, OperandType.None, "");
         }
 
         #endregion
 
         #region Memory
-        public static Instruction Load(string name)
+        public static Instruction Load(int address, string comment)
         {
-            return new Instruction(Opcode.Load, OperandType.None, name, "TODO");
+            return new Instruction(Opcode.Load, OperandType.None, comment, address, "TODO");
         }
-        public static Instruction Store()
+        public static Instruction Store(OperandType type)
         {
-            return new Instruction(Opcode.Store, OperandType.None, "TODO");
+            return new Instruction(Opcode.Store, type, "");
         }
 
-        public static Instruction LoadAddress(string name)
+        public static Instruction LoadAddress(int address, string comment)
         {
-            return new Instruction(Opcode.LoadAddress, OperandType.None, name, "TODO");
+            return new Instruction(Opcode.LoadAddress, OperandType.None, comment, address, "TODO");
         }
         #endregion
 
         #region call/return/branch/label
         public static Instruction Label(string label)
         {
-            return new Instruction(Opcode.Label, OperandType.None, label);
+            return new Instruction(Opcode.Label, OperandType.None, "", label);
         }
 
         public static Instruction Call(string value)
         {
-            return new Instruction(Opcode.Call, OperandType.None, value);
+            return new Instruction(Opcode.Call, OperandType.None, "", value);
         }
 
         public static Instruction Return()
         {
-            return new Instruction(Opcode.Return, OperandType.None, "TODO");
+            return new Instruction(Opcode.Return, OperandType.None, "", "TODO");
         }
 
         public static Instruction BrFalse(string label)
         {
-            return new Instruction(Opcode.BrFalse, OperandType.None, label);
+            return new Instruction(Opcode.BrFalse, OperandType.None, "", label);
         }
 
         public static Instruction BrAlways(string label)
         {
-            return new Instruction(Opcode.BrAlways, OperandType.None, label);
+            return new Instruction(Opcode.BrAlways, OperandType.None, "", label);
         }
 
         public static Instruction ForStart(string label)
         { // start, end, delta values on stack. If delta = 0, compute delta +1 or -1
           // store start at memory location, delta at location +1
           // pops 2 from stack
-            return new Instruction(Opcode.ForStart, OperandType.None, label);
+            return new Instruction(Opcode.ForStart, OperandType.None, "", label);
         }
 
         // update for stack frame, branch if more to do
@@ -182,13 +192,13 @@ namespace Lomont.ClScript.CompilerLib
             // end value on stack, 
             // add memory (at label plus 4) to memory, check if end. 
             // pop end value. If more, loop, else don't
-            return new Instruction(Opcode.ForLoop, OperandType.None, variable, label);
+            return new Instruction(Opcode.ForLoop, OperandType.None, "", variable, label);
         }
 
         // empty instruction
         public static Instruction Nop()
         {
-            return new Instruction(Opcode.Nop, OperandType.None);
+            return new Instruction(Opcode.Nop, OperandType.None, "");
         }
 
         #endregion
@@ -196,41 +206,41 @@ namespace Lomont.ClScript.CompilerLib
         #region bitwise
         public static Instruction Or()
         {
-            return new Instruction(Opcode.Or, OperandType.None);
+            return new Instruction(Opcode.Or, OperandType.None, "");
         }
 
         public static Instruction And()
         {
-            return new Instruction(Opcode.And, OperandType.None);
+            return new Instruction(Opcode.And, OperandType.None, "");
         }
 
         public static Instruction Xor()
         {
-            return new Instruction(Opcode.Xor, OperandType.None);
+            return new Instruction(Opcode.Xor, OperandType.None, "");
         }
 
         public static Instruction Not()
         {
-            return new Instruction(Opcode.Not, OperandType.None);
+            return new Instruction(Opcode.Not, OperandType.None, "");
         }
-        public static Instruction RightShift()
+        public static Instruction RightShift(OperandType type)
         {
-            return new Instruction(Opcode.RightShift, OperandType.None);
-        }
-
-        public static Instruction LeftShift()
-        {
-            return new Instruction(Opcode.LeftShift, OperandType.None);
+            return new Instruction(Opcode.RightShift, type, "");
         }
 
-        public static Instruction RightRotate()
+        public static Instruction LeftShift(OperandType type)
         {
-            return new Instruction(Opcode.RightRotate, OperandType.None);
+            return new Instruction(Opcode.LeftShift, OperandType.None, "");
         }
 
-        public static Instruction LeftRotate()
+        public static Instruction RightRotate(OperandType type)
         {
-            return new Instruction(Opcode.LeftRotate, OperandType.None);
+            return new Instruction(Opcode.RightRotate, type, "");
+        }
+
+        public static Instruction LeftRotate(OperandType type)
+        {
+            return new Instruction(Opcode.LeftRotate, type, "");
         }
 
         #endregion
@@ -238,65 +248,65 @@ namespace Lomont.ClScript.CompilerLib
         #region Comparison
         public static Instruction NotEqual(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.NotEqual, type);
+            return new Instruction(Opcode.NotEqual, type, "");
         }
 
         public static Instruction IsEqual(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.IsEqual, type);
+            return new Instruction(Opcode.IsEqual, type, "");
         }
 
         public static Instruction GreaterThan(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.GreaterThan, type);
+            return new Instruction(Opcode.GreaterThan, type, "");
         }
 
         public static Instruction GreaterThanOrEqual(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.GreaterThanOrEqual, type);
+            return new Instruction(Opcode.GreaterThanOrEqual, type, "");
         }
 
 
         public static Instruction LessThanOrEqual(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.LessThanOrEqual, type);
+            return new Instruction(Opcode.LessThanOrEqual, type, "");
         }
 
         public static Instruction LessThan(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.LessThan, type);
+            return new Instruction(Opcode.LessThan, type, "");
         }
         #endregion
 
         #region Arithmetic
         public static Instruction Neg(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.Neg, type);
+            return new Instruction(Opcode.Neg, type, "");
         }
 
         public static Instruction Add(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.Add, type);
+            return new Instruction(Opcode.Add, type, "");
         }
 
         public static Instruction Sub(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.Sub, type);
+            return new Instruction(Opcode.Sub, type, "");
         }
 
         public static Instruction Mul(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.Mul, type);
+            return new Instruction(Opcode.Mul, type, "");
         }
 
         public static Instruction Div(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.Div,type);
+            return new Instruction(Opcode.Div,type, "");
         }
 
         public static Instruction Mod(OperandType type = OperandType.Int32)
         {
-            return new Instruction(Opcode.Mod, type);
+            return new Instruction(Opcode.Mod, type, "");
         }
 
         #endregion

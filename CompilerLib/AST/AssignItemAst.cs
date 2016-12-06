@@ -8,5 +8,7 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     class AssignItemAst : Ast
     {
+        // todo - merge assign items with typed items, as well as parent lists
+        public SymbolEntry Symbol;
     }
 }

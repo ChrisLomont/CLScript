@@ -338,7 +338,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // todo - allow assigning list of items to structures...
             if (node.Children.Count != 2)
                 throw new InternalFailure($"Expected 2 children {node}");
-            var items = node.Children[0] as AssignItemsAst;
+            var items = node.Children[0] as TypedItemsAst;
             var exprs = node.Children[1] as ExpressionListAst;
             if (items == null || exprs == null)
                 throw new InternalFailure($"Variable nodes incorrect {node}");

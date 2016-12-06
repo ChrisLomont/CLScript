@@ -95,7 +95,7 @@ namespace Lomont.ClScript.CompilerLib
                     if (inst.OperandType == OperandType.Int32)
                         Write((uint)((int)inst.Operands[0]),4);
                     else if (inst.OperandType == OperandType.Float32)
-                        Write((float)(inst.Operands[0]));
+                        Write((float)(double)(inst.Operands[0]));
                     else
                         throw new InternalFailure($"Unsupported type {inst.OperandType}");
                     break;
@@ -128,6 +128,7 @@ namespace Lomont.ClScript.CompilerLib
                 // nothing to do for these
                 case Opcode.Nop:
                 case Opcode.Dup:
+                case Opcode.Swap:
                 case Opcode.Return:
                 case Opcode.ForStart:
                 case Opcode.Or:

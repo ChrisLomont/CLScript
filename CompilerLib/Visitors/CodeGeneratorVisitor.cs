@@ -53,7 +53,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             else if (node is AssignStatementAst)
             {
-                EmitAssignStatement((AssignStatementAst)node);
+                EmitAssignStatement((AssignStatementAst) node);
                 return;
             }
             else if (node is VariableDefinitionAst)
@@ -63,27 +63,27 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             else if (node is FunctionDeclarationAst)
             {
-                EmitFunction((FunctionDeclarationAst)node);
+                EmitFunction((FunctionDeclarationAst) node);
                 return;
             }
             else if (node is IfStatementAst)
             {
-                EmitIfStatement((IfStatementAst)node);
+                EmitIfStatement((IfStatementAst) node);
                 return;
             }
             else if (node is WhileStatementAst)
             {
-                EmitWhileStatement((WhileStatementAst)node);
+                EmitWhileStatement((WhileStatementAst) node);
                 return;
             }
             else if (node is ForStatementAst)
             {
-                EmitForStatement((ForStatementAst)node);
+                EmitForStatement((ForStatementAst) node);
                 return;
             }
             else if (node is JumpStatementAst)
             {
-                EmitJumpStatement((JumpStatementAst)node);
+                EmitJumpStatement((JumpStatementAst) node);
                 return;
             }
 
@@ -104,7 +104,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 case TokenType.Break:
                     Emit2(Emit.BrAlways(loopBreakLabels.Peek()));
                     break;
-                case TokenType.Return: 
+                case TokenType.Return:
                     EmitReturn(node);
                     break;
                 default:
@@ -152,19 +152,22 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // c - increment if known, else 0
             var arrayLoop = false;
             if (exprs.Children.Count == 3)
-            { // a,b,c form, var from a to b by c
+            {
+                // a,b,c form, var from a to b by c
                 EmitExpression(exprs.Children[0] as ExpressionAst);
                 EmitExpression(exprs.Children[1] as ExpressionAst);
                 EmitExpression(exprs.Children[2] as ExpressionAst);
             }
             else if (exprs.Children.Count == 2)
-            { // a,b form, var from a to b by c, where c is determined here
+            {
+                // a,b form, var from a to b by c, where c is determined here
                 EmitExpression(exprs.Children[0] as ExpressionAst);
                 EmitExpression(exprs.Children[1] as ExpressionAst);
                 Emit2(Emit.Push(0));
             }
-            else 
-            { // array form, or error 
+            else
+            {
+                // array form, or error 
                 // todo - array form
                 throw new InternalFailure("For loop on array not done");
                 arrayLoop = true;
@@ -178,9 +181,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // compute for loop start into this spot
             Emit2(Emit.ForStart(forLoopVariable));
 
-            var startLabel    = "for_" + GetLabel();
+            var startLabel = "for_" + GetLabel();
             var continueLabel = "for_" + GetLabel();
-            var endLabel      = "for_" + GetLabel();
+            var endLabel = "for_" + GetLabel();
 
             loopContinueLabels.Push(continueLabel);
             loopBreakLabels.Push(endLabel);
@@ -236,18 +239,20 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 var label = "if_" + GetLabel();
                 EmitExpression(node.Children[i] as ExpressionAst);
                 Emit2(Emit.BrFalse(label)); // branch if false to next case
-                EmitBlock(node.Children[i+1] as BlockAst);
+                EmitBlock(node.Children[i + 1] as BlockAst);
                 Emit2(Emit.BrAlways(finalLabel)); // done, leave if statement
                 Emit2(Emit.Label(label)); // label next block
             }
             if ((node.Children.Count & 1) == 1)
-            { // final else
+            {
+                // final else
                 EmitBlock(node.Children.Last() as BlockAst);
             }
             Emit2(Emit.Label(finalLabel)); // end of if
         }
 
         int labelCount = 0;
+
         string GetLabel()
         {
             ++labelCount;
@@ -270,7 +275,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             Recurse(node);
         }
 
-        private void AssignHelper(List<Ast> items, List<Ast> expr)
+        void AssignHelper(List<Ast> items, List<Ast> expr, TokenType assignType)
         {
             // push expr on stack in order
             for (var i = 0; i < items.Count; ++i)
@@ -279,19 +284,133 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // store in variables in reverse order
             for (var i = 0; i < items.Count; ++i)
             {
-                // todo - need ops like +=, -=, etc.
-                var name = items[items.Count - i - 1].Token.TokenValue;
-                Emit2(Emit.LoadAddress(name));
-                Emit2(Emit.Store());
-            }
+                var item = items[items.Count - i - 1];
+                var symbol = (item is TypedItemAst)?(item as TypedItemAst).Symbol:(item as AssignItemAst).Symbol;
+                var operandType = GetOperandType(symbol);
 
+                // for +=, etc. read var, perform, 
+                // todo - make much shorter, table driven
+                switch (assignType)
+                {
+                    case TokenType.AddEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Add(operandType));
+                        break;
+                    case TokenType.SubEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Swap());
+                        Emit2(Emit.Sub(operandType));
+                        break;
+                    case TokenType.MulEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Mul(operandType));
+                        break;
+                    case TokenType.DivEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Swap());
+                        Emit2(Emit.Div(operandType));
+                        break;
+                    case TokenType.XorEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Xor());
+                        break;
+                    case TokenType.AndEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.And());
+                        break;
+                    case TokenType.OrEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Or());
+                        break;
+                    case TokenType.ModEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Swap());
+                        Emit2(Emit.Mod(operandType));
+                        break;
+                    case TokenType.RightShiftEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Swap());
+                        Emit2(Emit.RightShift(operandType));
+                        break;
+                    case TokenType.LeftShiftEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Swap());
+                        Emit2(Emit.LeftShift(operandType));
+                        break;
+                    case TokenType.RightRotateEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Swap());
+                        Emit2(Emit.RightRotate(operandType));
+                        break;
+                    case TokenType.LeftRotateEq:
+                        ReadValue(symbol);
+                        Emit2(Emit.Swap());
+                        Emit2(Emit.LeftRotate(operandType));
+                        break;
+                }
+
+                LoadAddress(symbol);
+                Emit2(Emit.Store(operandType));
+            }
         }
+
+        // out the value of the variable in the symbol on the stack
+        void ReadValue(SymbolEntry symbol)
+        {
+            if (symbol.VariableUse == VariableUse.Global)
+                Emit2(Emit.Load(symbol.Address.Value, symbol.Name));
+            else if (symbol.VariableUse == VariableUse.Local)
+                // todo - this wrong - fix
+                Emit2(Emit.Load(symbol.Address.Value, symbol.Name + " ERROR!"));
+            else if (symbol.VariableUse == VariableUse.Param)
+                // todo - this wrong - fix
+                Emit2(Emit.Load(symbol.Address.Value, symbol.Name + " ERROR!"));
+            else
+                throw new InternalFailure($"Unsupported address type {symbol}");
+        }
+
+        // given a symbol, load it's address
+        void LoadAddress(SymbolEntry symbol)
+        {
+            if (symbol.VariableUse == VariableUse.Global)
+                Emit2(Emit.Push(symbol.Address, OperandType.Int32, symbol.Name));
+            else if (symbol.VariableUse == VariableUse.Local)
+                // todo - this wrong - fix
+                Emit2(Emit.Push(symbol.Address, OperandType.Int32, symbol.Name + "ERROR!"));
+            else if (symbol.VariableUse == VariableUse.Param)
+                // todo - this wrong - fix
+                Emit2(Emit.Push(symbol.Address, OperandType.Int32, symbol.Name + "ERROR!"));
+            else
+                throw new InternalFailure($"Unsupported address type {symbol}");
+        }
+
+        OperandType GetOperandType(SymbolEntry symbol)
+        {
+            var t = symbol.Type;
+            if (t.ArrayDimensions.Any())
+                throw new InternalFailure("Cannot put array type in simple operand");
+            // emit known value, ignore children
+            switch (t.SymbolType)
+            {
+                case SymbolType.Bool:
+                case SymbolType.Byte:
+                    return OperandType.Byte;
+                case SymbolType.Int32:
+                    return OperandType.Int32;
+                case SymbolType.Float32:
+                    return OperandType.Int32;
+                default:
+                    throw new InternalFailure($"Unsupported type in symbol {symbol}");
+            }
+        }
+
+
 
         void EmitAssignStatement(AssignStatementAst node)
         {
             var items = node.Children[0].Children;
             var expr = node.Children[1].Children;
-            AssignHelper(items, expr);
+            AssignHelper(items, expr, node.Token.TokenType);
         }
 
         void EmitVariableDef(VariableDefinitionAst node)
@@ -300,7 +419,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             { // process assignments
                 var items = node.Children[0].Children;
                 var expr  = node.Children[1].Children;
-                AssignHelper(items, expr);
+                AssignHelper(items, expr, TokenType.Equals);
             }
         }
 
@@ -310,6 +429,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         #region Process
+
+
 
         // process expression
         void EmitExpression(ExpressionAst node)
@@ -358,7 +479,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     if (node is IdentifierAst)
                     {
                         var name = ((IdentifierAst) node).Name;
-                        Emit2(Emit.Load(name));
+                        Emit2(Emit.Load(-1,name));
                     }
                     else
                         throw new InternalFailure($"ExpressionAst not emitted {node}");
@@ -456,10 +577,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             new BinOp(TokenType.LogicalAnd,Emit.And(),SymbolType.Bool),
 
             // >>, <<, >>>, <<<, &, |, ^, %
-            new BinOp(TokenType.RightShift,Emit.RightShift(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.LeftShift,Emit.LeftShift(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.RightRotate,Emit.RightRotate(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.LeftRotate,Emit.LeftRotate(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.RightShift,Emit.RightShift(OperandType.Byte),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.LeftShift,Emit.LeftShift(OperandType.Byte),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.RightRotate,Emit.RightRotate(OperandType.Byte),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.LeftRotate,Emit.LeftRotate(OperandType.Byte),SymbolType.Byte, SymbolType.Int32),
             new BinOp(TokenType.Ampersand,Emit.And(),SymbolType.Byte, SymbolType.Int32),
             new BinOp(TokenType.Pipe,Emit.Or(),SymbolType.Byte, SymbolType.Int32),
             new BinOp(TokenType.Caret,Emit.Xor(),SymbolType.Byte, SymbolType.Int32),

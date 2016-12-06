@@ -282,6 +282,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseVariableDefinition(Token importToken, Token exportToken, Token constToken, bool allowAssignment)
         {
+            var startToken = TokenStream.Current; 
             if (importToken != null && exportToken != null)
             {
                 ErrorMessage("Variable declaration cannot have both import and export");
@@ -316,7 +317,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
             if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                 return null;
-            var vd = new VariableDefinitionAst();
+            var vd = new VariableDefinitionAst {Token = startToken};
             vd.Children.Add(idList);
             if (assignments != null)
                 vd.AddChild(assignments);
@@ -577,7 +578,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
 
             var h = new AssignStatementAst(op);
-            h.Children.Add(new AssignItemsAst(assignItems.Children));
+            h.Children.Add(new TypedItemsAst(assignItems.Children));
             if (exprList != null)
                 h.AddChild(exprList);
             return h;
