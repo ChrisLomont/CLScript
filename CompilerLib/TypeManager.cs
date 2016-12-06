@@ -38,6 +38,8 @@ namespace Lomont.ClScript.CompilerLib
             List<InternalType> returnType = null,
             List<InternalType> paramsType = null)
         {
+            if (arrayDimensions == null)
+                arrayDimensions = new List<int>(); // makes comparison correct, since types have non-null lists
             foreach (var e in Types)
             {
                 var symbolMatches = e.SymbolType == symbolType || symbolType == SymbolType.MatchAny;
