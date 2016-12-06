@@ -102,6 +102,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             else if (node.Parent is FunctionDeclarationAst)
             {
+                var funcAst = (node.Parent as FunctionDeclarationAst);
+                funcAst.SymbolTable = mgr.SymbolTable;
+                funcAst.Symbol = mgr.Lookup(funcAst.Name);
                 var par = (node.Parent as FunctionDeclarationAst).Children[1] as ParameterListAst;
                 if (par == null) 
                     throw new InternalFailure("Function mismatch in symbol builder AddBlock");

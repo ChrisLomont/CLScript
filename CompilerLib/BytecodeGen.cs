@@ -103,9 +103,10 @@ namespace Lomont.ClScript.CompilerLib
                 // these take a label
                 case Opcode.Call:
                 case Opcode.ForLoop:
-                case Opcode.Load:
+                case Opcode.LoadGlobal:
+                case Opcode.LoadLocal:
                 case Opcode.Store:
-                case Opcode.LoadAddress:
+                case Opcode.LocAddr:
                 case Opcode.BrFalse:
                 case Opcode.BrAlways:
                     var label = (string) inst.Operands[0];
@@ -129,6 +130,7 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Nop:
                 case Opcode.Dup:
                 case Opcode.Swap:
+                case Opcode.AddStack:
                 case Opcode.Return:
                 case Opcode.ForStart:
                 case Opcode.Or:

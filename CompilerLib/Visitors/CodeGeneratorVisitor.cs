@@ -99,10 +99,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             switch (node.Token.TokenType)
             {
                 case TokenType.Continue:
-                    Emit2(Emit.BrAlways(loopContinueLabels.Peek()));
+                    EmitI(Emit.BrAlways(loopContinueLabels.Peek()));
                     break;
                 case TokenType.Break:
-                    Emit2(Emit.BrAlways(loopBreakLabels.Peek()));
+                    EmitI(Emit.BrAlways(loopBreakLabels.Peek()));
                     break;
                 case TokenType.Return:
                     EmitReturn(node);
@@ -112,31 +112,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        // emit a return. 
-        // If node is null, was added at function end, needs no parameters
-        void EmitReturn(JumpStatementAst node)
-        {
-            if (node != null)
-            {
-                // needs to clean for stack if in 'for' loops
-                var count = 0;
-                Ast p = node;
-                while (!(p is FunctionDeclarationAst))
-                {
-                    if (p is ForStatementAst)
-                        count += ForLoopStackSize;
-                    p = p.Parent;
-                }
-                if (count > 0)
-                    Emit2(Emit.Pop(count));
-
-                // todo - parameters
-                var exprs = node.Children[0].Children;
-                foreach (var expr in exprs)
-                    EmitExpression(expr as ExpressionAst);
-            }
-            Emit2(Emit.Return());
-        }
 
         // for loop stores a counter and a delta
         const int ForLoopStackSize = 8; // for loop stack entries
@@ -163,7 +138,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 // a,b form, var from a to b by c, where c is determined here
                 EmitExpression(exprs.Children[0] as ExpressionAst);
                 EmitExpression(exprs.Children[1] as ExpressionAst);
-                Emit2(Emit.Push(0));
+                EmitI(Emit.Push(0));
             }
             else
             {
@@ -171,15 +146,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 // todo - array form
                 throw new InternalFailure("For loop on array not done");
                 arrayLoop = true;
-                Emit2(Emit.Push(0)); // array start
-                Emit2(Emit.Push(0)); // array end - 1 TODO
-                Emit2(Emit.Push(1)); // increment
+                EmitI(Emit.Push(0)); // array start
+                EmitI(Emit.Push(0)); // array end - 1 TODO
+                EmitI(Emit.Push(1)); // increment
             }
 
-            var forLoopVariable = node.VariableSymbol.Name;
 
             // compute for loop start into this spot
-            Emit2(Emit.ForStart(forLoopVariable));
+            var forLoopVaribleAddress = node.VariableSymbol.Address.Value;
+            var forLoopVariableName = node.VariableSymbol.Name;
+
+            EmitI(Emit.ForStart(forLoopVaribleAddress, forLoopVariableName));
 
             var startLabel = "for_" + GetLabel();
             var continueLabel = "for_" + GetLabel();
@@ -188,10 +165,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             loopContinueLabels.Push(continueLabel);
             loopBreakLabels.Push(endLabel);
 
-            Emit2(Emit.Label(startLabel));
+            EmitI(Emit.Label(startLabel));
             EmitBlock(node.Children[1] as BlockAst);
 
-            Emit2(Emit.Label(continueLabel));
+            EmitI(Emit.Label(continueLabel));
 
             // if more to do, go to top
             if (arrayLoop)
@@ -199,10 +176,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else
                 EmitExpression(exprs.Children[1] as ExpressionAst);
 
-            Emit2(Emit.ForLoop(forLoopVariable, startLabel)); // update increment, loop if more
+            EmitI(Emit.ForLoop(forLoopVariableName, startLabel)); // update increment, loop if more
 
             // end of for loop
-            Emit2(Emit.Label(endLabel));
+            EmitI(Emit.Label(endLabel));
 
             // pop labels
             loopContinueLabels.Pop();
@@ -218,12 +195,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             loopContinueLabels.Push(startLabel);
             loopBreakLabels.Push(endLabel);
 
-            Emit2(Emit.Label(startLabel));
+            EmitI(Emit.Label(startLabel));
             EmitExpression(node.Children[0] as ExpressionAst);
-            Emit2(Emit.BrFalse(endLabel));
+            EmitI(Emit.BrFalse(endLabel));
             EmitBlock(node.Children[1] as BlockAst);
-            Emit2(Emit.BrAlways(startLabel));
-            Emit2(Emit.Label(endLabel));
+            EmitI(Emit.BrAlways(startLabel));
+            EmitI(Emit.Label(endLabel));
 
             loopContinueLabels.Pop();
             loopBreakLabels.Pop();
@@ -238,17 +215,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 var label = "if_" + GetLabel();
                 EmitExpression(node.Children[i] as ExpressionAst);
-                Emit2(Emit.BrFalse(label)); // branch if false to next case
+                EmitI(Emit.BrFalse(label)); // branch if false to next case
                 EmitBlock(node.Children[i + 1] as BlockAst);
-                Emit2(Emit.BrAlways(finalLabel)); // done, leave if statement
-                Emit2(Emit.Label(label)); // label next block
+                EmitI(Emit.BrAlways(finalLabel)); // done, leave if statement
+                EmitI(Emit.Label(label)); // label next block
             }
             if ((node.Children.Count & 1) == 1)
             {
                 // final else
                 EmitBlock(node.Children.Last() as BlockAst);
             }
-            Emit2(Emit.Label(finalLabel)); // end of if
+            EmitI(Emit.Label(finalLabel)); // end of if
         }
 
         int labelCount = 0;
@@ -259,14 +236,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return $"label_{labelCount}";
         }
 
-        void EmitFunction(FunctionDeclarationAst node)
-        {
-            Emit2(Emit.Label(node.Name));
-            var block = node.Children[2] as BlockAst;
-            EmitBlock(block);
-            if (block.Children.Last().Token.TokenType != TokenType.Return)
-                EmitReturn(null); // last was not a return. Needs one
-        }
 
         void EmitBlock(BlockAst node)
         {
@@ -294,77 +263,90 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 {
                     case TokenType.AddEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Add(operandType));
+                        EmitI(Emit.Add(operandType));
                         break;
                     case TokenType.SubEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Swap());
-                        Emit2(Emit.Sub(operandType));
+                        EmitI(Emit.Swap());
+                        EmitI(Emit.Sub(operandType));
                         break;
                     case TokenType.MulEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Mul(operandType));
+                        EmitI(Emit.Mul(operandType));
                         break;
                     case TokenType.DivEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Swap());
-                        Emit2(Emit.Div(operandType));
+                        EmitI(Emit.Swap());
+                        EmitI(Emit.Div(operandType));
                         break;
                     case TokenType.XorEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Xor());
+                        EmitI(Emit.Xor());
                         break;
                     case TokenType.AndEq:
                         ReadValue(symbol);
-                        Emit2(Emit.And());
+                        EmitI(Emit.And());
                         break;
                     case TokenType.OrEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Or());
+                        EmitI(Emit.Or());
                         break;
                     case TokenType.ModEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Swap());
-                        Emit2(Emit.Mod(operandType));
+                        EmitI(Emit.Swap());
+                        EmitI(Emit.Mod(operandType));
                         break;
                     case TokenType.RightShiftEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Swap());
-                        Emit2(Emit.RightShift(operandType));
+                        EmitI(Emit.Swap());
+                        EmitI(Emit.RightShift(operandType));
                         break;
                     case TokenType.LeftShiftEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Swap());
-                        Emit2(Emit.LeftShift(operandType));
+                        EmitI(Emit.Swap());
+                        EmitI(Emit.LeftShift(operandType));
                         break;
                     case TokenType.RightRotateEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Swap());
-                        Emit2(Emit.RightRotate(operandType));
+                        EmitI(Emit.Swap());
+                        EmitI(Emit.RightRotate(operandType));
                         break;
                     case TokenType.LeftRotateEq:
                         ReadValue(symbol);
-                        Emit2(Emit.Swap());
-                        Emit2(Emit.LeftRotate(operandType));
+                        EmitI(Emit.Swap());
+                        EmitI(Emit.LeftRotate(operandType));
                         break;
                 }
 
-                LoadAddress(symbol);
-                Emit2(Emit.Store(operandType));
+                WriteValue(symbol);
             }
         }
 
-        // out the value of the variable in the symbol on the stack
+        #region Read/Write variable values and addresses
+
+        // write value on stack top into given symbol
+        void WriteValue(SymbolEntry symbol)
+        {
+            var operandType = GetOperandType(symbol);
+            LoadAddress(symbol);
+            EmitI(Emit.Store(operandType));
+        }
+
+        // Put the value of the variable in the symbol on the stack
         void ReadValue(SymbolEntry symbol)
         {
+            if (symbol.Type.PassByRef)
+            {
+                LoadAddress(symbol);
+                return;
+            }
+
             if (symbol.VariableUse == VariableUse.Global)
-                Emit2(Emit.Load(symbol.Address.Value, symbol.Name));
-            else if (symbol.VariableUse == VariableUse.Local)
-                // todo - this wrong - fix
-                Emit2(Emit.Load(symbol.Address.Value, symbol.Name + " ERROR!"));
+                EmitI(Emit.LoadGlobal(symbol.Address.Value, symbol.Name));
+            else if (symbol.VariableUse == VariableUse.Local || symbol.VariableUse == VariableUse.ForLoop)
+                EmitI(Emit.LoadLocal(symbol.Address.Value + callStackSuffixSize, symbol.Name));
             else if (symbol.VariableUse == VariableUse.Param)
-                // todo - this wrong - fix
-                Emit2(Emit.Load(symbol.Address.Value, symbol.Name + " ERROR!"));
+                EmitI(Emit.LoadLocal(symbol.Address.Value - callStackPrefixSize, symbol.Name));
             else
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }
@@ -373,19 +355,21 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void LoadAddress(SymbolEntry symbol)
         {
             if (symbol.VariableUse == VariableUse.Global)
-                Emit2(Emit.Push(symbol.Address, OperandType.Int32, symbol.Name));
+                EmitI(Emit.Push(symbol.Address, OperandType.Int32, symbol.Name));
             else if (symbol.VariableUse == VariableUse.Local)
                 // todo - this wrong - fix
-                Emit2(Emit.Push(symbol.Address, OperandType.Int32, symbol.Name + "ERROR!"));
+                EmitI(Emit.LocalAddress(symbol.Address.Value, symbol.Name));
             else if (symbol.VariableUse == VariableUse.Param)
                 // todo - this wrong - fix
-                Emit2(Emit.Push(symbol.Address, OperandType.Int32, symbol.Name + "ERROR!"));
+                EmitI(Emit.LocalAddress(-symbol.Address.Value, symbol.Name));
             else
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }
 
         OperandType GetOperandType(SymbolEntry symbol)
         {
+            if (symbol == null)
+                throw new InternalFailure("Null symbol");
             var t = symbol.Type;
             if (t.ArrayDimensions.Any())
                 throw new InternalFailure("Cannot put array type in simple operand");
@@ -403,8 +387,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     throw new InternalFailure($"Unsupported type in symbol {symbol}");
             }
         }
-
-
+        #endregion
 
         void EmitAssignStatement(AssignStatementAst node)
         {
@@ -423,14 +406,124 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        void Emit2(Instruction instruction)
+        void EmitI(Instruction instruction)
         {
             instructions.Add(instruction);
         }
 
-        #region Process
+        #region Function/Return
+        /* Functions and call stacks
+         * 
+         * Variables passed to and from function in call/return order, i32/byte/float/bool on stack, else address
+         * 
+         * 
+         *    -----------
+         *    |ret val 1|  \
+         *    -----------   \
+         *    |   ...   |    |  space made by caller for return values/addresses
+         *    -----------    |
+         *    |ret val n|   / 
+         *    -----------  /  
+         *    
+         *    -----------
+         *    | param 1 |  \
+         *    -----------   \
+         *    |   ...   |    | done by caller before call
+         *    -----------   /  
+         *    | param N |  /
+         *    -----------   
+         * 
+         *    -----------  
+         *    | ret addr|  \
+         *    -----------   | done by call instruction, cleaned by ret function
+         *    | base ptr|  /
+         *    -----------    <--- base pointer points here = sp at the time
+         * 
+         *    -----------      
+         *    | local 1 |  \ 
+         *    -----------   \
+         *    |   ...   |    | space saved by callee
+         *    -----------   /
+         *    | local n |  /
+         *    -----------     <----- stack points here
+         *    
+         *    
+         *    Caller then either consumes or cleans stack
+         *    
+         *    To do return a,b,c, push values on stack, call return (which handles copies and cleaning)
+         *    
+         *    return instruction: takes # M of bytes for params 1-N
+         *    Executes:
+         *       s = ret size = cur stack - top of frame
+         *       copy s bytes to return varible locations
+         *       r = ret addr
+         *       sp <- bp
+         *       restore bp
+         *       pop M from stack
+         *       return to address r. 
+         * 
+         */
+
+        // used to compute spacing later for variable access
+        // symbol table addresses are based on base pointer pointing to 
+        // address 0, where first local is stored, and negative is parameters
+        // these are byte counts of things stored on stack before base pointer and after base pointer
+        static int callStackSuffixSize = 0, callStackPrefixSize = 8;
+
+        void EmitFunctionCall(FunctionCallAst node)
+        {
+            // call stack: return item space, parameters, then call
+
+            // return space
+            var symbol = mgr.Lookup(node.Token.TokenValue);
+            var retSize = symbol.Type.ReturnSize;
+            if (retSize < 0)
+                throw new InternalFailure($"Return size < 0 {symbol}");
+            else if (retSize > 0)
+                EmitI(Emit.AddStack(retSize,"function return value space"));
+
+            // basic types passed by value, others by address
+            foreach (var child in node.Children)
+                EmitExpression((ExpressionAst)child);
+
+            EmitI(Emit.Call(node.Token.TokenValue));
+        }
+
+        void EmitFunction(FunctionDeclarationAst node)
+        {
+            EmitI(Emit.Label(node.Name,node.Symbol.Type.ToString()));
+
+            // reserve stack space
+            EmitI(Emit.AddStack(node.SymbolTable.StackSize,""));
+
+            var block = node.Children[2] as BlockAst;
+            EmitBlock(block);
+            if (block.Children.Last().Token.TokenType != TokenType.Return)
+                EmitReturn(null); // last was not a return. Needs one
+        }
+
+        // emit a return. 
+        // If node is null, was added at function end, needs no parameters
+        void EmitReturn(JumpStatementAst node)
+        {
+            if (node != null)
+            {
+                // parameters on stack
+                var exprs = node.Children[0].Children;
+                foreach (var expr in exprs)
+                    EmitExpression(expr as ExpressionAst);
+            }
+            // find function declaration
+            Ast func = node;
+            while (!(func is FunctionDeclarationAst))
+                func = func.Parent;
+
+            EmitI(Emit.Return((func as FunctionDeclarationAst).SymbolTable.ParamsSize));
+        }
+        #endregion
 
 
+        #region Expression
 
         // process expression
         void EmitExpression(ExpressionAst node)
@@ -443,16 +536,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 switch (node.Type.SymbolType)
                 {
                     case SymbolType.Bool:
-                        Emit2(Emit.Push(node.BoolValue.Value ? 1 : 0));
+                        EmitI(Emit.Push(node.BoolValue.Value ? 1 : 0));
                         break;
                     case SymbolType.Int32:
-                        Emit2(Emit.Push(node.IntValue.Value));
+                        EmitI(Emit.Push(node.IntValue.Value));
                         break;
                     case SymbolType.Float32:
-                        Emit2(Emit.Push(node.FloatValue.Value, OperandType.Float32));
+                        EmitI(Emit.Push(node.FloatValue.Value, OperandType.Float32));
                         break;
                     case SymbolType.Byte:
-                        Emit2(Emit.Push(node.ByteValue.Value, OperandType.Int32));
+                        EmitI(Emit.Push(node.ByteValue.Value, OperandType.Int32));
                         break;
                     default:
                         throw new InternalFailure($"Unsupported type in expression {node}");
@@ -477,10 +570,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 else if (node.Children.Count == 0)
                 {
                     if (node is IdentifierAst)
-                    {
-                        var name = ((IdentifierAst) node).Name;
-                        Emit2(Emit.Load(-1,name));
-                    }
+                        ReadValue((node as IdentifierAst).Symbol);
                     else
                         throw new InternalFailure($"ExpressionAst not emitted {node}");
                     
@@ -490,29 +580,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        void EmitFunctionCall(FunctionCallAst node)
-        {
-            // call stack: ideally, each parameter is a single value on stack or address
-            // but some are local expressions, etc... 
-            foreach (var child in node.Children)
-                EmitExpression((ExpressionAst) child); // do parameters
-            Emit2(Emit.Call(node.Token.TokenValue));
-            // todo - get values back?
-            // Emit2(Emit.Pop(stackSize)); // clean stack
-        }
-
         void EmitUnaryOp(ExpressionAst node)
         {
             switch (node.Token.TokenType)
             {
                 case TokenType.Exclamation:
                 {  // bool toggle
-                    Emit2(Emit.Push(1));
-                    Emit2(Emit.Xor());
+                    EmitI(Emit.Push(1));
+                    EmitI(Emit.Xor());
                 }
                     break;
                 case TokenType.Tilde:
-                    Emit2(Emit.Not()); // i32 bitflip
+                    EmitI(Emit.Not()); // i32 bitflip
                     break;
                 case TokenType.Plus:
                     // do nothing
@@ -520,9 +599,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 case TokenType.Minus:
                     var s = node.Type.SymbolType;
                     if (s == SymbolType.Byte || s == SymbolType.Int32)
-                        Emit2(Emit.Neg());
+                        EmitI(Emit.Neg());
                     else if (s == SymbolType.Float32)
-                        Emit2(Emit.Neg(OperandType.Float32));
+                        EmitI(Emit.Neg(OperandType.Float32));
                     else
                         throw new InternalFailure($"Unknown negation emitted {node}");
                     break;
@@ -601,23 +680,23 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 
         void EmitBinaryOp(ExpressionAst node)
-    {
-        foreach (var entry in binTbl)
         {
-            var s = node.Children[0].Type.SymbolType;
+            foreach (var entry in binTbl)
+            {
+                var s = node.Children[0].Type.SymbolType;
                 if (s != node.Children[1].Type.SymbolType)
                     throw new InternalFailure("Operand on different types not implemented");
-            if (node.Token.TokenType == entry.TokenType &&
-                entry.SymbolType.Contains(s))
-            {
-                Emit2(entry.Instruction);
-                return;
+                if (node.Token.TokenType == entry.TokenType &&
+                    entry.SymbolType.Contains(s))
+                {
+                    EmitI(entry.Instruction);
+                    return;
+                }
             }
+            throw new InternalFailure($"Cannot emit binary op {node}");
         }
-        throw new InternalFailure($"Cannot emit binary op {node}");
-    }
 
-        #endregion Process
+        #endregion Expression
 
         #region Memory Layout
         void LayoutMemory(Ast node)
@@ -656,14 +735,15 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // now layout this one
             var size = 0;
             var paramSize = 0;
-            var lastParamSize = 0;
             foreach (var e in tbl.Entries.Where(e => e.Type.Size.HasValue))
             {
                 if (e.VariableUse == VariableUse.Param)
                 {
                     e.Address = paramSize;
-                    paramSize += e.Type.Size.Value;
-                    lastParamSize = e.Type.Size.Value;
+                    if (e.Type.PassByRef)
+                        paramSize += 4;
+                    else
+                        paramSize += e.Type.Size.Value;
                 }
                 else if (e.VariableUse == VariableUse.ForLoop)
                 { // todo - rethink this....
@@ -681,12 +761,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             foreach (var e in tbl.Entries.Where(e => e.Type.Size.HasValue))
             {
                 if (e.VariableUse == VariableUse.Param)
-                    e.Address = -(paramSize - e.Address.Value - lastParamSize);
+                    e.Address = -(paramSize - e.Address.Value);
             }
  
             // max of child block sizes:
             var maxChildSize = tbl.Children.Any() ? tbl.Children.Max(ch => ch.StackSize) : 0;
             tbl.StackSize = size + maxChildSize;
+            tbl.ParamsSize = paramSize;
         }
 
         #endregion

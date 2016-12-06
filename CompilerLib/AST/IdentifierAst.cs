@@ -9,6 +9,7 @@ namespace Lomont.ClScript.CompilerLib.AST
     class IdentifierAst : ExpressionAst
     {
         public string Name => Token.TokenValue;
+        public SymbolEntry Symbol { get; set; }
 
         public IdentifierAst(Token token)
         {

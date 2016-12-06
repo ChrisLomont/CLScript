@@ -12,6 +12,9 @@ namespace Lomont.ClScript.CompilerLib.AST
         public Token ExportToken { get; set; }
         public string Name => Token.TokenValue;
 
+        public SymbolTable SymbolTable { get; set; }
+        public SymbolEntry Symbol { get; set; }
+
         public override string ToString()
         {
             return $"{base.ToString()} : {ImportToken} {ExportToken}";

@@ -26,7 +26,7 @@ namespace Lomont.ClScript.CompilerLib
         /// Lookup type, if not created, do so
         /// </summary>
         /// <param name="symbolType"></param>
-        /// <param name="arrayDimension"></param>
+        /// <param name="arrayDimensions"></param>
         /// <param name="userTypename"></param>
         /// <param name="returnType"></param>
         /// <param name="paramsType"></param>
@@ -63,9 +63,7 @@ namespace Lomont.ClScript.CompilerLib
         {
             if (list1 == null && list2 == null)
                 return true;
-            if (list1 == null && list2 != null)
-                return false;
-            if (list1 != null && list2 == null)
+            if (list1 == null || list2 == null)
                 return false;
             if (ReferenceEquals(list1, list2))
                 return true;
@@ -81,9 +79,7 @@ namespace Lomont.ClScript.CompilerLib
         {
             if (list1 == null && list2 == null)
                 return true;
-            if (list1 == null && list2 != null)
-                return false;
-            if (list1 != null && list2 == null)
+            if (list1 == null || list2 == null)
                 return false;
             if (ReferenceEquals(list1, list2))
                 return true;
@@ -127,6 +123,46 @@ namespace Lomont.ClScript.CompilerLib
         public List<InternalType> ParamsType { get; set; }
 
         public int? Size { get; set; }
+
+        int returnSize = -1; // filled on demand
+        public int ReturnSize
+        {
+            get
+            {
+                if (returnSize == -1)
+                {
+                    var all = true;
+                    var size = 0;
+                    foreach (var t in ReturnType)
+                    {
+                        all &= t.Size.HasValue;
+                        if (!all) break;
+                        size += t.Size.Value;
+                    }
+                    if (all) returnSize = size;
+                }
+                return returnSize;
+            }
+            
+        }
+
+        public bool PassByRef
+        {
+            get
+            {
+                if (ArrayDimensions.Any())
+                    return true;
+                if (SymbolType == SymbolType.Bool || 
+                    SymbolType == SymbolType.Byte || 
+                    SymbolType == SymbolType.Float32 ||
+                    SymbolType == SymbolType.Int32 ||
+                    SymbolType == SymbolType.EnumValue
+                    )
+                    return false;
+                return true;
+            }
+
+        }
 
         string FormatType(bool showSizes)
         {

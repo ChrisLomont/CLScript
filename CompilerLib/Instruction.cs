@@ -25,11 +25,14 @@ namespace Lomont.ClScript.CompilerLib
         Pick,
         Dup,
         Swap,
+        AddStack,
 
         // mem
-        Load,
+        LoadGlobal,
+        LoadLocal,
         Store,
-        LoadAddress,
+        LocAddr,
+
         // label/branch/call/ret
         Label,
         Call,
@@ -81,27 +84,33 @@ namespace Lomont.ClScript.CompilerLib
 
         public override string ToString()
         {
-            var sb = new StringBuilder();
-            var text = Opcode.ToString();
+            var opcode = Opcode.ToString();
             if (OperandType == OperandType.Float32)
-                text += ".f";
+                opcode += ".f";
             else if (OperandType == OperandType.Int32)
-                text += ".i";
+                opcode += ".i";
             else if (OperandType == OperandType.Byte)
-                text += ".b";
+                opcode += ".b";
             else if (OperandType != OperandType.None)
                 throw new InternalFailure($"Unknown operand type {OperandType}");
-            if (!text.StartsWith("Label"))
+
+            var operands = "";
+
+            if (!opcode.StartsWith("Label"))
             {
-                sb.Append("    " + text);
+                opcode = "     " + opcode;
                 foreach (var op in Operands)
-                    sb.Append($" {op}");
+                    operands += $" {op}";
             }
             else
-                sb.Append($"{Operands[0]}:");
+                opcode = $"{opcode} {Operands[0]}:";
+                // operands = $"{Operands[0]}:";
+
+            var comment = "";
             if (!String.IsNullOrEmpty(Comment))
-                sb.Append($" ; {Comment}");
-            return sb.ToString();
+                comment = $" ; {Comment}";
+
+            return $"{opcode,-20}{operands,-15}{comment}";
         }
 
     }
@@ -134,29 +143,37 @@ namespace Lomont.ClScript.CompilerLib
         {
             return new Instruction(Opcode.Swap, OperandType.None, "");
         }
+        public static Instruction AddStack(int value, string comment)
+        {
+            return new Instruction(Opcode.AddStack, OperandType.None, comment, value);
+        }
 
         #endregion
 
         #region Memory
-        public static Instruction Load(int address, string comment)
+        public static Instruction LoadGlobal(int address, string comment)
         {
-            return new Instruction(Opcode.Load, OperandType.None, comment, address, "TODO");
+            return new Instruction(Opcode.LoadGlobal, OperandType.None, comment, address);
+        }
+        public static Instruction LoadLocal(int address, string comment)
+        {
+            return new Instruction(Opcode.LoadLocal, OperandType.None, comment, address);
         }
         public static Instruction Store(OperandType type)
         {
             return new Instruction(Opcode.Store, type, "");
         }
 
-        public static Instruction LoadAddress(int address, string comment)
+        public static Instruction LocalAddress(int address, string comment)
         {
-            return new Instruction(Opcode.LoadAddress, OperandType.None, comment, address, "TODO");
+            return new Instruction(Opcode.LocAddr, OperandType.None, comment, address);
         }
         #endregion
 
         #region call/return/branch/label
-        public static Instruction Label(string label)
+        public static Instruction Label(string label, string comment = "")
         {
-            return new Instruction(Opcode.Label, OperandType.None, "", label);
+            return new Instruction(Opcode.Label, OperandType.None, comment, label);
         }
 
         public static Instruction Call(string value)
@@ -164,9 +181,9 @@ namespace Lomont.ClScript.CompilerLib
             return new Instruction(Opcode.Call, OperandType.None, "", value);
         }
 
-        public static Instruction Return()
+        public static Instruction Return(int size)
         {
-            return new Instruction(Opcode.Return, OperandType.None, "", "TODO");
+            return new Instruction(Opcode.Return, OperandType.None, "", size);
         }
 
         public static Instruction BrFalse(string label)
@@ -179,11 +196,11 @@ namespace Lomont.ClScript.CompilerLib
             return new Instruction(Opcode.BrAlways, OperandType.None, "", label);
         }
 
-        public static Instruction ForStart(string label)
+        public static Instruction ForStart(int address, string comment)
         { // start, end, delta values on stack. If delta = 0, compute delta +1 or -1
           // store start at memory location, delta at location +1
           // pops 2 from stack
-            return new Instruction(Opcode.ForStart, OperandType.None, "", label);
+            return new Instruction(Opcode.ForStart, OperandType.None, comment, address);
         }
 
         // update for stack frame, branch if more to do

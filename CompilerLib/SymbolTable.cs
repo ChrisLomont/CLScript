@@ -285,11 +285,12 @@ namespace Lomont.ClScript.CompilerLib
             Dump(output,top);
         }
 
-        void Dump(TextWriter output, SymbolTable table)
+        void Dump(TextWriter output, SymbolTable table, string indent="")
         {
-            table.Dump(output);
+            table.Dump(output, indent);
+            var subIndet = indent + "     ";
             foreach (var child in table.Children)
-                Dump(output,child);
+                Dump(output,child, subIndet);
         }
 
 
@@ -380,6 +381,11 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public int StackSize { get; set; }
 
+        /// <summary>
+        /// parameters size on stack
+        /// </summary>
+        public int ParamsSize { get; set; }
+
         public string Scope { get; private set; }
         public List<SymbolEntry> Entries { get; } = new List<SymbolEntry>();
         public SymbolTable Parent { get;}
@@ -395,6 +401,7 @@ namespace Lomont.ClScript.CompilerLib
                 return words.Length > 1 && words[1].StartsWith("Block_");
             }
         }
+
 
         public SymbolTable(SymbolTable parent, string scope)
         {
@@ -412,12 +419,12 @@ namespace Lomont.ClScript.CompilerLib
         }
 
 
-        public void Dump(TextWriter output)
+        public void Dump(TextWriter output, string indent)
         {
-            output.WriteLine($"Symbol Table Scope: {Scope} :{StackSize}:");
+            output.WriteLine($"{indent}Symbol Table Scope: {Scope} :{StackSize},{ParamsSize}:");
             foreach (var entry in Entries)
-                output.WriteLine(entry);
-            output.WriteLine("****************************");
+                output.WriteLine(indent+entry);
+            output.WriteLine($"{indent}****************************");
         }
     }
 

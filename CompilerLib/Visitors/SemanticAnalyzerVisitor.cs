@@ -72,9 +72,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var symbolType = SymbolType.ToBeResolved;
             InternalType internalType = null;
             if (node is IdentifierAst)
+            {
                 typeName = ((IdentifierAst) node).Name;
+                ((IdentifierAst) node).Symbol = mgr.Lookup(typeName);
+            }
             else if (node is TypedItemAst && !(node.Parent.Parent is FunctionDeclarationAst))
-                typeName = ((TypedItemAst)node).Name;
+                typeName = ((TypedItemAst) node).Name;
             else if (node is LiteralAst)
                 symbolType = ProcessLiteral(node as LiteralAst, env);
             //else if (node is AssignItemAst)
@@ -84,13 +87,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is VariableDefinitionAst)
                 ProcessVariableDefinition((VariableDefinitionAst) node);
             else if (node is WhileStatementAst)
-                ProcessWhileStatement((WhileStatementAst)node);
+                ProcessWhileStatement((WhileStatementAst) node);
             else if (node is JumpStatementAst)
-                ProcessJumpStatement((JumpStatementAst)node);
+                ProcessJumpStatement((JumpStatementAst) node);
             else if (node is IfStatementAst)
-                ProcessIfStatement((IfStatementAst)node);
+                ProcessIfStatement((IfStatementAst) node);
             else if (node is FunctionDeclarationAst)
-                ProcessFunctionDeclaration((FunctionDeclarationAst)node); 
+                ProcessFunctionDeclaration((FunctionDeclarationAst) node);
             else if (node is ExpressionAst)
                 internalType = ProcessExpression(node as ExpressionAst);
             else if (node is EnumAst)
@@ -343,6 +346,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (items == null || exprs == null)
                 throw new InternalFailure($"Variable nodes incorrect {node}");
             CheckAssignments(node, GetTypes(items.Children), GetTypes(exprs.Children));
+            // set symbols
+            foreach (var item in items.Children)
+            {
+                var asn = item as TypedItemAst;
+                if (asn.Symbol == null)
+                    asn.Symbol = mgr.Lookup(asn.Name);
+            }
         }
 
         // check var type exists
