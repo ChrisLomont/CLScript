@@ -34,10 +34,14 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public Ast SyntaxTree { get; private set; }
 
-        public bool Compile(string text, Environment environment1)
+        public Compiler(Environment environment)
         {
-            this.environment = environment1;
-            environment.Info($"Compiling <todo> lines");
+            env = environment;
+        }
+
+        public bool Compile(string text)
+        {
+            env.Info($"Compiling <todo> lines");
             var success = false;
             try
             {
@@ -50,8 +54,8 @@ namespace Lomont.ClScript.CompilerLib
             {
                 do
                 {
-                    environment.Error($"Exception: {ex.Message}");
-                    environment.Error($"Details: {ex}");
+                    env.Error($"Exception: {ex.Message}");
+                    env.Error($"Details: {ex}");
                     ex = ex.InnerException;
                 } while (ex != null);
                 success = false;
@@ -76,15 +80,14 @@ namespace Lomont.ClScript.CompilerLib
         public string SymbolTableToText()
         {
             var st = new StringWriter();
-            if (symbolTable != null)
-                symbolTable.Dump(st);
+            symbolTable?.Dump(st);
             return st.ToString();
         }
 
         public string CodegenToText()
         {
             var sb = new StringBuilder();
-            foreach (var inst in codeGen)
+            foreach (var inst in generatedInstructions)
                 sb.AppendLine(inst.ToString());
             return sb.ToString();
         }
@@ -101,19 +104,19 @@ namespace Lomont.ClScript.CompilerLib
         #region Implementation
         Lexer.Lexer lexer;
         Parser.Parser parser;
-        List<Instruction> codeGen = new List<Instruction>();
+        readonly List<Instruction> generatedInstructions = new List<Instruction>();
         SymbolTableManager symbolTable;
         BytecodeGen bytecode;
-        Environment environment;
+        readonly Environment env;
 
         // Generate the syntax tree
         // return true on success
         bool GenerateSyntaxTree(string text)
         {
             SyntaxTree = null;
-            lexer      = new Lexer.Lexer(text, environment);
-            parser     = new Parser.Parser(lexer);
-            SyntaxTree = parser.Parse(environment);
+            lexer      = new Lexer.Lexer(env, text);
+            parser     = new Parser.Parser(env, lexer);
+            SyntaxTree = parser.Parse();
             return SyntaxTree != null;
         }
 
@@ -121,29 +124,31 @@ namespace Lomont.ClScript.CompilerLib
         // return true on success
         bool AnalyzeSyntaxTree()
         {
-            environment.Info("Building symbol table...");
-            symbolTable = BuildSymbolTableVisitor.BuildTable(SyntaxTree, environment);
-            if (environment.ErrorCount == 0)
+            env.Info("Building symbol table...");
+            var builder = new BuildSymbolTableVisitor(env);
+            symbolTable = builder.BuildTable(SyntaxTree);
+            if (env.ErrorCount == 0)
             {
-                environment.Info("Semantic Analysis...");
-                SemanticAnalyzerVisitor.Check(symbolTable, SyntaxTree, environment);
+                env.Info("Semantic Analysis...");
+                var analyzer = new SemanticAnalyzerVisitor(env);
+                analyzer.Check(symbolTable, SyntaxTree);
             }
-            return environment.ErrorCount == 0;
+            return env.ErrorCount == 0;
         }
 
         // generate code from the abstract syntax tree and symbol table
         // return true on success
         bool GenerateCode()
         {
-            var cg = new CodeGeneratorVisitor();
-            var code = cg.Generate(symbolTable, SyntaxTree, environment);
-            if (environment.ErrorCount > 0)
+            var cg = new CodeGeneratorVisitor(env);
+            var code = cg.Generate(symbolTable, SyntaxTree);
+            if (env.ErrorCount > 0)
                 return false;
 
-            codeGen.Clear();
-            codeGen.AddRange(code);
-            bytecode = new BytecodeGen();
-            return bytecode.Generate(environment, symbolTable, codeGen);
+            generatedInstructions.Clear();
+            generatedInstructions.AddRange(code);
+            bytecode = new BytecodeGen(env);
+            return bytecode.Generate(symbolTable, generatedInstructions);
         }
 
 

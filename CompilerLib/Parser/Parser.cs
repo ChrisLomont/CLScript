@@ -55,14 +55,14 @@ namespace Lomont.ClScript.CompilerLib.Parser
     {
         ParseableTokenStream TokenStream { get; set; }
 
-        public Parser(Lexer.Lexer lexer)
+        public Parser(Environment environment, Lexer.Lexer lexer)
         {
+            env = environment;
             TokenStream = new ParseableTokenStream(lexer);
         }
 
-        public Ast Parse(Environment environment1)
+        public Ast Parse()
         {
-            environment = environment1;
             ignoreErrors.Clear();
             ignoreErrors.Push(false);
             var ast = ParseDeclarations(); // start here
@@ -74,7 +74,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return TokenStream.GetTokens();
         }
 
-        Environment environment;
+        Environment env;
 
         #region Grammar
 
@@ -92,7 +92,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     decls.Children.Add(decl);
             } while (decl != null);
             if (TokenStream.Current.TokenType != TokenType.EndOfFile)
-                environment.Error($"Could not parse {TokenStream.Current}");
+                env.Error($"Could not parse {TokenStream.Current}");
             return decls;
         }
 
@@ -1291,7 +1291,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         void ErrorMessage(string error)
         {
             if (!ignoreErrors.Peek())
-                environment.Error($"{error} at {TokenStream.Peek(-1)}");
+                env.Error($"{error} at {TokenStream.Peek(-1)}");
         }
 
         // while next token matches, eat them

@@ -22,10 +22,15 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         Stack<string> loopBreakLabels = new Stack<string>();
         Stack<string> loopContinueLabels = new Stack<string>();
 
-        public List<Instruction> Generate(SymbolTableManager symbolTable, Ast ast, Environment environment)
+        public CodeGeneratorVisitor(Environment environment)
+        {
+            env = environment;
+        }
+
+
+        public List<Instruction> Generate(SymbolTableManager symbolTable, Ast ast)
         {
             // set object fields 
-            env = environment;
             mgr = symbolTable;
 
             // layout variables in memory
@@ -473,7 +478,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         };
 
-    void EmitBinaryOp(ExpressionAst node)
+
+        void EmitBinaryOp(ExpressionAst node)
     {
         foreach (var entry in binTbl)
         {

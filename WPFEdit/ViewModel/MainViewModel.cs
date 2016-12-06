@@ -116,14 +116,15 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 Save();
 
                 var output = new StringWriter();
-                compiler = new Compiler();
                 env = new Environment(output);
+                compiler = new Compiler(env);
+                
 
                 TreeText.Text = "";
                 CodegenText.Text = "";
                 SymbolText.Text = "";
                 var sourceCodeText = CodeEditor.Text;
-                compiler.Compile(sourceCodeText, env);
+                compiler.Compile(sourceCodeText);
 
                 // output messages
                 var msgs = output.ToString().Split('\n');

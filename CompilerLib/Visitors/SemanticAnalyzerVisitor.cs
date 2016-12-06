@@ -25,36 +25,38 @@ namespace Lomont.ClScript.CompilerLib.Visitors
          * Also fills in values of enums, memory item sizes, etc
          */
 
-        class State
+        public SemanticAnalyzerVisitor(Environment environment)
         {
-            public Environment env;
-            public SymbolTableManager mgr;
+            env = environment;
         }
 
-        public static void Check(SymbolTableManager symbolTable, Ast ast, Environment environment)
+        Environment env;
+        SymbolTableManager mgr;
+
+        public void Check(SymbolTableManager symbolTable, Ast ast)
         {
             symbolTable.Start();
-            var state = new State {mgr = symbolTable, env = environment};
-            Recurse(ast,state);
+            mgr = symbolTable;
+            Recurse(ast);
         }
 
 
-        static void Recurse(Ast node, State state)
+        void Recurse(Ast node)
         {
-            state.mgr.EnterAst(node);
+            mgr.EnterAst(node);
 
             // for statement loop variable needs set here, before children processed
             if (node is BlockAst && node.Parent is ForStatementAst)
-                ProcessForStatement((ForStatementAst)(node.Parent), state);
+                ProcessForStatement((ForStatementAst)(node.Parent));
 
             // recurse children
             foreach (var child in node.Children)
-                Recurse(child, state);
+                Recurse(child);
 
             // adds type info, does type checking
-            ProcessTypeForNode(node,state);
+            ProcessTypeForNode(node);
 
-            state.mgr.ExitAst(node);
+            mgr.ExitAst(node);
         }
 
 
@@ -64,7 +66,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // todo - replace enum with their values
         // todo - cast expressions as needed
 
-        static void ProcessTypeForNode(Ast node, State state)
+        void ProcessTypeForNode(Ast node)
         {
             var typeName = "";
             var symbolType = SymbolType.ToBeResolved;
@@ -74,48 +76,48 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is TypedItemAst && !(node.Parent.Parent is FunctionDeclarationAst))
                 typeName = ((TypedItemAst)node).Name;
             else if (node is LiteralAst)
-                symbolType = ProcessLiteral(node as LiteralAst, state.env);
+                symbolType = ProcessLiteral(node as LiteralAst, env);
             else if (node is AssignItemAst)
-                internalType = ProcessAssignItem((AssignItemAst)node, state);
+                internalType = ProcessAssignItem((AssignItemAst)node);
             else if (node is AssignStatementAst)
-                ProcessAssignment((AssignStatementAst) node, state);
+                ProcessAssignment((AssignStatementAst) node);
             else if (node is VariableDefinitionAst)
-                ProcessVariableDefinition((VariableDefinitionAst) node, state);
+                ProcessVariableDefinition((VariableDefinitionAst) node);
             else if (node is WhileStatementAst)
-                ProcessWhileStatement((WhileStatementAst)node, state);
+                ProcessWhileStatement((WhileStatementAst)node);
             else if (node is JumpStatementAst)
-                ProcessJumpStatement((JumpStatementAst)node, state);
+                ProcessJumpStatement((JumpStatementAst)node);
             else if (node is IfStatementAst)
-                ProcessIfStatement((IfStatementAst)node, state);
+                ProcessIfStatement((IfStatementAst)node);
             else if (node is FunctionDeclarationAst)
-                ProcessFunctionDeclaration((FunctionDeclarationAst)node, state); 
+                ProcessFunctionDeclaration((FunctionDeclarationAst)node); 
             else if (node is ExpressionAst)
-                internalType = ProcessExpression(node as ExpressionAst, state);
+                internalType = ProcessExpression(node as ExpressionAst);
             else if (node is EnumAst)
-                ProcessEnum(node as EnumAst, state);
+                ProcessEnum(node as EnumAst);
 
             if (internalType != null)
                 node.Type = internalType;
             else if (!String.IsNullOrEmpty(typeName))
             {
-                var symbol = state.mgr.Lookup(typeName);
+                var symbol = mgr.Lookup(typeName);
                 if (symbol == null)
-                    state.env.Error($"Cannot find symbol definition {node}");
+                    env.Error($"Cannot find symbol definition {node}");
                 else
                     node.Type = symbol.Type;
             }
             else if (symbolType != SymbolType.ToBeResolved)
             {
-                var type1 = state.mgr.TypeManager.GetType(symbolType);
+                var type1 = mgr.TypeManager.GetType(symbolType);
                 if (type1 == null)
-                    state.env.Error($"Cannot find symbol definition {node}");
+                    env.Error($"Cannot find symbol definition {node}");
                 else
                     node.Type = type1;
             }
         }
 
         // assign enum values, must all be constant now
-        static void ProcessEnum(EnumAst node, State state)
+        void ProcessEnum(EnumAst node)
         {
             var value = 0; // start default value
             foreach (var child in node.Children)
@@ -126,13 +128,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 {
                     var ex = child.Children[0] as ExpressionAst;
                     if (ex == null || !(ex.ByteValue.HasValue || ex.IntValue.HasValue))
-                        state.env.Error($"Enum value {node.Children[0]} not constant");
+                        env.Error($"Enum value {node.Children[0]} not constant");
                     else
                         value = ex.IntValue ?? ex.ByteValue ?? -1; // will be one of the first two
                 }
-                var symbol = state.mgr.Lookup((child as EnumValueAst).Name);
+                var symbol = mgr.Lookup((child as EnumValueAst).Name);
                 if (symbol == null)
-                    state.env.Error($"Symbol table missing enum val {child}");
+                    env.Error($"Symbol table missing enum val {child}");
                 else
                     symbol.Value = value;
                 value++;
@@ -140,30 +142,30 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         // ensure if expressions are boolean
-        static void ProcessIfStatement(IfStatementAst node, State state)
+        void ProcessIfStatement(IfStatementAst node)
         {
             // an if statement is alternating expression and block statements
             // with perhaps an extra block at the end
 
-            var boolType = state.mgr.TypeManager.GetType(SymbolType.Bool);
+            var boolType = mgr.TypeManager.GetType(SymbolType.Bool);
             for (var i = 0; i < node.Children.Count-1; i += 2)
             {
                 var expr = node.Children[i] as ExpressionAst;
                 if (expr == null)
                     throw new InternalFailure($"Expected expression in 'if' {node}");
                 if (expr.Type != boolType)
-                    state.env.Error($"'if' expression is not boolean: {expr}");
+                    env.Error($"'if' expression is not boolean: {expr}");
             }
         }
 
         // check parameter types, (return types checked elsewhere on each return)
         // set node type to return type, and return it
-        static InternalType ProcessFunctionCall(FunctionCallAst node, State state)
+        InternalType ProcessFunctionCall(FunctionCallAst node)
         {
-            var symbol = state.mgr.Lookup(node.Token.TokenValue);
+            var symbol = mgr.Lookup(node.Token.TokenValue);
             if (symbol == null)
             {
-                state.env.Error($"Cannot find function definition for {node}");
+                env.Error($"Cannot find function definition for {node}");
                 return null;
             }
 
@@ -173,21 +175,21 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // a fuction call has expressions as children
             if (parms.Count != node.Children.Count)
             {
-                state.env.Error($"Function requires {parms.Count} parameters but has {node.Children.Count}, at {node}");
+                env.Error($"Function requires {parms.Count} parameters but has {node.Children.Count}, at {node}");
                 return null;
             }
             for (var i = 0; i < parms.Count; ++i)
             {
                 if (node.Children[i].Type != parms[i])
                 {
-                    state.env.Error($"Function required type {parms[i]} in position {i+1}");
+                    env.Error($"Function required type {parms[i]} in position {i+1}");
                     return null;
                 }
             }
 
             if (retVals.Count > 1)
             {
-                state.env.Error($"Function returns with more than one parameter not yet supported {node}");
+                env.Error($"Function returns with more than one parameter not yet supported {node}");
                 return null;
             }
             if (retVals.Count == 1)
@@ -200,20 +202,20 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         // check types of bounds, set type of loop variable node
         // must be called in scope of for block to set type of variable
-        static void ProcessForStatement(ForStatementAst node, State state)
+        void ProcessForStatement(ForStatementAst node)
         {
             if (node.Children.Count != 2 || !(node.Children[1] is BlockAst))
                 throw new InternalFailure($"For structure invalid {node}");
-            var forVar = state.mgr.Lookup(node.ForVariable);
+            var forVar = mgr.Lookup(node.ForVariable);
             var bounds = node.Children[0];
             if (bounds is ExpressionListAst)
             { // tuple of 2 or 3 i32
                 var types = GetTypes(bounds.Children);
                 var count = types.Count;
-                var i32type = state.mgr.TypeManager.GetType(SymbolType.Int32);
+                var i32type = mgr.TypeManager.GetType(SymbolType.Int32);
                 var allI32 = types.All(tt => tt == i32type); // todo
                 if (count < 2 || 3 < count || !allI32)
-                    state.env.Error($"for range not 2 or 3 i32 values {node}");
+                    env.Error($"for range not 2 or 3 i32 values {node}");
                 else
                 {
                     forVar.Type = types[0];
@@ -224,10 +226,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             { // array of some item
                 var t = bounds.Type;
                 if (!t.ArrayDimensions.Any())
-                    state.env.Error($"for bounds needs to be one dimensional array {bounds}");
+                    env.Error($"for bounds needs to be one dimensional array {bounds}");
                 else // strip off array part of type
                 {
-                    forVar.Type = state.mgr.TypeManager.GetType(t.SymbolType);
+                    forVar.Type = mgr.TypeManager.GetType(t.SymbolType);
                     node.Type = forVar.Type;
                 }
             }
@@ -236,16 +238,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         // ensure expression is boolean
-        static void ProcessWhileStatement(WhileStatementAst node, State state)
+        void ProcessWhileStatement(WhileStatementAst node)
         {
             if (node.Children.Count != 2 || !(node.Children[0] is ExpressionAst))
                 throw new InternalFailure($"While statement has wrong structure {node}");
             var e = (ExpressionAst) node.Children[0];
-            if (e.Type != state.mgr.TypeManager.GetType(SymbolType.Bool))
-                state.env.Error($"While expression is not boolean {node}");
+            if (e.Type != mgr.TypeManager.GetType(SymbolType.Bool))
+                env.Error($"While expression is not boolean {node}");
         }
 
-        static void ProcessJumpStatement(JumpStatementAst node, State state)
+        void ProcessJumpStatement(JumpStatementAst node)
         {
             var tt = node.Token.TokenType;
 
@@ -256,17 +258,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 while (p != null && !(p is FunctionDeclarationAst))
                     p = p.Parent;
                 if (p == null)
-                    state.env.Error($"Return without enclosing function {node}");
+                    env.Error($"Return without enclosing function {node}");
                 else
                 {
                     var func = p as FunctionDeclarationAst;
-                    var symbol   = state.mgr.Lookup(func.Name);
+                    var symbol   = mgr.Lookup(func.Name);
                     var funcReturnTypes = symbol.Type.ReturnType;
                     if (funcReturnTypes.Count == 0 && node.Children.Count == 0)
                         return; // nothing to do
                     var returnStatementTypes = GetTypes(node.Children[0].Children);
 
-                    CheckAssignments(node,funcReturnTypes,returnStatementTypes,state);
+                    CheckAssignments(node,funcReturnTypes,returnStatementTypes);
                 }
             }
             else if (tt == TokenType.Continue || tt == TokenType.Break)
@@ -276,7 +278,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 while (p != null && !(p is ForStatementAst) && !(p is WhileStatementAst))
                     p = p.Parent;
                 if (p == null)
-                    state.env.Error($"Jump statement needs to be in a for or while loop: {node.Token}");
+                    env.Error($"Jump statement needs to be in a for or while loop: {node.Token}");
             }
         }
 
@@ -286,51 +288,51 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         // ensure function declarations that need one end with a return statement 
-        static void ProcessFunctionDeclaration(FunctionDeclarationAst node, State state)
+        void ProcessFunctionDeclaration(FunctionDeclarationAst node)
         {
             if (node.Children.Count != 3 || !(node.Children[2] is BlockAst))
                 throw new InternalFailure($"Function {node} has wrong structure");
 
-            var symbol = state.mgr.Lookup(node.Name);
+            var symbol = mgr.Lookup(node.Name);
             var funcReturnTypes = symbol.Type.ReturnType;
             if (funcReturnTypes.Count == 0)
                 return; // nothing to do here - any actual return statements checked elsewhere
 
             var block = (BlockAst) (node.Children[2]);
             if (!(block.Children.LastOrDefault() is JumpStatementAst))
-                state.env.Error($"Function {node} requires a return statement at end.");
+                env.Error($"Function {node} requires a return statement at end.");
         }
 
-        static InternalType ProcessAssignItem(AssignItemAst node, State state)
+        InternalType ProcessAssignItem(AssignItemAst node)
         {
-            var symbol = state.mgr.Lookup(node.Token.TokenValue);
+            var symbol = mgr.Lookup(node.Token.TokenValue);
             if (symbol == null)
-                state.env.Error($"Cannot find symbol {node}");
+                env.Error($"Cannot find symbol {node}");
             return symbol?.Type;
         }
 
-        static void CheckAssignments(Ast node, List<InternalType> left, List<InternalType> right, State state)
+        void CheckAssignments(Ast node, List<InternalType> left, List<InternalType> right)
         {
             // todo - check type symbols exist for user defined
             // todo - allow assigning list of items to structures...
 
             if (left.Count != right.Count)
             {
-                state.env.Error($"Mismatched number of expressions to assignments {node}");
+                env.Error($"Mismatched number of expressions to assignments {node}");
                 return;
             }
             for (var i = 0; i < left.Count; ++i)
             {
                 // todo - check type exists
                 if (left[i] != right[i])
-                    state.env.Error($"Types at position {i + 1} mismatched in assignment {node}");
+                    env.Error($"Types at position {i + 1} mismatched in assignment {node}");
             }
 
         }
 
         // check var type exists
         // check variable type exists, counts and types match
-        static void ProcessAssignment(AssignStatementAst node, State state)
+        void ProcessAssignment(AssignStatementAst node)
         {
             // todo - check type symbols exist for user defined
             // todo - allow assigning list of items to structures...
@@ -340,12 +342,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var exprs = node.Children[1] as ExpressionListAst;
             if (items == null || exprs == null)
                 throw new InternalFailure($"Variable nodes incorrect {node}");
-            CheckAssignments(node, GetTypes(items.Children), GetTypes(exprs.Children), state);
+            CheckAssignments(node, GetTypes(items.Children), GetTypes(exprs.Children));
         }
 
         // check var type exists
         // check variable type exists, counts and types match
-        static void ProcessVariableDefinition(VariableDefinitionAst node, State state)
+        void ProcessVariableDefinition(VariableDefinitionAst node)
         {
             // todo - check type symbols exist for user defined
             // todo - allow assigning list of items to structures...
@@ -357,7 +359,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var exprs = node.Children[1] as ExpressionListAst;
             if (items == null || exprs == null)
                 throw new InternalFailure($"Variable nodes incorrect {node}");
-            CheckAssignments(node, GetTypes(items.Children),GetTypes(exprs.Children),state);
+            CheckAssignments(node, GetTypes(items.Children),GetTypes(exprs.Children));
         }
 
         static Int32 ParseInt(Ast node)
@@ -546,7 +548,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 (n,c)=>n.IntValue = ~c.IntValue)
         };
 
-        static InternalType ProcessUnaryExpression(ExpressionAst node, State state)
+        InternalType ProcessUnaryExpression(ExpressionAst node)
         {
                 var child = node.Children[0] as ExpressionAst;
 
@@ -562,7 +564,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         return node.Type;
                     }
                 }
-                state.env.Error(
+                env.Error(
                     $"Unary operator {node.Token.TokenValue} cannot be applied to type {child.Type.SymbolType}");
                 return null;
         }
@@ -904,6 +906,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 ),
         };
 
+
         // right rotate the number of bits, negative rotation rotates left
         static int RotateRight(int value, int shift, int numBits)
         {
@@ -932,7 +935,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return (int) v;
         }
 
-        static InternalType ProcessBinaryExpression(ExpressionAst node, State state)
+        InternalType ProcessBinaryExpression(ExpressionAst node)
         {
             var left  = node.Children[0] as ExpressionAst;
             var right = node.Children[1] as ExpressionAst;
@@ -942,7 +945,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             if (left.Type != right.Type)
             {
-                state.env.Error($"Cannot combine types {left} and {right} via {node}");
+                env.Error($"Cannot combine types {left} and {right} via {node}");
                 return null;
             }
 
@@ -957,30 +960,30 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     if (left.HasValue && right.HasValue)
                         entry.action(node, left, right);
                     if (entry.result != SymbolType.MatchAny)
-                        node.Type = state.mgr.TypeManager.GetType(entry.result);
+                        node.Type = mgr.TypeManager.GetType(entry.result);
                     else
                         node.Type = left.Type; // so far left and right same
                     return node.Type;
                 }
             }
-            state.env.Error($"Binary operator {node} cannot be applied to left {left} and {right}");
+            env.Error($"Binary operator {node} cannot be applied to left {left} and {right}");
             return null;
         }
 
         #endregion 
 
         // process the expression, checking types, etc, and upgrading constants
-        static InternalType ProcessExpression(ExpressionAst node, State state)
+        InternalType ProcessExpression(ExpressionAst node)
         {
             if (node is FunctionCallAst)
-                return ProcessFunctionCall((FunctionCallAst)node, state);
+                return ProcessFunctionCall((FunctionCallAst) node);
             else if (node.Children.Count == 2)
-                return ProcessBinaryExpression(node, state);
+                return ProcessBinaryExpression(node);
             else if (node.Children.Count == 1)
-                return ProcessUnaryExpression(node, state);
+                return ProcessUnaryExpression(node);
             else if (node.Children.Count != 0)
                 throw new InternalFailure($"Expression must have 0 to 2 children! {node}");
-            state.env.Warning($"Unknown expression with 0 children {node}");
+            env.Warning($"Unknown expression with 0 children {node}");
             return null; // error?
         }
 

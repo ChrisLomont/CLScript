@@ -8,7 +8,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
 {
     public class Lexer
     {
-        public Lexer(string source, Environment environment)
+        public Lexer(Environment environment, string source)
         {
             CharStream = new CharacterStream(source);
             env = environment;

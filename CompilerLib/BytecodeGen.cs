@@ -20,13 +20,17 @@ namespace Lomont.ClScript.CompilerLib
         Environment env;
         Dictionary<string, int> labelAddresses;
 
+        public BytecodeGen(Environment environment)
+        {
+            env = environment;
+        }
+
         // address, symbol needed, is relative?
         List<Tuple<int,string,bool>> fixups;
 
         // generate byte code, return true on success
-        public bool Generate(Environment env, SymbolTableManager symbolTable, List<Instruction> instructions)
+        public bool Generate(SymbolTableManager symbolTable, List<Instruction> instructions)
         {
-            this.env = env;
             table = symbolTable;
 
             env.Info("Generating bytecode");
@@ -166,6 +170,8 @@ namespace Lomont.ClScript.CompilerLib
         }
 
         int address = 0;
+
+
         // send all byte writes through here that update address
         void WriteCodeByte(byte b)
         {
