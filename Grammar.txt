@@ -34,7 +34,7 @@
 ! float has decimal 0.121, allows +1.2e4, -1.1e-12
 ! All support underscore as separator like 1_000_000
 !
-! Strings are ASCII, no " or '. String interpolation via "test {x},{y}"
+! Strings are UTF-8, no " or '. String interpolation via "test {x},{y}"
 ! ===================================================================
 
 {Hex Digit}      = {digit} + [abcdefABCDEF]
@@ -146,8 +146,8 @@ Comment Line   = '//'
 <Type>  ::= 'bool'     ! boolean takes on true or false
           | 'i32'      ! signed 32 bit integer
           | 'r32'      ! 32 bit floating point, IEEE 754 if possible, perhaps s15.16 fixed point
-          | 'string'   ! ASCII string
-          | 'char'     ! a single byte ASCII character
+          | 'string'   ! UTF-8 string
+          | 'char'     ! a single byte character
           | ID         ! user type
 
 

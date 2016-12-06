@@ -26,7 +26,7 @@ Basic types
     bool     - true/false
     i32      - signed 32 bit
     r32      - real number, IEEE where available, else s15.16 fixed point?!
-    string   - ASCII, null terminated, immutable
+    string   - UTF-8, null terminated, immutable
     char     - read a string value
     array    - has form "type [size] name". Bounds checked, allow negative slicing, other?
 

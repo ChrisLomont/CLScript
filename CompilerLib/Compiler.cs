@@ -17,7 +17,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 2. assignment of complex types needs done
  * 3. const implemented - values in ROM
  * 4. remove warning when type member and global var has same name
- * 
+ * 5. Output C header for link entries
  */
 
 namespace Lomont.ClScript.CompilerLib
@@ -154,7 +154,10 @@ namespace Lomont.ClScript.CompilerLib
             generatedInstructions.AddRange(code);
             bytecode = new BytecodeGen(env);
             env.Info("Bytecode Generation...");
-            return bytecode.Generate(symbolTable, generatedInstructions);
+            var retval = bytecode.Generate(symbolTable, generatedInstructions);
+            if (retval != null)
+                env.Info($"   bytecode assembly {bytecode.CompiledAssembly.Length} bytes");
+            return retval;
         }
 
 

@@ -10,8 +10,29 @@ using Lomont.ClScript.CompilerLib.Visitors;
 
 namespace Lomont.ClScript.CompilerLib
 {
+    /* Format (values big endian):
+     * 4 byte Identifier: CLSx where x is a version byte, "CLS" UTF-8
+     * 4 byte offset (from start of bytecode) to start of code
+     * 4 byte number of LinkEntries
+     * LinkEntries
+     * Code
+     * 
+     * LinkEntry is:
+     *    2 byte length
+     *    4 byte address of item from start of bytecode
+     *    0 terminated UTF-8 strings
+     * 
+     * todo - types?, RAM/ROM distinction, item type (var or func)
+     * todo - initial memory values
+     * 
+     */
     public class BytecodeGen
     {
+        /// <summary>
+        /// Generation version 0.1
+        /// </summary>
+        public int GenVersion => 1; // major.minor stored as nibbles
+
         // the final compiled assembly
         public byte[] CompiledAssembly { get; set; }
 
@@ -19,6 +40,8 @@ namespace Lomont.ClScript.CompilerLib
         SymbolTableManager table;
         Environment env;
         Dictionary<string, int> labelAddresses;
+        // where import/export/attribute items are stored
+        List<LinkEntry> linkEntries = new List<LinkEntry>();
 
         public BytecodeGen(Environment environment)
         {
@@ -54,8 +77,32 @@ namespace Lomont.ClScript.CompilerLib
                 else
                     throw new InternalFailure($"Label {label} not in labels addresses");
             }
-            CompiledAssembly = code.ToArray();
+            WriteAssembly();
             return env.ErrorCount == 0;
+        }
+
+        void WriteAssembly()
+        {
+           // 4 byte Identifier: CLSx where x is a version byte, "CLS" UTF - 8
+           // 4 byte offset (from start of bytecode) to start of code
+           // 4 byte number of LinkEntries
+           // LinkEntries
+
+            var linkData = new List<byte>();
+            ByteWriter.Write(linkData,linkEntries.Count,4);
+            foreach (var l in linkEntries)
+                l.Write(linkData);
+
+            var header = new List<byte>();
+            ByteWriter.Write(header,"CLS");
+            ByteWriter.Write(header,GenVersion,1);
+            ByteWriter.Write(header,linkData.Count+4+4,4);
+
+            header.AddRange(linkData);
+
+            header.AddRange(code);
+
+            CompiledAssembly = header.ToArray();
         }
 
         void Fixup(int codeAddress, int targetAddress, bool isRelative)
@@ -73,6 +120,12 @@ namespace Lomont.ClScript.CompilerLib
                 if (labelAddresses.ContainsKey(label))
                     throw new InternalFailure($"Duplicate label {label}");
                 labelAddresses.Add(label,address);
+                return;
+            }
+
+            if (inst.Opcode == Opcode.Symbol)
+            {
+                ProcessSymbol(inst.Operands[0] as SymbolEntry);
                 return;
             }
 
@@ -157,6 +210,51 @@ namespace Lomont.ClScript.CompilerLib
 
         }
 
+        void ProcessSymbol(SymbolEntry symbol)
+        {
+            // create item to import/export/attribute, etc
+            if (symbol.Attributes.Any())
+            {
+                // add a link entry
+                var e = new LinkEntry(address);
+                e.Attributes = symbol.Attributes;
+                linkEntries.Add(e);
+            }
+
+        }
+
+
+        class LinkEntry
+        {
+            public LinkEntry(int address)
+            {
+                Address = address;
+            }
+
+            public int Address;
+            public List<Attribute> Attributes { get; set; }
+
+            // write into a byte assembly
+            public void Write(List<byte> bytes)
+            {
+                // 2 byte length
+                // 4 byte address of item from start of bytecode
+                // 0 terminated UTF-8 strings
+                var length = 2 + 4 + 
+                    Attributes.Sum(s=>s.Name.Length+1 + s.Parameters.Sum(p=>p.Length+1));
+                if (length > 65535)
+                    throw new InternalFailure("Link entry too large");
+                ByteWriter.Write(bytes, length, 2);
+                ByteWriter.Write(bytes, Address, 4);
+                foreach (var a in Attributes)
+                {
+                    ByteWriter.Write(bytes, a.Name);
+                    foreach (var p in a.Parameters)
+                        ByteWriter.Write(bytes, p);
+                }
+            }
+        }
+
         // add a label to fix later, with ther result put here. Adds 4 bytes to output
         void AddFixup(string label)
         {
@@ -172,7 +270,6 @@ namespace Lomont.ClScript.CompilerLib
         }
 
         int address = 0;
-
 
         // send all byte writes through here that update address
         void WriteCodeByte(byte b)
@@ -215,6 +312,32 @@ namespace Lomont.ClScript.CompilerLib
             address = addressToWrite;
             Write(value,4);
             address = temp;
+        }
+
+    }
+
+    static class ByteWriter
+    {
+        public static void Write(List<byte> bytes, string text)
+        {
+            // todo - above spacing was based on 8 bit UTF-8 characters...
+            // either enforce this, or measure length correctly
+
+            var txt = UTF8Encoding.UTF8.GetBytes(text);
+            foreach (var b in txt)
+                bytes.Add(b);
+            bytes.Add(0); // 0 terminated
+        }
+
+        // MSB
+        public static void Write(List<byte> bytes, int value, int length)
+        {
+            var shift = length * 8 - 8;
+            for (var i = 0; i < length; ++i)
+            {
+                bytes.Add((byte)(value >> shift));
+                shift -= 8;
+            }
         }
 
     }

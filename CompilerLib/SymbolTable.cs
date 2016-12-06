@@ -465,6 +465,11 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public int? Address { get; set; }
 
+        /// <summary>
+        /// Attributes associated with this symbol
+        /// </summary>
+        public List<Attribute> Attributes { get; set; } = new List<Attribute>();
+
         public SymbolEntry(Ast node, string name, VariableUse usage, InternalType symbolType)
         {
             Node = node;
@@ -485,8 +490,11 @@ namespace Lomont.ClScript.CompilerLib
                 flags += "i";
             var value = Value.HasValue?Value.ToString():"";
             var addr  = Address.HasValue ? Address.ToString() : "";
+            var attributes = "";
+            foreach (var attr in Attributes)
+                attributes += attr.ToString();
 
-            return $"{name,-12} {flags,-3} {value,-8} {addr,-8} {VariableUse,-6} {Type,-15} ";
+            return $"{name,-12} {flags,-3} {value,-8} {addr,-8} {VariableUse,-6} {Type,-15} {attributes} ";
         }
     }
 

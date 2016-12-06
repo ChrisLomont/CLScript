@@ -86,6 +86,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 EmitJumpStatement((JumpStatementAst) node);
                 return;
             }
+            else if (node is AttributeAst)
+                return; // skip this - atttibute attached to symbol elsewhere
 
             mgr.EnterAst(node);
             // recurse children
@@ -491,6 +493,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         void EmitFunction(FunctionDeclarationAst node)
         {
+            EmitI(Emit.Symbol(node.Symbol));
             EmitI(Emit.Label(node.Name,node.Symbol.Type.ToString()));
 
             // reserve stack space

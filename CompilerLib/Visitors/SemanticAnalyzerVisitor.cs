@@ -32,14 +32,27 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         Environment env;
         SymbolTableManager mgr;
+        // pairs of attributes and things that get them
+        List<Tuple<Ast, Ast>> attributePairs = new List<Tuple<Ast, Ast>>();
 
         public void Check(SymbolTableManager symbolTable, Ast ast)
         {
             symbolTable.Start();
             mgr = symbolTable;
             Recurse(ast);
+            FillAttributes();
         }
 
+        void FillAttributes()
+        {
+            foreach (var pair in attributePairs)
+            {
+                var attr = pair.Item1 as AttributeAst;
+                var func = pair.Item2 as FunctionDeclarationAst;
+                var symbol = mgr.Lookup(func.Name);
+                symbol.Attributes.Add(new Attribute(attr.Token.TokenValue,attr.Children.Select(c=>((LiteralAst)c).Token.TokenValue)));
+            }
+        }
 
         void Recurse(Ast node)
         {
@@ -98,6 +111,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 internalType = ProcessExpression(node as ExpressionAst);
             else if (node is EnumAst)
                 ProcessEnum(node as EnumAst);
+            else if (node is AttributeAst)
+                ProcessAttribute(node as AttributeAst);
 
             if (internalType != null)
                 node.Type = internalType;
@@ -118,6 +133,29 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     node.Type = type1;
             }
         }
+
+        void ProcessAttribute(AttributeAst node)
+        {
+            // attach the attribute to the next non-attribute symbol(s)
+            var index = node.Parent.Children.IndexOf(node);
+            var count = node.Parent.Children.Count;
+            while (index < count && node.Parent.Children[index] is AttributeAst)
+                ++index;
+            if (index == count)
+            {
+                env.Error($"Attribute modifies nothing following {node}");
+                return;
+            }
+            var func = node.Parent.Children[index] as FunctionDeclarationAst;
+            if (func == null)
+            {
+                env.Error($"Attribute must modify a following function {node}");
+                return;
+            }
+            attributePairs.Add(new Tuple<Ast, Ast>(node,func));
+        }
+
+
 
         // assign enum values, must all be constant now
         void ProcessEnum(EnumAst node)

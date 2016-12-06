@@ -34,7 +34,6 @@ namespace Lomont.ClScript.CompilerLib
         LocAddr,
 
         // label/branch/call/ret
-        Label,
         Call,
         Return,
         BrFalse,
@@ -63,8 +62,13 @@ namespace Lomont.ClScript.CompilerLib
         Sub,
         Mul,
         Div,
-        Mod
+        Mod,
         // end
+
+        // pseudo-ops - take no space, merely placeholders
+        Label,
+        Symbol
+
     }
 
     public class Instruction
@@ -96,7 +100,7 @@ namespace Lomont.ClScript.CompilerLib
 
             var operands = "";
 
-            if (!opcode.StartsWith("Label"))
+            if (!opcode.StartsWith("Label") && Opcode != Opcode.Symbol)
             {
                 opcode = "     " + opcode;
                 foreach (var op in Operands)
@@ -118,6 +122,11 @@ namespace Lomont.ClScript.CompilerLib
     static class Emit
     {
         #region static Instruction generation
+
+        public static Instruction Symbol(SymbolEntry symbol, string comment = "")
+        {
+            return new Instruction(Opcode.Symbol, OperandType.None, comment, symbol);
+        }
 
         #region Stack
 

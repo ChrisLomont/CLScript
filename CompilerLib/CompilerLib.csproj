@@ -65,6 +65,7 @@
     <Compile Include="AST\TypeDeclarationAst.cs" />
     <Compile Include="AST\VariableDefinitionAst.cs" />
     <Compile Include="AST\WhileStatementAst.cs" />
+    <Compile Include="Attribute.cs" />
     <Compile Include="BytecodeGen.cs" />
     <Compile Include="Compiler.cs" />
     <Compile Include="Environment.cs" />

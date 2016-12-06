@@ -24,7 +24,7 @@ module MyModule
 // i32    = signed 32 bit integer
 // r32    = real 32 bit floating point value, IEEE 754 when possible, or maybe s15.16 fixed point
 // bool   = boolean, takes on values true and false
-// string = a string, ASCII, double quote delimited like "this is a string"
+// string = a string, UTF-8, double quote delimited like "this is a string"
 // user defined types start with the keyword type
 // scope in the entire language is is done via indentation, so this puts some fields in the type
 

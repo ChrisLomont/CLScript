@@ -8,7 +8,7 @@ r32 b = 1.0
 type myType 
    i32 v1,v2
 
-[Entry]
+[Entry "param1"]
 (i32) total(i32 p1, byte bb, i32 p2)
     i32 loc = 0
     myType t
