@@ -10,11 +10,15 @@ using Lomont.ClScript.CompilerLib.Visitors;
 
 namespace Lomont.ClScript.CompilerLib
 {
-    /* Format (values big endian):
+    /* Format for an assembly (values big endian):
+     * 
      * 4 byte Identifier: CLSx where x is a version byte, "CLS" UTF-8
+     * 4 byte length of assembly
      * 4 byte offset (from start of bytecode) to start of code
+     * 
      * 4 byte number of LinkEntries
      * LinkEntries
+     * 
      * Code
      * 
      * LinkEntry is:
@@ -83,20 +87,27 @@ namespace Lomont.ClScript.CompilerLib
 
         void WriteAssembly()
         {
-           // 4 byte Identifier: CLSx where x is a version byte, "CLS" UTF - 8
-           // 4 byte offset (from start of bytecode) to start of code
-           // 4 byte number of LinkEntries
-           // LinkEntries
+            // 4 byte Identifier: CLSx where x is a version byte, "CLS" UTF - 8
+            // 4 byte length of assembly
+            // 4 byte offset (from start of bytecode) to start of code
+            // 
+            // 4 byte number of LinkEntries
+            // LinkEntries
+            // 
+            // Code
 
             var linkData = new List<byte>();
-            ByteWriter.Write(linkData,linkEntries.Count,4);
+            ByteWriter.Write(linkData, linkEntries.Count, 4);
             foreach (var l in linkEntries)
                 l.Write(linkData);
 
             var header = new List<byte>();
-            ByteWriter.Write(header,"CLS");
-            ByteWriter.Write(header,GenVersion,1);
-            ByteWriter.Write(header,linkData.Count+4+4,4);
+            ByteWriter.Write(header, 'C', 1);
+            ByteWriter.Write(header, 'L', 1);
+            ByteWriter.Write(header, 'S', 1);
+            ByteWriter.Write(header, GenVersion, 1);
+            ByteWriter.Write(header, linkData.Count + header.Count + 8 + code.Count, 4); // total length
+            ByteWriter.Write(header, linkData.Count + header.Count+4, 4);                // code offset
 
             header.AddRange(linkData);
 

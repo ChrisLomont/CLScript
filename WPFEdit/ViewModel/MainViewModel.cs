@@ -152,8 +152,8 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             Compile();
             if (env.ErrorCount == 0)
             {
-                var r = new Runtime();
-                r.Run(env);
+                var r = new Runtime(env);
+                r.Run(compiler.CompiledAssembly,"Entry");
 
                 // output messages
                 Messages.Clear();
