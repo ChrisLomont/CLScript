@@ -68,7 +68,7 @@ namespace Lomont.ClScript.CompilerLib
             string symbolName, 
             SymbolType symbolType,
             VariableUse usage, 
-            int arrayDimension = 0, 
+            List<int> arrayDimensions = null, 
             SymbolAttribute attrib = SymbolAttribute.None, 
             string typeName = "", 
             List<InternalType> returnType = null, 
@@ -77,7 +77,7 @@ namespace Lomont.ClScript.CompilerLib
         {
             var iSymbol = TypeManager.GetType(
                 symbolType,
-                arrayDimension,
+                arrayDimensions,
                 typeName,
                 returnType,
                 paramsType
@@ -95,21 +95,6 @@ namespace Lomont.ClScript.CompilerLib
                     environment.Error(msg);
             }
             return symbol;
-        }
-
-        // return symbol and table where found
-        Tuple<SymbolEntry,SymbolTable> CheckDuplicate(SymbolTable table, SymbolEntry entryToMatch)
-        {
-            if (table == null)
-                return null;
-            foreach (var entry in table.Entries)
-            {
-                if (ReferenceEquals(entry, entryToMatch))
-                    continue;
-                if (entry.Name == entryToMatch.Name)
-                    return new Tuple<SymbolEntry, SymbolTable>(entry, table);
-            }
-            return CheckDuplicate(table.Parent, entryToMatch);
         }
 
         public SymbolTable GetTableWithScope(string typeName)
@@ -139,85 +124,105 @@ namespace Lomont.ClScript.CompilerLib
             // fill in basic types in type table
             foreach (var t in TypeManager.Types)
             {
+                var size = 0;
                 switch (t.SymbolType)
                 {
                     case SymbolType.Byte:
                     case SymbolType.Bool:
-                        t.Size = 1;
+                        size = 1;
                         break;
                     case SymbolType.String:
                     case SymbolType.EnumValue:
                     case SymbolType.Float32:
                     case SymbolType.Int32:
-                        t.Size = 4;
+                        size = 4;
                         break;
                 }
+                foreach (var dim in t.ArrayDimensions)
+                    size *= dim;
+                if (size > 0)
+                    t.Size = size;
             }
 
-            // walk symbol table, computing type sizes until all are done
-            var types = new List<SymbolEntry>();
-            GetTypesInUse(RootTable, types, new HashSet<string>());
-
-            while (types.Any())
+            // loop, trying to size types, requires repeating until nothing else can be done
+            while (true)
             {
-                var countAtTopOfPass = types.Count;
-
-                foreach (var t in types)
+                int undone = 0, done = 0;
+                InternalType unsizedType = null;
+                ComputeTypeSizes(RootTable, env, ref done, ref undone, ref unsizedType);
+                if (undone > 0 && done == 0)
                 {
-                    var tbl = GetTableWithScope(t.Type.UserTypeName);
-                    if (tbl == null)
-                    {
-                        env.Error($"Cannot find symbol table for {t} members");
-                        return;
-                    }
-                    var size = 0;
-                    var allFound = true;
-                    foreach (var e in tbl.Entries)
-                    {
-                        if (e.Type.Size.HasValue)
-                            size += e.Type.Size.Value;
-                        else
-                        {
-                            allFound = false;
-                            break;
-                        }
-                    }
-                    if (allFound)
-                        t.Type.Size = size; // note this may set multiple types if same member structure
-                }
-
-                // find which got matched, and remove them
-                var removeList = types.Where(t => t.Type.Size.HasValue).ToList();
-                foreach (var r in removeList)
-                    types.Remove(r);
-
-                var countAfterPass = types.Count;
-
-                if (countAfterPass == 0)
-                    break;
-
-                if (countAfterPass == countAtTopOfPass)
-                {
-                    // pick one that was not resolvable
-                    var unsizedType = types[0];
+                    // show one that was not resolvable
                     env.Error($"Could not resolve type sizes {unsizedType}");
                     break;
                 }
+                if (undone == 0)
+                    break;
             }
-
         }
 
-        void GetTypesInUse(SymbolTable table, List<SymbolEntry> entries, HashSet<string> seen)
+        // recurse on tables, adding number sized and number unable to be sized this pass
+        // return a type of one that cannot be sized if any
+        void ComputeTypeSizes(SymbolTable table, Environment env, ref int done, ref int undone, ref InternalType type)
         {
-            foreach (var h in table.Entries.Where(t => t.Type.SymbolType == SymbolType.UserType1))
+            foreach (
+                var item in table.Entries.Where(t => t.Type.SymbolType == SymbolType.UserType1 && !t.Type.Size.HasValue)
+            )
             {
-                if (seen.Add(h.Name))
-                    entries.Add(h);
+                // try to compute size
+                var tbl = GetTableWithScope(item.Type.UserTypeName);
+                if (tbl == null)
+                {
+                    undone++;
+                    type = item.Type;
+                    env.Error($"Cannot find symbol table for {item} members");
+                    return;
+                }
+                var size = 0;
+                var allFound = true;
+                foreach (var e in tbl.Entries)
+                {
+                    if (e.Type.Size.HasValue)
+                        size += e.Type.Size.Value;
+                    else
+                    {
+                        allFound = false;
+                        break;
+                    }
+                }
+                if (allFound)
+                {
+                    done++;
+                    foreach (var dim in item.Type.ArrayDimensions)
+                        size *= dim;
+                    item.Type.Size = size; // note this may set multiple types if same member structure
+                }
+                else
+                {
+                    undone++;
+                    type = item.Type;
+                }
             }
+            // recurse on children
             foreach (var child in table.Children)
-                GetTypesInUse(child,entries, seen);
+                ComputeTypeSizes(child, env, ref done, ref undone, ref type);
         }
 
+
+        // return symbol and table where found
+        Tuple<SymbolEntry, SymbolTable> CheckDuplicate(SymbolTable table, SymbolEntry entryToMatch)
+        {
+            if (table == null)
+                return null;
+            foreach (var entry in table.Entries)
+            {
+                if (ReferenceEquals(entry, entryToMatch))
+                    continue;
+                if (entry.Name == entryToMatch.Name)
+                    return new Tuple<SymbolEntry, SymbolTable>(entry, table);
+            }
+            return CheckDuplicate(table.Parent, entryToMatch);
+        }
 
 
         /// <summary>
@@ -256,8 +261,6 @@ namespace Lomont.ClScript.CompilerLib
                 Push(((ModuleAst)node).Name,false);
             else if (node is TypeDeclarationAst)
                 Push(((TypeDeclarationAst)node).Name,true);
-//            else if (node is FunctionDeclarationAst)
-//                Push(((FunctionDeclarationAst)node).Name,true);
             else if (node is BlockAst)
                 Push(GetBlockName(),true);
 
@@ -271,8 +274,6 @@ namespace Lomont.ClScript.CompilerLib
                 Pop();
             else if (node is TypeDeclarationAst)
                 Pop();
-//            else if (node is FunctionDeclarationAst)
-//                Pop();
             else if (node is BlockAst)
                 Pop();
         }

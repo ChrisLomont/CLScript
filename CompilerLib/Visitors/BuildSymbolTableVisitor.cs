@@ -144,7 +144,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node.ExportToken != null)
                 attrib |= SymbolAttribute.Export;
 
-            state.mgr.AddSymbol(node, node.Name, SymbolType.Function, VariableUse.Param, 0, attrib,"",returnType,paramsType);
+            state.mgr.AddSymbol(node, node.Name, SymbolType.Function, VariableUse.Param, null, attrib,"",returnType,paramsType);
         }
 
 
@@ -188,15 +188,28 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 userName = node.BaseTypeToken.TokenValue;
             }
 
-            var arrayDimension = 0;
+            List<int> arrayDimensions = null;
             if (node.Children.Any())
             { // for now, only support one array
-                if (node.Children.Count != 1 || !(node.Children[0] is ArrayAst))
-                    throw new InternalFailure("Only one child array supported");
-                arrayDimension = node.Children[0].Children.Count;
+                arrayDimensions = new List<int>();
+                foreach (var child in node.Children)
+                {
+                    var arrChild = child as ArrayAst;
+                    if (arrChild == null || arrChild.Children.Count != 1)
+                        throw new InternalFailure($"Array formed incorrectly {node}");
+                    var exprChild = arrChild.Children[0] as ExpressionAst;
+                    
+                    // todo - eval const, enum, expr before this.... or do in semantic.... or how to do?
+                    if (exprChild is LiteralAst)
+                        SemanticAnalyzerVisitor.ProcessLiteral(exprChild as LiteralAst, state.environment);
+                    if (exprChild == null || !exprChild.HasValue || !exprChild.IntValue.HasValue)
+                        state.environment.Error($"Array size {arrChild} not constant");
+                    else
+                        arrayDimensions.Add(exprChild.IntValue.Value);
+                }
             }
 
-            return state.mgr.TypeManager.GetType(symbolType, arrayDimension,userName);
+            return state.mgr.TypeManager.GetType(symbolType, arrayDimensions,userName);
         }
 
         static void AddTypedItem(TypedItemAst node, SymbolBuilderState state, VariableUse usage)
@@ -215,7 +228,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 node.Name,
                 itemType.SymbolType,
                 usage,
-                itemType.ArrayDimension,
+                itemType.ArrayDimensions,
                 attrib, 
                 itemType.UserTypeName, 
                 null, null);

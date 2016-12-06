@@ -288,13 +288,13 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             }
 
-
             var typeToken = ParseType();
             if (typeToken == null)
             {
                 ErrorMessage("Expected type");
                 return null;
             }
+
             var idList = ParseIdList(typeToken, true,true);
             if (idList == null)
                 return null;
@@ -332,7 +332,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return vd;
         }
 
-        Ast ParseArray(bool requireSizes)
+        // parse one array expression
+        // parses '[' an optional expression, then ']', then repeats
+        Ast ParseArray(bool requireSize)
         {
             if (!Lookahead("Expected '[' for array", TokenType.LSquareBracket))
                 return null;
@@ -341,29 +343,18 @@ namespace Lomont.ClScript.CompilerLib.Parser
             var arrayAst = new ArrayAst();
 
             // parse array node, make as child
-            if (requireSizes)
+            if (requireSize)
             {
-                var exprList = ParseExpressionList(1);
-                if (exprList == null)
+                var expr = ParseExpression();
+                if (expr == null)
                 {
                     ErrorMessage("Expected expression for array sizes");
                     return null;
                 }
-                arrayAst.Children.AddRange(exprList.Children);
-            }
-            else
-            {
-                var count = 1;
-                while (Lookahead("", TokenType.Comma))
-                {
-                    TokenStream.Consume();
-                    count++;
-                }
-                for (var i = 0; i < count; ++i)
-                    arrayAst.Children.Add(new HelperAst()); // todo - 
+                arrayAst.AddChild(expr);
             }
 
-            if (Match(TokenType.RSquareBracket, "variable declaration missing closing ']'") !=
+            if (Match(TokenType.RSquareBracket, "array declaration missing closing ']'") !=
                 ParseAction.Matched)
                 return null;
             return arrayAst;
@@ -399,7 +390,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 }
                 idAsts.Add(new TypedItemAst(nameToken,typeToken));
 
-                if (Lookahead("", TokenType.LSquareBracket))
+                while (Lookahead("", TokenType.LSquareBracket))
                 {
                     var arrAst = ParseArray(requireSizes);
                     if (arrAst == null)
@@ -605,10 +596,10 @@ namespace Lomont.ClScript.CompilerLib.Parser
         {
             // ID, then possible array or dot. If dot, repeat
             // ID
-            // ID[10,a]
+            // ID[10]
             // ID[10].f
             // ID.a
-            // ID[10,b].a[10]...
+            // ID[10].a[10]...
             // ID[1][2]
             var ast = new AssignItemAst();
 
@@ -621,17 +612,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             {
                 if (Lookahead("", TokenType.LSquareBracket))
                 {
-                    TokenStream.Consume();
-                    var expressionList = ParseExpressionList(1);
-                    if (expressionList == null)
-                    {
-                        ErrorMessage("Expected expressions in array");
-                        return null;
-                    }
-                    if (Match(TokenType.RSquareBracket, "Missing array closure ']'") != ParseAction.Matched)
-                        return null;
-                    var arr = new ArrayAst();
-                    arr.AddChild(expressionList);
+                    var arr = ParseArray(true);
                     ast.AddChild(arr);
                 }
 

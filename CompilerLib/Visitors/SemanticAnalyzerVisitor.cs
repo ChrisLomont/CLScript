@@ -74,7 +74,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is TypedItemAst && !(node.Parent.Parent is FunctionDeclarationAst))
                 typeName = ((TypedItemAst)node).Name;
             else if (node is LiteralAst)
-                symbolType = ProcessLiteral(node as LiteralAst, state);
+                symbolType = ProcessLiteral(node as LiteralAst, state.env);
             else if (node is AssignItemAst)
                 internalType = ProcessAssignItem((AssignItemAst)node, state);
             else if (node is AssignStatementAst)
@@ -196,11 +196,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return retVals[0];
             }
             return null;
-
-
         }
-
-
 
         // check types of bounds, set type of loop variable node
         // must be called in scope of for block to set type of variable
@@ -227,7 +223,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (bounds is AssignItemAst)
             { // array of some item
                 var t = bounds.Type;
-                if (t.ArrayDimension != 1)
+                if (!t.ArrayDimensions.Any())
                     state.env.Error($"for bounds needs to be one dimensional array {bounds}");
                 else // strip off array part of type
                 {
@@ -364,7 +360,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             CheckAssignments(node, GetTypes(items.Children),GetTypes(exprs.Children),state);
         }
 
-        static Int32 ParseInt(Ast node, State state)
+        static Int32 ParseInt(Ast node)
         {
             var text = node.Token.TokenValue;
             text = text.Replace("_", ""); // remove underscores
@@ -401,21 +397,27 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return val;
         }
 
-        static SymbolType ProcessLiteral(LiteralAst node, State state)
+        /// <summary>
+        /// Process a literal, filling in the value
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="env"></param>
+        /// <returns></returns>
+        public static SymbolType ProcessLiteral(LiteralAst node, Environment env)
         {
             // compute value and return
             var t = node.Token.TokenType;
             if (t == TokenType.DecimalLiteral)
-                ((LiteralAst)node).IntValue = ParseInt(node, state);
+                ((LiteralAst)node).IntValue = ParseInt(node);
             else if (t == TokenType.HexadecimalLiteral)
-                ((LiteralAst)node).IntValue = ParseInt(node, state);
+                ((LiteralAst)node).IntValue = ParseInt(node);
             else if (t == TokenType.BinaryLiteral)
-                ((LiteralAst)node).IntValue = ParseInt(node, state);
+                ((LiteralAst)node).IntValue = ParseInt(node);
             else if (t == TokenType.FloatLiteral)
             {
                 double v;
                 if (!Double.TryParse(node.Token.TokenValue, out v))
-                    state.env.Error($"Invalid floating point value {node}");
+                    env.Error($"Invalid floating point value {node}");
                 else
                     ((LiteralAst)node).FloatValue = v;
             }
@@ -425,9 +427,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 ((LiteralAst)node).BoolValue = false;
             else if (t == TokenType.ByteLiteral)
             {
-                var v = ParseInt(node, state);
+                var v = ParseInt(node);
                 if (v < 0 || 255 < v)
-                    state.env.Warning($"Value {node} truncated to byte");
+                    env.Warning($"Value {node} truncated to byte");
                 ((LiteralAst) node).ByteValue = (byte)v;
             }
 
@@ -658,7 +660,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             new BinaryTableEntry(
                 TokenType.GreaterThan,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l,r) => n.BoolValue = l.ByteValue > r.ByteValue,
+                (n,l,r) => n.BoolValue = l.ByteValue > r.ByteValue,
                 SymbolType.Bool
                 ),
             new BinaryTableEntry(
@@ -970,7 +972,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // process the expression, checking types, etc, and upgrading constants
         static InternalType ProcessExpression(ExpressionAst node, State state)
         {
-
             if (node is FunctionCallAst)
                 return ProcessFunctionCall((FunctionCallAst)node, state);
             else if (node.Children.Count == 2)
