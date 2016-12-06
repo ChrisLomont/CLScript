@@ -126,9 +126,9 @@ namespace Lomont.ClScript.CompilerLib
             return new Instruction(Opcode.Push,type, comment,value);
         }
 
-        public static Instruction Pop(int count, OperandType type = OperandType.Int32)
+        public static Instruction Pop(int count)
         {
-            return new Instruction(Opcode.Pop, type, "", count);
+            return new Instruction(Opcode.Pop, OperandType.None, "", count);
         }
 
         public static Instruction Pick(int value)
@@ -204,12 +204,11 @@ namespace Lomont.ClScript.CompilerLib
         }
 
         // update for stack frame, branch if more to do
-        public static Instruction ForLoop(string variable, string label)
+        public static Instruction ForLoop(int localAddress, string label, string comment)
         {
-            // end value on stack, 
-            // add memory (at label plus 4) to memory, check if end. 
+            // end address is counter, then increment, end is on stack top
             // pop end value. If more, loop, else don't
-            return new Instruction(Opcode.ForLoop, OperandType.None, "", variable, label);
+            return new Instruction(Opcode.ForLoop, OperandType.None, comment, localAddress, label);
         }
 
         // empty instruction

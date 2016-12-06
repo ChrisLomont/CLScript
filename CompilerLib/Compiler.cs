@@ -49,6 +49,10 @@ namespace Lomont.ClScript.CompilerLib
                     GenerateSyntaxTree(text) &&
                     AnalyzeSyntaxTree() && 
                     GenerateCode();
+                if (success)
+                    env.Info("Compilation is successful");
+                else
+                    env.Info($"Failed: {env.ErrorCount} errors, {env.WarningCount} warnings");
             }
             catch (Exception ex)
             {

@@ -153,7 +153,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 
             // compute for loop start into this spot
-            var forLoopVaribleAddress = node.VariableSymbol.Address.Value;
+            var forLoopVaribleAddress = node.VariableSymbol.Address.Value+callStackSuffixSize;
             var forLoopVariableName = node.VariableSymbol.Name;
 
             EmitI(Emit.ForStart(forLoopVaribleAddress, forLoopVariableName));
@@ -176,7 +176,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else
                 EmitExpression(exprs.Children[1] as ExpressionAst);
 
-            EmitI(Emit.ForLoop(forLoopVariableName, startLabel)); // update increment, loop if more
+            EmitI(Emit.ForLoop(forLoopVaribleAddress, startLabel, forLoopVariableName)); // update increment, loop if more
 
             // end of for loop
             EmitI(Emit.Label(endLabel));

@@ -25,19 +25,16 @@ namespace Lomont.ClScript.CompilerLib
             env = environment;
         }
 
-        // address, symbol needed, is relative?
+        // address, symbol needed, if it is relative or absolute
         List<Tuple<int,string,bool>> fixups;
 
         // generate byte code, return true on success
         public bool Generate(SymbolTableManager symbolTable, List<Instruction> instructions)
         {
             table = symbolTable;
-
-            env.Info("Generating bytecode");
             CompiledAssembly = null;
             code = new List<byte>();
             labelAddresses = new Dictionary<string, int>();
-
             fixups = new List<Tuple<int, string, bool>>();
 
             foreach (var inst in instructions)
@@ -55,19 +52,15 @@ namespace Lomont.ClScript.CompilerLib
                     Fixup(address, target, isRelative);
                 }
                 else
-                {
-                    env.Warning($"Label {label} not in labels addresses");
-                    // todo - should be exception
-                }
+                    throw new InternalFailure($"Label {label} not in labels addresses");
             }
-
             CompiledAssembly = code.ToArray();
             return env.ErrorCount == 0;
         }
 
         void Fixup(int codeAddress, int targetAddress, bool isRelative)
         {
-            var delta = (uint)(targetAddress-codeAddress);
+            var delta = (uint)(isRelative?targetAddress-codeAddress:targetAddress);
             WriteTo(delta,codeAddress);
         }
 
@@ -89,8 +82,25 @@ namespace Lomont.ClScript.CompilerLib
             // handle parameters
             switch (inst.Opcode)
             {
+                // single int32 operand follows
                 case Opcode.Pick:
-                case Opcode.Pop:
+                case Opcode.Dup:
+                case Opcode.AddStack:
+                case Opcode.LoadGlobal:
+                case Opcode.LoadLocal:
+                case Opcode.LocAddr:
+                case Opcode.Return:
+                case Opcode.ForStart:
+                    Write((uint)((int)inst.Operands[0]), 4);
+                    break;
+
+                // address then label
+                case Opcode.ForLoop:
+                    Write((uint)((int)inst.Operands[0]), 4);
+                    AddFixup((string)inst.Operands[1]);
+                    break;
+
+                // single int32/float32 operand follows
                 case Opcode.Push:
                     if (inst.OperandType == OperandType.Int32)
                         Write((uint)((int)inst.Operands[0]),4);
@@ -102,37 +112,19 @@ namespace Lomont.ClScript.CompilerLib
 
                 // these take a label
                 case Opcode.Call:
-                case Opcode.ForLoop:
-                case Opcode.LoadGlobal:
-                case Opcode.LoadLocal:
-                case Opcode.Store:
-                case Opcode.LocAddr:
                 case Opcode.BrFalse:
                 case Opcode.BrAlways:
-                    var label = (string) inst.Operands[0];
-                    if (labelAddresses.ContainsKey(label))
-                    {
-                        // relative address
-                        var delta = address - labelAddresses[label];
-                        Write((uint)delta,4);
-                    }
-                    else
-                    {
-                        // add relative fixup for later
-                        fixups.Add(new Tuple<int, string, bool>(address, label, true));
-                    }
+                    AddFixup((string)inst.Operands[0]);
                     break;
 
                 case Opcode.Label: // done above - special case
                     break;
 
                 // nothing to do for these
+                case Opcode.Store:
+                case Opcode.Pop:
                 case Opcode.Nop:
-                case Opcode.Dup:
                 case Opcode.Swap:
-                case Opcode.AddStack:
-                case Opcode.Return:
-                case Opcode.ForStart:
                 case Opcode.Or:
                 case Opcode.And:
                 case Opcode.Xor:
@@ -163,6 +155,13 @@ namespace Lomont.ClScript.CompilerLib
                     throw new InternalFailure($"Bytecode missing instruction {inst}");
             }
 
+        }
+
+        // add a label to fix later, with ther result put here. Adds 4 bytes to output
+        void AddFixup(string label)
+        {
+            fixups.Add(new Tuple<int, string, bool>(address, label, true));
+            Write(0,4); // space for result to be written here
         }
 
         void Write(float value)
