@@ -77,8 +77,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 typeName = ((TypedItemAst)node).Name;
             else if (node is LiteralAst)
                 symbolType = ProcessLiteral(node as LiteralAst, env);
-            else if (node is AssignItemAst)
-                internalType = ProcessAssignItem((AssignItemAst)node);
+            //else if (node is AssignItemAst)
+            //    internalType = ProcessAssignItem((AssignItemAst)node);
             else if (node is AssignStatementAst)
                 ProcessAssignment((AssignStatementAst) node);
             else if (node is VariableDefinitionAst)
@@ -222,17 +222,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     node.Type = forVar.Type;
                 }
             }
-            else if (bounds is AssignItemAst)
-            { // array of some item
-                var t = bounds.Type;
-                if (!t.ArrayDimensions.Any())
-                    env.Error($"for bounds needs to be one dimensional array {bounds}");
-                else // strip off array part of type
-                {
-                    forVar.Type = mgr.TypeManager.GetType(t.SymbolType);
-                    node.Type = forVar.Type;
-                }
-            }
+            // else if (bounds is AssignItemAst)
+            // { // array of some item
+            //     var t = bounds.Type;
+            //     if (!t.ArrayDimensions.Any())
+            //         env.Error($"for bounds needs to be one dimensional array {bounds}");
+            //     else // strip off array part of type
+            //     {
+            //         forVar.Type = mgr.TypeManager.GetType(t.SymbolType);
+            //         node.Type = forVar.Type;
+            //     }
+            // }
             else
                 throw new InternalFailure($"For structure invalid {node}");
         }
@@ -303,13 +303,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 env.Error($"Function {node} requires a return statement at end.");
         }
 
-        InternalType ProcessAssignItem(AssignItemAst node)
-        {
-            var symbol = mgr.Lookup(node.Token.TokenValue);
-            if (symbol == null)
-                env.Error($"Cannot find symbol {node}");
-            return symbol?.Type;
-        }
+        //InternalType ProcessAssignItem(AssignItemAst node)
+        //{
+        //    var symbol = mgr.Lookup(node.Token.TokenValue);
+        //    if (symbol == null)
+        //        env.Error($"Cannot find symbol {node}");
+        //    return symbol?.Type;
+        //}
 
         void CheckAssignments(Ast node, List<InternalType> left, List<InternalType> right)
         {

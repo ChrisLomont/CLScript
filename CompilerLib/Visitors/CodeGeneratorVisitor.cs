@@ -285,7 +285,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             for (var i = 0; i < items.Count; ++i)
             {
                 var item = items[items.Count - i - 1];
-                var symbol = (item is TypedItemAst)?(item as TypedItemAst).Symbol:(item as AssignItemAst).Symbol;
+                var symbol = (item as TypedItemAst).Symbol;
                 var operandType = GetOperandType(symbol);
 
                 // for +=, etc. read var, perform, 

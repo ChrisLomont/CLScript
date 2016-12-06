@@ -602,12 +602,11 @@ namespace Lomont.ClScript.CompilerLib.Parser
             // ID.a
             // ID[10].a[10]...
             // ID[1][2]
-            var ast = new AssignItemAst();
 
             // initial item
             if (!Lookahead("Expected identifier in assignment", TokenType.Identifier))
                 return null;
-            ast.Token = TokenStream.Consume();
+            var ast = new TypedItemAst(TokenStream.Consume(), null);
 
             while (NextTokenOneOf(TokenType.LSquareBracket,TokenType.Dot))
             {

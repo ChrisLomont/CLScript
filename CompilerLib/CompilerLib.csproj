@@ -39,7 +39,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AST\ArrayAst.cs" />
-    <Compile Include="AST\AssignItemAst.cs" />
     <Compile Include="AST\AssignStatementAst.cs" />
     <Compile Include="AST\Ast.cs" />
     <Compile Include="AST\AttributeAst.cs" />

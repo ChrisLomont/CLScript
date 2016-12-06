@@ -121,7 +121,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (tItem == null)
                     throw new InternalFailure("Id List internals mismatched");
 
-                list.Add(GetTypedItemType1(tItem));
+                list.Add(GetTypedItemType(tItem));
             }
             return list;
         }
@@ -172,10 +172,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 
         // helper function that gets needed items to create types based on a TypedItemAst
-        InternalType GetTypedItemType1(TypedItemAst node)
+        InternalType GetTypedItemType(TypedItemAst node)
         {
             // typed item has variable name and type name
-
             var symbolType = GetSymbolType(node.BaseTypeToken.TokenType);
             var userName = "";
             if (symbolType == SymbolType.ToBeResolved)
@@ -210,6 +209,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         void AddTypedItem(TypedItemAst node, VariableUse usage)
         {
+            if (node.BaseTypeToken == null)
+                return; // type not defined here, must be elsewhere
 
             var attrib = SymbolAttribute.None;
             if (node.ConstToken != null)
@@ -219,7 +220,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node.ExportToken != null)
                 attrib |= SymbolAttribute.Export;
 
-            var itemType = GetTypedItemType1(node);
+            var itemType = GetTypedItemType(node);
             var s  = mgr.AddSymbol(node, 
                 node.Name,
                 itemType.SymbolType,
