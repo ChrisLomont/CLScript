@@ -18,6 +18,9 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 3. const implemented - values in ROM
  * 4. remove warning when type member and global var has same name
  * 5. Output C header for link entries
+ * 6. line continues if last non-whitespace is whitespace isolated '\' char
+ * 7. Short circuted booleans
+ * 8. Add RuntimeException for things that happen during runtime execution
  */
 
 namespace Lomont.ClScript.CompilerLib

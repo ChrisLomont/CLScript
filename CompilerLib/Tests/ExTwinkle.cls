@@ -1,0 +1,71 @@
+// example visualization
+
+import "HypnoLight.cls"
+///// things in Hypnolight.cls - needs truly finished
+type Particle
+   r32 x,y,z 
+
+enum ParticleDir
+   DIRECTION_NEGATIVE
+
+// const works like a #define in C	
+const i32 NUM_TWINKLES = 20
+(i32) randMod(i32 low, i32 high)
+   return 0
+
+// store a single twinkle
+type Twinkle
+    i32 position   // pixel position
+    Particle decay // counts 1.0 down to 0.0
+
+
+// store state for the vis
+type TwinkleState
+    Particle hue
+    Twinkle twinkles[NUM_TWINKLES]
+
+// start a twinkle if there is one available
+() AddTwinkle(i32 position, Twinkle twinkles, i32 count, i32 fps)
+    for i in 0..count-1
+        if twinkles[i].decay.value == 0
+            // add one here
+            // 1/5 to 1/10 sec
+            i32 rate = randMod2(5,10)
+            ParticleInit(twinkles[i].decay, 1, 1, rate, 1, 1, fps, ParticleDir.DIRECTION_NEGATIVE)
+            twinkles[i].position = position
+            return // jump out
+
+[Vis "Twinkle"] // attribute to mark this as a visualization
+export () Twinkle(Visualization vis, TwinkleState state)
+    // initialize
+    if vis.frame == 0
+        ParticleInit(state.hue, 0.0, 1.0, 1.0, 17, 27, vis.fps, ParticleDir.DIRECTION_RANDOM)
+        for t in state.twinkles
+            t.decay.value = 0 // marks as available
+
+    // update and draw
+    ParticleUpdate(state.hue,0,HSLMAX,ParticleDir.ENDPOINT_WRAP)
+    r32 hue = state.hue.value
+    
+    for i in 0..NUM_PIXELS-1
+        r32 sat = 1.0
+        r32 light = 0.5
+
+        if rand8() < 2
+            AddTwinkle(i, state.twinkles, NUM_TWINKLES, vis.fps)
+
+        // apply all twinkles
+        r32 a = 0.0
+        for t in state.twinkles
+            if t.position == i
+                a = max(a,state.twinkles[j].decay.value)
+
+        light += a*0.5
+
+        SetPixel(i,HSLColor(hue,sat,light))
+
+    // update twinkles
+    for t in state.twinkles
+        ParticleUpdate(t.decay,0.0,1.0,ParticleDir.ENDPOINT_CLAMP)
+
+    // end of visualization Twinkle

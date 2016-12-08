@@ -101,10 +101,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             switch (node.Token.TokenType)
             {
                 case TokenType.Continue:
-                    EmitI(Emit.BrAlways(loopContinueLabels.Peek()));
+                    EmitS(Opcode.BrAlways, loopContinueLabels.Peek());
                     break;
                 case TokenType.Break:
-                    EmitI(Emit.BrAlways(loopBreakLabels.Peek()));
+                    EmitS(Opcode.BrAlways, loopBreakLabels.Peek());
                     break;
                 case TokenType.Return:
                     EmitReturn(node);
@@ -140,7 +140,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 // a,b form, var from a to b by c, where c is determined here
                 EmitExpression(exprs.Children[0] as ExpressionAst);
                 EmitExpression(exprs.Children[1] as ExpressionAst);
-                EmitI(Emit.Push(0));
+                EmitI(Opcode.Push,0);
             }
             else
             {
@@ -148,9 +148,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 // todo - array form
                 throw new InternalFailure("For loop on array not done");
                 arrayLoop = true;
-                EmitI(Emit.Push(0)); // array start
-                EmitI(Emit.Push(0)); // array end - 1 TODO
-                EmitI(Emit.Push(1)); // increment
+                EmitI(Opcode.Push, 0); // array start
+                EmitI(Opcode.Push, 0); // array end - 1 TODO
+                EmitI(Opcode.Push, 1); // increment
             }
 
 
@@ -158,7 +158,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var forLoopVaribleAddress = node.VariableSymbol.Address.Value+callStackSuffixSize;
             var forLoopVariableName = node.VariableSymbol.Name;
 
-            EmitI(Emit.ForStart(forLoopVaribleAddress, forLoopVariableName));
+            Emit2(Opcode.ForStart, OperandType.None,forLoopVariableName);
 
             var startLabel = "for_" + GetLabel();
             var continueLabel = "for_" + GetLabel();
@@ -167,10 +167,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             loopContinueLabels.Push(continueLabel);
             loopBreakLabels.Push(endLabel);
 
-            EmitI(Emit.Label(startLabel));
+            EmitS(Opcode.Label, startLabel);
             EmitBlock(node.Children[1] as BlockAst);
 
-            EmitI(Emit.Label(continueLabel));
+            EmitS(Opcode.Label, continueLabel);
 
             // if more to do, go to top
             if (arrayLoop)
@@ -178,10 +178,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else
                 EmitExpression(exprs.Children[1] as ExpressionAst);
 
-            EmitI(Emit.ForLoop(forLoopVaribleAddress, startLabel, forLoopVariableName)); // update increment, loop if more
+            Emit2(Opcode.ForLoop, OperandType.None, forLoopVariableName, forLoopVaribleAddress, startLabel); // update increment, loop if more
 
             // end of for loop
-            EmitI(Emit.Label(endLabel));
+            EmitS(Opcode.Label, endLabel);
 
             // pop labels
             loopContinueLabels.Pop();
@@ -197,12 +197,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             loopContinueLabels.Push(startLabel);
             loopBreakLabels.Push(endLabel);
 
-            EmitI(Emit.Label(startLabel));
+            EmitS(Opcode.Label, startLabel);
             EmitExpression(node.Children[0] as ExpressionAst);
-            EmitI(Emit.BrFalse(endLabel));
+            EmitS(Opcode.BrFalse, endLabel);
             EmitBlock(node.Children[1] as BlockAst);
-            EmitI(Emit.BrAlways(startLabel));
-            EmitI(Emit.Label(endLabel));
+            EmitS(Opcode.BrAlways, startLabel);
+            EmitS(Opcode.Label, endLabel);
 
             loopContinueLabels.Pop();
             loopBreakLabels.Pop();
@@ -217,17 +217,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 var label = "if_" + GetLabel();
                 EmitExpression(node.Children[i] as ExpressionAst);
-                EmitI(Emit.BrFalse(label)); // branch if false to next case
+                EmitS(Opcode.BrFalse, label); // branch if false to next case
                 EmitBlock(node.Children[i + 1] as BlockAst);
-                EmitI(Emit.BrAlways(finalLabel)); // done, leave if statement
-                EmitI(Emit.Label(label)); // label next block
+                EmitS(Opcode.BrAlways, finalLabel); // done, leave if statement
+                EmitS(Opcode.Label, label); // label next block
             }
             if ((node.Children.Count & 1) == 1)
             {
                 // final else
                 EmitBlock(node.Children.Last() as BlockAst);
             }
-            EmitI(Emit.Label(finalLabel)); // end of if
+            EmitS(Opcode.Label, finalLabel); // end of if
         }
 
         int labelCount = 0;
@@ -265,61 +265,60 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 {
                     case TokenType.AddEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Add(operandType));
+                        EmitO(Opcode.Add);
                         break;
                     case TokenType.SubEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Swap());
-                        EmitI(Emit.Sub(operandType));
+                        EmitO(Opcode.Swap);
+                        EmitT(Opcode.Sub,operandType);
                         break;
                     case TokenType.MulEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Mul(operandType));
+                        EmitT(Opcode.Mul, operandType);
                         break;
                     case TokenType.DivEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Swap());
-                        EmitI(Emit.Div(operandType));
+                        EmitO(Opcode.Swap);
+                        EmitT(Opcode.Div, operandType);
                         break;
                     case TokenType.XorEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Xor());
+                        EmitO(Opcode.Xor);
                         break;
                     case TokenType.AndEq:
                         ReadValue(symbol);
-                        EmitI(Emit.And());
+                        EmitO(Opcode.And);
                         break;
                     case TokenType.OrEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Or());
+                        EmitO(Opcode.Or);
                         break;
                     case TokenType.ModEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Swap());
-                        EmitI(Emit.Mod(operandType));
+                        EmitO(Opcode.Swap);
+                        EmitT(Opcode.Mod, operandType);
                         break;
                     case TokenType.RightShiftEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Swap());
-                        EmitI(Emit.RightShift(operandType));
+                        EmitO(Opcode.Swap);
+                        EmitT(Opcode.RightShift, operandType);
                         break;
                     case TokenType.LeftShiftEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Swap());
-                        EmitI(Emit.LeftShift(operandType));
+                        EmitO(Opcode.Swap);
+                        EmitT(Opcode.LeftShift, operandType);
                         break;
                     case TokenType.RightRotateEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Swap());
-                        EmitI(Emit.RightRotate(operandType));
+                        EmitO(Opcode.Swap);
+                        EmitT(Opcode.RightRotate, operandType);
                         break;
                     case TokenType.LeftRotateEq:
                         ReadValue(symbol);
-                        EmitI(Emit.Swap());
-                        EmitI(Emit.LeftRotate(operandType));
+                        EmitO(Opcode.Swap);
+                        EmitT(Opcode.LeftRotate, operandType);
                         break;
                 }
-
                 WriteValue(symbol);
             }
         }
@@ -331,7 +330,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             var operandType = GetOperandType(symbol);
             LoadAddress(symbol);
-            EmitI(Emit.Store(operandType));
+            EmitT(Opcode.Store, operandType);
         }
 
         // Put the value of the variable in the symbol on the stack
@@ -344,11 +343,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
 
             if (symbol.VariableUse == VariableUse.Global)
-                EmitI(Emit.LoadGlobal(symbol.Address.Value, symbol.Name));
+                Emit2(Opcode.Load, OperandType.Global, symbol.Name, symbol.Address.Value);
             else if (symbol.VariableUse == VariableUse.Local || symbol.VariableUse == VariableUse.ForLoop)
-                EmitI(Emit.LoadLocal(symbol.Address.Value + callStackSuffixSize, symbol.Name));
+                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.Address.Value + callStackSuffixSize);
             else if (symbol.VariableUse == VariableUse.Param)
-                EmitI(Emit.LoadLocal(symbol.Address.Value - callStackPrefixSize, symbol.Name));
+                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.Address.Value - callStackPrefixSize);
             else
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }
@@ -357,13 +356,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void LoadAddress(SymbolEntry symbol)
         {
             if (symbol.VariableUse == VariableUse.Global)
-                EmitI(Emit.Push(symbol.Address, OperandType.Int32, symbol.Name));
+                Emit2(Opcode.Load, OperandType.Global, symbol.Name, symbol.Address.Value);
             else if (symbol.VariableUse == VariableUse.Local)
                 // todo - this wrong - fix
-                EmitI(Emit.LocalAddress(symbol.Address.Value, symbol.Name));
+                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.Address.Value);
             else if (symbol.VariableUse == VariableUse.Param)
                 // todo - this wrong - fix
-                EmitI(Emit.LocalAddress(-symbol.Address.Value, symbol.Name));
+                Emit2(Opcode.Load, OperandType.Local, symbol.Name, -symbol.Address.Value);
             else
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }
@@ -375,8 +374,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var t = symbol.Type;
             if (t.ArrayDimensions.Any())
                 throw new InternalFailure("Cannot put array type in simple operand");
+            return GetOperandType(t.SymbolType);
+        }
+
+        OperandType GetOperandType(SymbolType type)
+        {
             // emit known value, ignore children
-            switch (t.SymbolType)
+            switch (type)
             {
                 case SymbolType.Bool:
                 case SymbolType.Byte:
@@ -386,9 +390,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 case SymbolType.Float32:
                     return OperandType.Int32;
                 default:
-                    throw new InternalFailure($"Unsupported type in symbol {symbol}");
+                    throw new InternalFailure($"Unsupported type in GetOperandType {type}");
             }
         }
+
         #endregion
 
         void EmitAssignStatement(AssignStatementAst node)
@@ -408,7 +413,38 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        void EmitI(Instruction instruction)
+        void Emit2(Opcode opcode, OperandType type, string comment, params object [] operands)
+        {
+            var inst = new Instruction(opcode, type, comment, operands);
+            instructions.Add(inst);
+        }
+
+        // emit opcode with string
+        void EmitS(Opcode opcode, string label)
+        {
+            var inst = new Instruction(opcode, OperandType.None, "");
+            instructions.Add(inst);
+        }
+        // emit opcode with integer
+        void EmitI(Opcode opcode, int value)
+        {
+            var inst = new Instruction(opcode, OperandType.Int32, "", value);
+            instructions.Add(inst);
+        }
+        // emit opcode only
+        void EmitO(Opcode opcode)
+        {
+            var inst = new Instruction(opcode, OperandType.Int32, "");
+            instructions.Add(inst);
+        }
+        // emit opcode and type
+        void EmitT(Opcode opcode, OperandType type)
+        {
+            var inst = new Instruction(opcode, type, "");
+            instructions.Add(inst);
+        }
+
+        void EmitOld(Instruction instruction)
         {
             instructions.Add(instruction);
         }
@@ -423,9 +459,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
          *    |ret val 1|  \
          *    -----------   \
          *    |   ...   |    |  space made by caller for return values/addresses
-         *    -----------    |
-         *    |ret val n|   / 
-         *    -----------  /  
+         *    -----------   /
+         *    |ret val n|  / 
+         *    -----------    
          *    
          *    -----------
          *    | param 1 |  \
@@ -446,7 +482,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
          *    -----------   \
          *    |   ...   |    | space saved by callee
          *    -----------   /
-         *    | local n |  /
+         *    | local M |  /
          *    -----------     <----- stack points here
          *    
          *    
@@ -454,14 +490,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
          *    
          *    To do return a,b,c, push values on stack, call return (which handles copies and cleaning)
          *    
-         *    return instruction: takes # M of bytes for params 1-N
+         *    return instruction: takes M = # of stack entries for locals and N = # parameters
          *    Executes:
-         *       s = ret size = cur stack - top of frame
-         *       copy s bytes to return varible locations
-         *       r = ret addr
+         *       n = # return entries        = cur stack - (base pointer + M)
+         *       s = source stack entry      = cur stack - n
+         *       d = dest source stack entry = base pointer - 2 - N - n
+         *       copy n stack entries to return variable locations
          *       sp <- bp
-         *       restore bp
-         *       pop M from stack
+         *       bp = pop stack
+         *       r  = pop stack
+         *       pop N entries
          *       return to address r. 
          * 
          */
@@ -482,22 +520,22 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (retSize < 0)
                 throw new InternalFailure($"Return size < 0 {symbol}");
             else if (retSize > 0)
-                EmitI(Emit.AddStack(retSize,"function return value space"));
+                Emit2(Opcode.AddStack, OperandType.None, "function return value space", retSize);
 
             // basic types passed by value, others by address
             foreach (var child in node.Children)
                 EmitExpression((ExpressionAst)child);
 
-            EmitI(Emit.Call(node.Token.TokenValue));
+            EmitS(Opcode.Call, node.Token.TokenValue);
         }
 
         void EmitFunction(FunctionDeclarationAst node)
         {
-            EmitI(Emit.Symbol(node.Symbol));
-            EmitI(Emit.Label(node.Name,node.Symbol.Type.ToString()));
+            Emit2(Opcode.Symbol, OperandType.None, "", node.Symbol);
+            Emit2(Opcode.Label, OperandType.None, node.Symbol.Type.ToString(), node.Name);
 
             // reserve stack space
-            EmitI(Emit.AddStack(node.SymbolTable.StackSize,""));
+            EmitI(Opcode.AddStack, node.SymbolTable.StackSize);
 
             var block = node.Children[2] as BlockAst;
             EmitBlock(block);
@@ -517,11 +555,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     EmitExpression(expr as ExpressionAst);
             }
             // find function declaration
-            Ast func = node;
-            while (!(func is FunctionDeclarationAst))
-                func = func.Parent;
+            Ast decl = node;
+            while (!(decl is FunctionDeclarationAst))
+                decl = decl.Parent;
 
-            EmitI(Emit.Return((func as FunctionDeclarationAst).SymbolTable.ParamsSize));
+            var func = decl as FunctionDeclarationAst;
+
+            Emit2(Opcode.Return, OperandType.None, "",
+                func.SymbolTable.StackSize,
+                func.SymbolTable.ParamsSize
+                );
         }
         #endregion
 
@@ -539,16 +582,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 switch (node.Type.SymbolType)
                 {
                     case SymbolType.Bool:
-                        EmitI(Emit.Push(node.BoolValue.Value ? 1 : 0));
+                        EmitI(Opcode.Push, node.BoolValue.Value ? 1 : 0);
                         break;
                     case SymbolType.Int32:
-                        EmitI(Emit.Push(node.IntValue.Value));
+                        EmitI(Opcode.Push, node.IntValue.Value);
                         break;
                     case SymbolType.Float32:
-                        EmitI(Emit.Push(node.FloatValue.Value, OperandType.Float32));
+                        Emit2(Opcode.Push, OperandType.Float32,"", node.FloatValue.Value);
                         break;
                     case SymbolType.Byte:
-                        EmitI(Emit.Push(node.ByteValue.Value, OperandType.Int32));
+                        EmitI(Opcode.Push, node.ByteValue.Value);
                         break;
                     default:
                         throw new InternalFailure($"Unsupported type in expression {node}");
@@ -588,13 +631,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             switch (node.Token.TokenType)
             {
                 case TokenType.Exclamation:
-                {  // bool toggle
-                    EmitI(Emit.Push(1));
-                    EmitI(Emit.Xor());
+                {  // bool toggle 
+                    EmitI(Opcode.Push,1);
+                    EmitO(Opcode.Xor);
                 }
                     break;
                 case TokenType.Tilde:
-                    EmitI(Emit.Not()); // i32 bitflip
+                    EmitO(Opcode.Not); // i32 bitflip
                     break;
                 case TokenType.Plus:
                     // do nothing
@@ -602,9 +645,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 case TokenType.Minus:
                     var s = node.Type.SymbolType;
                     if (s == SymbolType.Byte || s == SymbolType.Int32)
-                        EmitI(Emit.Neg());
+                        EmitO(Opcode.Neg);
                     else if (s == SymbolType.Float32)
-                        EmitI(Emit.Neg(OperandType.Float32));
+                        EmitT(Opcode.Neg, OperandType.Float32);
                     else
                         throw new InternalFailure($"Unknown negation emitted {node}");
                     break;
@@ -616,14 +659,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         class BinOp
         {
             public TokenType TokenType;
-            public SymbolType [] SymbolType;
-            public Instruction Instruction;
+            public SymbolType [] SymbolTypes;
+            public Opcode Opcode;
 
-            public BinOp(TokenType t, Instruction op, params SymbolType [] s)
+            public BinOp(TokenType tokType, Opcode opcode, params SymbolType [] matchingSymbols)
             {
-                TokenType = t;
-                SymbolType = s;
-                Instruction = op;
+                TokenType = tokType;
+                SymbolTypes = matchingSymbols;
+                Opcode = opcode;
             }
 
         }
@@ -631,54 +674,42 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         static BinOp [] binTbl =
         {
             // !=
-            new BinOp(TokenType.NotEqual,Emit.NotEqual(),SymbolType.Bool,SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.NotEqual,Emit.NotEqual(OperandType.Float32),SymbolType.Float32),
+            new BinOp(TokenType.NotEqual,Opcode.NotEqual,SymbolType.Bool,SymbolType.Byte,SymbolType.Int32, SymbolType.Float32),
 
             // ==
-            new BinOp(TokenType.Compare,Emit.IsEqual(),SymbolType.Bool,SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.Compare,Emit.IsEqual(OperandType.Float32),SymbolType.Float32),
+            new BinOp(TokenType.Compare,Opcode.IsEqual,SymbolType.Bool,SymbolType.Byte,SymbolType.Int32, SymbolType.Float32),
 
             // >
-            new BinOp(TokenType.GreaterThan,Emit.GreaterThan(),SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.GreaterThan,Emit.GreaterThan(OperandType.Float32),SymbolType.Float32),
+            new BinOp(TokenType.GreaterThan,Opcode.GreaterThan,SymbolType.Byte,SymbolType.Int32, SymbolType.Float32),
 
             // >=
-            new BinOp(TokenType.GreaterThanOrEqual,Emit.GreaterThanOrEqual(),SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.GreaterThanOrEqual,Emit.GreaterThanOrEqual(OperandType.Float32),SymbolType.Float32),
+            new BinOp(TokenType.GreaterThanOrEqual,Opcode.GreaterThanOrEqual,SymbolType.Byte,SymbolType.Int32, SymbolType.Float32),
 
             // <=
-            new BinOp(TokenType.LessThanOrEqual,Emit.LessThanOrEqual(),SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.LessThanOrEqual,Emit.LessThanOrEqual(OperandType.Float32),SymbolType.Float32),
+            new BinOp(TokenType.LessThanOrEqual,Opcode.LessThanOrEqual,SymbolType.Byte,SymbolType.Int32, SymbolType.Float32),
 
             // <
-            new BinOp(TokenType.LessThan,Emit.LessThan(),SymbolType.Byte,SymbolType.Int32),
-            new BinOp(TokenType.LessThan,Emit.LessThan(OperandType.Float32),SymbolType.Float32),
+            new BinOp(TokenType.LessThan,Opcode.LessThan,SymbolType.Byte,SymbolType.Int32, SymbolType.Float32),
 
             // ||, &&
-            new BinOp(TokenType.LogicalOr,Emit.Or(),SymbolType.Bool),
-            new BinOp(TokenType.LogicalAnd,Emit.And(),SymbolType.Bool),
+            new BinOp(TokenType.LogicalOr,Opcode.Or,SymbolType.Bool),
+            new BinOp(TokenType.LogicalAnd,Opcode.And,SymbolType.Bool),
 
             // >>, <<, >>>, <<<, &, |, ^, %
-            new BinOp(TokenType.RightShift,Emit.RightShift(OperandType.Byte),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.LeftShift,Emit.LeftShift(OperandType.Byte),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.RightRotate,Emit.RightRotate(OperandType.Byte),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.LeftRotate,Emit.LeftRotate(OperandType.Byte),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Ampersand,Emit.And(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Pipe,Emit.Or(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Caret,Emit.Xor(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Percent,Emit.Mod(),SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.RightShift,Opcode.RightShift,SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.LeftShift,Opcode.LeftShift,SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.RightRotate,Opcode.RightRotate,SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.LeftRotate,Opcode.LeftRotate,SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Ampersand,Opcode.And,SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Pipe,Opcode.Or,SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Caret,Opcode.Xor,SymbolType.Byte, SymbolType.Int32),
+            new BinOp(TokenType.Percent,Opcode.Mod,SymbolType.Byte, SymbolType.Int32),
 
             // +,-,*,/
-            new BinOp(TokenType.Plus,Emit.Add(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Minus,Emit.Sub(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Asterix,Emit.Mul(),SymbolType.Byte, SymbolType.Int32),
-            new BinOp(TokenType.Slash,Emit.Div(),SymbolType.Byte, SymbolType.Int32),
-
-            new BinOp(TokenType.Plus,Emit.Add(OperandType.Float32),SymbolType.Float32),
-            new BinOp(TokenType.Minus,Emit.Sub(OperandType.Float32),SymbolType.Float32),
-            new BinOp(TokenType.Asterix,Emit.Mul(OperandType.Float32),SymbolType.Float32),
-            new BinOp(TokenType.Slash,Emit.Div(OperandType.Float32),SymbolType.Float32)
-
+            new BinOp(TokenType.Plus,Opcode.Add,SymbolType.Byte, SymbolType.Int32, SymbolType.Float32),
+            new BinOp(TokenType.Minus,Opcode.Sub,SymbolType.Byte, SymbolType.Int32, SymbolType.Float32),
+            new BinOp(TokenType.Asterix,Opcode.Mul,SymbolType.Byte, SymbolType.Int32, SymbolType.Float32),
+            new BinOp(TokenType.Slash,Opcode.Div,SymbolType.Byte, SymbolType.Int32, SymbolType.Float32),
         };
 
 
@@ -690,9 +721,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (s != node.Children[1].Type.SymbolType)
                     throw new InternalFailure("Operand on different types not implemented");
                 if (node.Token.TokenType == entry.TokenType &&
-                    entry.SymbolType.Contains(s))
+                    entry.SymbolTypes.Contains(s))
                 {
-                    EmitI(entry.Instruction);
+                    EmitT(entry.Opcode, GetOperandType(s));
                     return;
                 }
             }

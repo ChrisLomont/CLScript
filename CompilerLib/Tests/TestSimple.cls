@@ -14,6 +14,8 @@ type myType
     myType t
     //t.v1 = 0
     //t.v2 = 1
+    if p1 == 5
+       return 0
     for i in 1..10
        i32 a = i+2*loc
        // pass in constant, local, parameter, global, expression, type

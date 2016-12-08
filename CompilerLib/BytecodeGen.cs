@@ -113,6 +113,9 @@ namespace Lomont.ClScript.CompilerLib
 
             header.AddRange(code);
 
+            for (var i =0; i < 10; ++i)
+                env.Info($"Code byte 0x{code[i]:X2}");
+
             CompiledAssembly = header.ToArray();
         }
 
@@ -150,9 +153,8 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Pick:
                 case Opcode.Dup:
                 case Opcode.AddStack:
-                case Opcode.LoadGlobal:
-                case Opcode.LoadLocal:
-                case Opcode.LocAddr:
+                case Opcode.Load:
+                case Opcode.Addr:
                 case Opcode.Return:
                 case Opcode.ForStart:
                     Write((uint)((int)inst.Operands[0]), 4);
@@ -296,13 +298,15 @@ namespace Lomont.ClScript.CompilerLib
         // default byte packing
         void Write(Opcode opcode, OperandType operandType)
         {
-            if ((int)opcode >= 64)
-                throw new InternalFailure($"Opcode {opcode} must be smaller than 64, is now {(int)opcode}.");
-            if ((int)operandType >= 4)
-                throw new InternalFailure($"Opcode {operandType} must be smaller than 4, is now {(int)operandType}");
+            //if ((int)opcode >= 64)
+            //    throw new InternalFailure($"Opcode {opcode} must be smaller than 64, is now {(int)opcode}.");
+            //if ((int)operandType >= 4)
+            //    throw new InternalFailure($"Opcode {operandType} must be smaller than 4, is now {(int)operandType}");
 
-            var op = ((uint) (operandType) << 6) | (uint)opcode;
-            Write(op,1);
+            //var op = ((uint) (operandType) << 6) | (uint)opcode;
+            //Write(op,1);
+            Write((uint)opcode,1);
+            Write((uint)operandType, 1);
         }
 
         // write some bytes, MSB first
