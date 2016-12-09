@@ -254,7 +254,7 @@ namespace Lomont.ClScript.CompilerLib
                     break;
                 case Opcode.Pick:
                     p1 = ReadCodeItem(OperandType.Int32);
-                    PushStack(ReadMemory(StackPointer - p1));
+                    PushStack(ReadRam(StackPointer - p1,$"Pick {p1}"));
                     break;
                 case Opcode.Dup:
                     p1 = PopStack();
@@ -274,19 +274,23 @@ namespace Lomont.ClScript.CompilerLib
                 // mem
                 case Opcode.Load:
                     p1 = ReadCodeItem(OperandType.Int32);
-                    PushStack(ReadMemory(p1, OperandType.Local == opType));
+                    if (opType == OperandType.Global)
+                        PushStack(ReadRam(p1,"Load"));
+                    else if (opType == OperandType.Local)
+                        PushStack(ReadRam(p1 + BasePointer, "Load"));
+                    else
+                        throw new InternalFailure("Store optype {opType} unsupported");
                     break;
                 case Opcode.Store:
                     p1 = PopStack();
                     p2 = PopStack();
-                    if (opType == OperandType.Global)
-                        WriteRam(p1, p2, "Store opcode");
-                    else if (opType == OperandType.Local)
-                        WriteRam(p1+BasePointer,p2,"Store opcode");
+                    // todo - store byte if byte sized
+                    if (opType == OperandType.Float32 || opType == OperandType.Int32)
+                        WriteRam(p1, p2, "Store");
                     else throw new InternalFailure("Store optype {opType} unsupported");
                     break;
                 case Opcode.Addr:
-                    p1 = PopStack();
+                    p1 = ReadCodeItem(OperandType.Int32);
                     if (opType == OperandType.Local)
                         PushStack(BasePointer + p1);
                     else if (opType == OperandType.Global)
@@ -525,7 +529,7 @@ namespace Lomont.ClScript.CompilerLib
         #region Support
 
         // Read 0 terminated UTF8 string
-        public string ReadImageString(int offset)
+        string ReadImageString(int offset)
         {
             var sb = new StringBuilder();
             int b;
@@ -539,7 +543,7 @@ namespace Lomont.ClScript.CompilerLib
         }
 
         // read big endian bytes at given offset
-        public int ReadImageInt4(int offset, int count)
+        int ReadImageInt4(int offset, int count)
         {
             int value = 0, address = offset;
             while (count-- > 0 && !error)
@@ -547,7 +551,7 @@ namespace Lomont.ClScript.CompilerLib
             return value;
         }
 
-        public int ReadCodeItem(OperandType opType)
+        int ReadCodeItem(OperandType opType)
         {
             int value = 0;
             if (opType == OperandType.Byte)
@@ -575,19 +579,19 @@ namespace Lomont.ClScript.CompilerLib
             WriteRam(StackPointer++,value,"Stack overflow");
         }
 
-        public int PopStack()
+        int PopStack()
         {
             StackPointer--;
             return ReadRam(StackPointer,"Stack underflow");
         }
 
-        public void PushStackF(float value)
+        void PushStackF(float value)
         {
             // copy float bits into int and push onto stack
             PushStack(BitConverter.ToInt32(BitConverter.GetBytes(value), 0));
         }
 
-        public float PopStackF()
+        float PopStackF()
         {
             var i = PopStack();
             // copy int bits into float 
@@ -596,28 +600,7 @@ namespace Lomont.ClScript.CompilerLib
 
         #endregion
 
-
-        /// <summary>
-        /// Read 32 bit value at address
-        /// </summary>
-        /// <param name="i"></param>
-        /// <returns></returns>
-        public int ReadMemory(int i, bool local = false)
-        {
-            if (local)
-                return ReadRam(BasePointer + i, "");
-            else
-                return ReadRam(i, "");
-        }
-
-        public enum RegisterName
-        {
-            StackPointer,
-            ProgramCounter,
-            BasePointer
-        }
-
-        public void CopyEntries(int srcStackIndex, int dstStackIndex, int returnEntryCount)
+        void CopyEntries(int srcStackIndex, int dstStackIndex, int returnEntryCount)
         {
             while (returnEntryCount-- > 0 && !error)
                 WriteRam(dstStackIndex++, ReadRam(srcStackIndex++, ""), "Copy failed");

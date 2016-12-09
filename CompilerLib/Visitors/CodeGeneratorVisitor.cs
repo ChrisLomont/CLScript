@@ -328,9 +328,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // write value on stack top into given symbol
         void WriteValue(SymbolEntry symbol)
         {
-            var operandType = GetOperandType(symbol);
             LoadAddress(symbol);
-            EmitT(Opcode.Store, operandType);
+            var opType = GetOperandType(symbol);
+            EmitT(Opcode.Store, opType);
         }
 
         // Put the value of the variable in the symbol on the stack
@@ -356,13 +356,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void LoadAddress(SymbolEntry symbol)
         {
             if (symbol.VariableUse == VariableUse.Global)
-                Emit2(Opcode.Load, OperandType.Global, symbol.Name, symbol.Address.Value);
+                Emit2(Opcode.Addr, OperandType.Global, symbol.Name, symbol.Address.Value);
             else if (symbol.VariableUse == VariableUse.Local)
                 // todo - this wrong - fix
-                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.Address.Value);
+                Emit2(Opcode.Addr, OperandType.Local, symbol.Name,  symbol.Address.Value + callStackSuffixSize);
             else if (symbol.VariableUse == VariableUse.Param)
                 // todo - this wrong - fix
-                Emit2(Opcode.Load, OperandType.Local, symbol.Name, -symbol.Address.Value);
+                Emit2(Opcode.Addr, OperandType.Local, symbol.Name,  symbol.Address.Value - callStackPrefixSize);
             else
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }

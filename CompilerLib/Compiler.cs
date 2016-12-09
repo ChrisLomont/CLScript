@@ -21,6 +21,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 6. line continues if last non-whitespace is whitespace isolated '\' char
  * 7. Short circuted booleans
  * 8. Add RuntimeException for things that happen during runtime execution
+ * 9. Expression eval right to left - reverse this!
  */
 
 namespace Lomont.ClScript.CompilerLib

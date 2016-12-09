@@ -4,8 +4,8 @@
 
 [Entry "param1"]
 (i32,i32) test(i32 p1, i32 p2, i32 p3, i32 p4)
-    i32 a//=2
-    return 1,3//a,a*a
+    i32 a=2
+    return a+1,(a*a)/5//a+3//a,a*a
 
 /*
 
