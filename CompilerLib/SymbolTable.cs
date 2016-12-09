@@ -14,10 +14,11 @@ namespace Lomont.ClScript.CompilerLib
     /// </summary>
     public class SymbolTableManager
     {
+        // name of the global scope, unique
         public static string GlobalScope { get; } = "<global>";
 
         /// <summary>
-        /// The current symbol table
+        /// The current symbol table when walking AST
         /// </summary>
         public SymbolTable SymbolTable => tables.Peek();
 
@@ -26,6 +27,9 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public SymbolTable RootTable { get; private set;  }
 
+        /// <summary>
+        /// Manages types
+        /// </summary>
         public TypeManager TypeManager { get; private set; }
 
         public SymbolTableManager(Environment env)
@@ -57,7 +61,8 @@ namespace Lomont.ClScript.CompilerLib
         /// <param name="node">Ast node that triggered the generation</param>
         /// <param name="symbolName">Name</param>
         /// <param name="symbolType">Symbol type</param>
-        /// <param name="arrayDimension">Array dimension if one present, else 0</param>
+        /// <param name="usage">How this variable is used</param>
+        /// <param name="arrayDimensions">Array dimensions if one present, else 0</param>
         /// <param name="attrib">Attributes</param>
         /// <param name="typeName">Used if present, used when declaring a variable of a user defined type</param>
         /// <param name="returnType">List of function return types</param>
@@ -124,24 +129,33 @@ namespace Lomont.ClScript.CompilerLib
             // fill in basic types in type table
             foreach (var t in TypeManager.Types)
             {
-                var size = 0;
+                var byteSize = 0; // size in packed bytes
+                var stackSize = 0; // size on stack
                 switch (t.SymbolType)
                 {
                     case SymbolType.Byte:
                     case SymbolType.Bool:
-                        size = 1;
+                        byteSize = 1;
+                        stackSize = 1; // one entry
                         break;
                     case SymbolType.String:
                     case SymbolType.EnumValue:
                     case SymbolType.Float32:
                     case SymbolType.Int32:
-                        size = 4;
+                        byteSize = 4;
+                        stackSize = 1; // one entry
                         break;
                 }
                 foreach (var dim in t.ArrayDimensions)
-                    size *= dim;
-                if (size > 0)
-                    t.Size = size;
+                {
+                    byteSize *= dim;
+                    stackSize *= dim;
+                }
+                if (byteSize > 0)
+                {
+                    t.ByteSize = byteSize;
+                    t.StackSize = stackSize;
+                }
             }
 
             // loop, trying to size types, requires repeating until nothing else can be done
@@ -166,7 +180,7 @@ namespace Lomont.ClScript.CompilerLib
         void ComputeTypeSizes(SymbolTable table, Environment env, ref int done, ref int undone, ref InternalType type)
         {
             foreach (
-                var item in table.Entries.Where(t => t.Type.SymbolType == SymbolType.UserType1 && !t.Type.Size.HasValue)
+                var item in table.Entries.Where(t => t.Type.SymbolType == SymbolType.UserType1 && t.Type.ByteSize < 0)
             )
             {
                 // try to compute size
@@ -178,12 +192,16 @@ namespace Lomont.ClScript.CompilerLib
                     env.Error($"Cannot find symbol table for {item} members");
                     return;
                 }
-                var size = 0;
+                var byteSize = 0;
+                var stackSize = 0;
                 var allFound = true;
                 foreach (var e in tbl.Entries)
                 {
-                    if (e.Type.Size.HasValue)
-                        size += e.Type.Size.Value;
+                    if (e.Type.ByteSize > 0)
+                    {
+                        byteSize += e.Type.ByteSize;
+                        stackSize += e.Type.StackSize;
+                    }
                     else
                     {
                         allFound = false;
@@ -194,8 +212,12 @@ namespace Lomont.ClScript.CompilerLib
                 {
                     done++;
                     foreach (var dim in item.Type.ArrayDimensions)
-                        size *= dim;
-                    item.Type.Size = size; // note this may set multiple types if same member structure
+                    {
+                        byteSize *= dim;
+                        stackSize *= dim;
+                    }
+                    item.Type.ByteSize = byteSize; // note this may set multiple types if same member structure
+                    item.Type.StackSize = stackSize;
                 }
                 else
                 {
@@ -379,12 +401,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// stack size required for this block
         /// </summary>
-        public int StackSize { get; set; }
-
-        /// <summary>
-        /// parameters size on stack
-        /// </summary>
-        public int ParamsSize { get; set; }
+        public int StackEntries { get; set; }
 
         public string Scope { get; private set; }
         public List<SymbolEntry> Entries { get; } = new List<SymbolEntry>();
@@ -421,7 +438,7 @@ namespace Lomont.ClScript.CompilerLib
 
         public void Dump(TextWriter output, string indent)
         {
-            output.WriteLine($"{indent}Symbol Table Scope: {Scope} :{StackSize},{ParamsSize}:");
+            output.WriteLine($"{indent}Symbol Table Scope: {Scope} :{StackEntries}:");
             foreach (var entry in Entries)
                 output.WriteLine(indent+entry);
             output.WriteLine($"{indent}****************************");

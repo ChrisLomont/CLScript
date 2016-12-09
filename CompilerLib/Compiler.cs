@@ -158,7 +158,7 @@ namespace Lomont.ClScript.CompilerLib
             bytecode = new BytecodeGen(env);
             env.Info("Bytecode Generation...");
             var retval = bytecode.Generate(symbolTable, generatedInstructions);
-            if (retval != null)
+            if (retval)
                 env.Info($"   bytecode assembly {bytecode.CompiledAssembly.Length} bytes");
             return retval;
         }

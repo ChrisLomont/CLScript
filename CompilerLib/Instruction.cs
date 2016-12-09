@@ -9,65 +9,73 @@ namespace Lomont.ClScript.CompilerLib
 {
     public enum OperandType
     {
+        // size/type of item/opcode
         None,
         Byte,
         Int32,
         Float32,
-        Global,
-        Local
+
+        // where item exists
+        Global, // absolute address
+        Local,  // relative to base pointer address
+        Const   // in const memory (ROM/FLASH, etc)
     }
 
     public enum Opcode
     {
-        Nop,
+                            // first letter of allowed operand types
+        Nop,                // [   ]
 
         // stack
-        Push,       // some from code, expanded to 4 bytes, onto stack
-        Pop,        // pop entry from stack
-        Pick,       // push stack value from n back onto stack
-        Dup,        // copy top stack value
-        Swap,       // swap top two stack values
-        AddStack,   // add n to stack pointer
+        Push,               // [BIF] read bytes from code, expanded to stack entry size, pushed onto stack
+        Pop,                // [   ] pop entry from stack
+        Pick,               // [   ] push stack value from n back onto stack
+        Dup,                // [   ] copy top stack value
+        Swap,               // [   ] swap top two stack values
+        AddStack,           // [   ] add n to stack pointer
+                            
+        // mem              
+        Load,               // [GLC] push value from memory location (local to base pointer, or global = absolute) 
 
-        // mem
-        Load,       // get value from memory location (local to base pointer, or global = absolute)
-        Store,      // address on stack top, value one underneath, store it
-        Addr,       // get address (local = relative to base pointer, global = global value)
+        Store,              // [GL ] address on stack top, value one underneath, store it
+
+        Addr,               // [GLC] push address of (local = relative to base pointer, global = global value)
 
         // label/branch/call/ret
-        Call,       // relative call address
-        Return,
-        BrFalse,
-        BrAlways,
-        ForStart,   // start, end, delta values on stack. If delta = 0, compute delta +1 or -1
-                    // store start at memory location, delta at location +1
-                    // pops 2 from stack
-        ForLoop,    // update for stack frame, branch if more to do
-                    // end address is counter, then increment, end is on stack top
-                    // pop end value. If more, loop, else don't
-        //bitwise
-        Or,
-        And,
-        Xor,
-        Not,
-        RightShift,
-        LeftShift,
-        RightRotate,
-        LeftRotate,
+        Call,               // [   ] relative call address
+        Return,             // [   ] two values (parameter entries, local stack entries) for cleaning stack after call
+        BrFalse,            // [   ] pop stack. If 0, branch to relative address
+        BrAlways,           // [   ] always branch to relative address
+        ForStart,           // [   ] start, end, delta values on stack. If delta = 0, compute delta +1 or -1
+                            //       store start at memory location, delta at location +1
+                            //       pops 2 from stack.
+                            //       takes address as operand for frame
+        ForLoop,            // [   ] update for stack frame, branch if more to do
+                            //       end address is counter, then increment, end is on stack top
+                            //       pop end value. If more, loop, else don't
+        //bitwise           
+        Or,                 // [   ]
+        And,                // [   ]
+        Xor,                // [   ]
+        Not,                // [   ]
+        RightShift,         // [   ]
+        LeftShift,          // [   ]
+        RightRotate,        // [   ] 
+        LeftRotate,         // [   ]
         // comparison
-        NotEqual,
-        IsEqual,
-        GreaterThan,
-        GreaterThanOrEqual,
-        LessThanOrEqual,
-        LessThan,
-        //arithmetic
-        Neg,
-        Add,
-        Sub,
-        Mul,
-        Div,
-        Mod,
+        NotEqual,           // [BIF]
+        IsEqual,            // [BIF]
+        GreaterThan,        // [BIF]
+        GreaterThanOrEqual, // [BIF]
+        LessThanOrEqual,    // [BIF]
+        LessThan,           // [BIF]
+        //arithmetic       
+        Neg,                // [BIF]
+        Add,                // [BIF]
+        Sub,                // [BIF]
+        Mul,                // [BIF]
+        Div,                // [BIF]
+        Mod,                // [BI ]
         // end
 
         // pseudo-ops - take no space, merely placeholders
@@ -109,14 +117,14 @@ namespace Lomont.ClScript.CompilerLib
 
             var operands = "";
 
-            if (!opcode.StartsWith("Label") && Opcode != Opcode.Symbol)
+            if (Opcode != Opcode.Label && Opcode != Opcode.Symbol)
             {
                 opcode = "     " + opcode;
                 foreach (var op in Operands)
                     operands += $" {op}";
             }
             else
-                opcode = $"{opcode} {Operands[0]}:";
+                opcode = $"\n{opcode} {Operands[0]}:";
                 // operands = $"{Operands[0]}:";
 
             var comment = "";

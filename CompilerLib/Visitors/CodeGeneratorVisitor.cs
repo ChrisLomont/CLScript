@@ -116,7 +116,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 
         // for loop stores a counter and a delta
-        const int ForLoopStackSize = 8; // for loop stack entries
+        const int ForLoopStackSize = 2; // number of for loop stack entries (index,delta)
 
         void EmitForStatement(ForStatementAst node)
         {
@@ -158,7 +158,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var forLoopVaribleAddress = node.VariableSymbol.Address.Value+callStackSuffixSize;
             var forLoopVariableName = node.VariableSymbol.Name;
 
-            Emit2(Opcode.ForStart, OperandType.None,forLoopVariableName);
+            Emit2(Opcode.ForStart, OperandType.None, forLoopVariableName, forLoopVaribleAddress);
 
             var startLabel = "for_" + GetLabel();
             var continueLabel = "for_" + GetLabel();
@@ -422,7 +422,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // emit opcode with string
         void EmitS(Opcode opcode, string label)
         {
-            var inst = new Instruction(opcode, OperandType.None, "");
+            var inst = new Instruction(opcode, OperandType.None, "", label);
             instructions.Add(inst);
         }
         // emit opcode with integer
@@ -442,11 +442,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             var inst = new Instruction(opcode, type, "");
             instructions.Add(inst);
-        }
-
-        void EmitOld(Instruction instruction)
-        {
-            instructions.Add(instruction);
         }
 
         #region Function/Return
@@ -490,7 +485,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
          *    
          *    To do return a,b,c, push values on stack, call return (which handles copies and cleaning)
          *    
-         *    return instruction: takes M = # of stack entries for locals and N = # parameters
+         *    return instruction: takes N = # parameters then M = # of stack entries for locals
          *    Executes:
          *       n = # return entries        = cur stack - (base pointer + M)
          *       s = source stack entry      = cur stack - n
@@ -508,7 +503,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // symbol table addresses are based on base pointer pointing to 
         // address 0, where first local is stored, and negative is parameters
         // these are byte counts of things stored on stack before base pointer and after base pointer
-        static int callStackSuffixSize = 0, callStackPrefixSize = 8;
+        static int callStackSuffixSize = 0, callStackPrefixSize = 2;
 
         void EmitFunctionCall(FunctionCallAst node)
         {
@@ -516,7 +511,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             // return space
             var symbol = mgr.Lookup(node.Token.TokenValue);
-            var retSize = symbol.Type.ReturnSize;
+            var retSize = symbol.Type.ReturnType.Count;
             if (retSize < 0)
                 throw new InternalFailure($"Return size < 0 {symbol}");
             else if (retSize > 0)
@@ -535,7 +530,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             Emit2(Opcode.Label, OperandType.None, node.Symbol.Type.ToString(), node.Name);
 
             // reserve stack space
-            EmitI(Opcode.AddStack, node.SymbolTable.StackSize);
+            EmitI(Opcode.AddStack, node.SymbolTable.StackEntries);
 
             var block = node.Children[2] as BlockAst;
             EmitBlock(block);
@@ -562,8 +557,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var func = decl as FunctionDeclarationAst;
 
             Emit2(Opcode.Return, OperandType.None, "",
-                func.SymbolTable.StackSize,
-                func.SymbolTable.ParamsSize
+                func.Symbol.Type.ParamsType.Count,
+                func.SymbolTable.StackEntries
                 );
         }
         #endregion
@@ -752,7 +747,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var total = 0;
             foreach (var entry in table.Entries.Where(t=>t.VariableUse == VariableUse.Local || t.VariableUse == VariableUse.ForLoop))
             {
-                total += entry.Type.Size.Value;
+                if (entry.Type.StackSize < 0)
+                    throw new InternalFailure("Stack size not set in Place Locals");
+                total += entry.Type.StackSize;
                 entry.Address += shift;
             }
             foreach (var child in table.Children)
@@ -769,15 +766,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // now layout this one
             var size = 0;
             var paramSize = 0;
-            foreach (var e in tbl.Entries.Where(e => e.Type.Size.HasValue))
+            foreach (var e in tbl.Entries.Where(e => e.Type.StackSize > 0))
             {
                 if (e.VariableUse == VariableUse.Param)
                 {
                     e.Address = paramSize;
-                    if (e.Type.PassByRef)
-                        paramSize += 4;
-                    else
-                        paramSize += e.Type.Size.Value;
+                    paramSize += 1; // every parameter takes one stack slot
+//                    if (e.Type.PassByRef)
+//                        paramSize += 4;
+//                    else
+//                        paramSize += e.Type.ByteSize.Value;
                 }
                 else if (e.VariableUse == VariableUse.ForLoop)
                 { // todo - rethink this....
@@ -787,21 +785,21 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 else
                 {
                     e.Address = size; // stores here
-                    size += e.Type.Size.Value;
+                    size += e.Type.StackSize;
                 }
             }
             
             // invert parameter sizes
-            foreach (var e in tbl.Entries.Where(e => e.Type.Size.HasValue))
+            foreach (var e in tbl.Entries.Where(e => e.Type.ByteSize > 0))
             {
                 if (e.VariableUse == VariableUse.Param)
                     e.Address = -(paramSize - e.Address.Value);
             }
  
             // max of child block sizes:
-            var maxChildSize = tbl.Children.Any() ? tbl.Children.Max(ch => ch.StackSize) : 0;
-            tbl.StackSize = size + maxChildSize;
-            tbl.ParamsSize = paramSize;
+            var maxChildSize = tbl.Children.Any() ? tbl.Children.Max(ch => ch.StackEntries) : 0;
+            tbl.StackEntries = size + maxChildSize;
+            // tbl.ParamsSize = paramSize;
         }
 
         #endregion

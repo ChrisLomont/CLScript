@@ -102,18 +102,23 @@ namespace Lomont.ClScript.CompilerLib
     public class InternalType
     {
 
-        public InternalType(SymbolType type, string name, TypeManager mgr, int index,
+        public InternalType(SymbolType type, 
+            string name, 
+            TypeManager mgr, 
+            int index,
             List<int> arrayDimensions = null, 
-            List<InternalType> returnType = null, List<InternalType> paramsType = null)
+            List<InternalType> returnType = null, 
+            List<InternalType> paramsType = null)
         {
 
-            this.typeManager = mgr;
-            this.index = index;
+            typeManager = mgr;
+            typeIndex = index;
             SymbolType = type;
             UserTypeName = name;
             ArrayDimensions = arrayDimensions??new List<int>();
             ReturnType = returnType;
             ParamsType = paramsType;
+            ByteSize = StackSize = -1;
         }
 
         public SymbolType SymbolType { get; set; }
@@ -122,29 +127,16 @@ namespace Lomont.ClScript.CompilerLib
         public List<InternalType> ReturnType { get; set; }
         public List<InternalType> ParamsType { get; set; }
 
-        public int? Size { get; set; }
-
-        int returnSize = -1; // filled on demand
-        public int ReturnSize
-        {
-            get
-            {
-                if (returnSize == -1)
-                {
-                    var all = true;
-                    var size = 0;
-                    foreach (var t in ReturnType)
-                    {
-                        all &= t.Size.HasValue;
-                        if (!all) break;
-                        size += t.Size.Value;
-                    }
-                    if (all) returnSize = size;
-                }
-                return returnSize;
-            }
-            
-        }
+        /// <summary>
+        /// size of item in bytes - used for code storage
+        /// -1 when not used or relevant
+        /// </summary>
+        public int ByteSize { get; set; }
+        /// <summary>
+        /// size of item in stack entries - used for local variable storage
+        /// -1 when not used or relevant
+        /// </summary>
+        public int StackSize { get; set; }
 
         public bool PassByRef
         {
@@ -166,7 +158,7 @@ namespace Lomont.ClScript.CompilerLib
 
         string FormatType(bool showSizes)
         {
-            var sizeText = Size.HasValue ? ":" + Size.ToString() + ":" : "";
+            var sizeText = ByteSize >= 0 ? ":" + ByteSize.ToString() + ":" : "";
             if (showSizes == false)
                 sizeText = "";
             //return $"{h.Symbol},[{h.ArrayDimension}],{h.Text}";
@@ -215,7 +207,7 @@ namespace Lomont.ClScript.CompilerLib
 
         public override int GetHashCode()
         {
-            return typeManager.GetHashCode() ^ index.GetHashCode();
+            return typeManager.GetHashCode() ^ typeIndex.GetHashCode();
         }
 
         public static bool operator ==(InternalType a, InternalType b)
@@ -228,7 +220,7 @@ namespace Lomont.ClScript.CompilerLib
             if (((object) a == null) || ((object) b == null))
                 return false;
 
-            return ReferenceEquals(a.typeManager, b.typeManager) && a.index == b.index;
+            return ReferenceEquals(a.typeManager, b.typeManager) && a.typeIndex == b.typeIndex;
         }
 
         public static bool operator !=(InternalType x, InternalType y)
@@ -239,7 +231,7 @@ namespace Lomont.ClScript.CompilerLib
         #endregion
 
         readonly TypeManager typeManager;
-        readonly int index;
+        readonly int typeIndex;
 
     }
 }

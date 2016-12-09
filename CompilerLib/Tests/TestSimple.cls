@@ -2,13 +2,20 @@
 //   i32 a,b,c = 1,2,3
 //   a,b,c += 2,3,4
 
+[Entry "param1"]
+(i32,i32) test(i32 p1, i32 p2, i32 p3, i32 p4)
+    i32 a//=2
+    return 1,3//a,a*a
+
+/*
+
 i32 g = 1
 r32 b = 1.0
 
 type myType 
    i32 v1,v2
 
-[Entry "param1"]
+
 (i32) total(i32 p1, byte bb, i32 p2)
     i32 loc = 0
     myType t
@@ -25,3 +32,4 @@ type myType
 (i32) func(i32 p1, i32 p2, i32 p3, i32 p4, i32 p5, i32 p6, myType p7)
    i32 v = 0//p1+p2+p3+p4+p5+p6
    return v*v
+*/

@@ -10,24 +10,44 @@ using Lomont.ClScript.CompilerLib.Visitors;
 
 namespace Lomont.ClScript.CompilerLib
 {
+
+
     /* Format for an assembly (values big endian):
      * 
-     * 4 byte Identifier: CLSx where x is a version byte, "CLS" UTF-8
-     * 4 byte length of assembly
-     * 4 byte offset (from start of bytecode) to start of code
-     * 
-     * 4 byte number of LinkEntries
-     * LinkEntries
-     * 
-     * Code
-     * 
-     * LinkEntry is:
-     *    2 byte length
-     *    4 byte address of item from start of bytecode
-     *    0 terminated UTF-8 strings
+     * RIFF format: in chunks:
+     *    each with 4 byte identifier (RIFF requires ASCII, we relax it), 
+     *    then 4 byte little endian size of chunk (size except header and this size field)
+     *    data, padded at end with 0 to make even sized
+     *    
+     * Skip any chunks not understood
+     *    
+     * Other than size fields, all values big endian   
+     *    
+     * Structure (chunk name and data, size field implied):  
+     *    Chunk "RIFF" (required by the format)
+     *        data is "CLSx" where x is a version byte, "CLS" ASCII
+     *        Chunk "head"
+     *            4 byte length of assembly
+     *        Chunk "code"
+     *            code binary blob
+     *        Chunk "link"
+     *            4 byte number L of link entries
+     *            L 4 byte entries of offsets to each link entry from start of image
+     *            Link entries. Each is
+     *            todo;;;;
+     *                2 byte length
+     *                4 byte address of item from start of bytecode
+     *                0 terminated UTF-8 strings
+     *            
+     *       
+     *    
      * 
      * todo - types?, RAM/ROM distinction, item type (var or func)
      * todo - initial memory values
+     * todo - string table/code table
+     * todo - imported calls
+     * 
+     * Link entry: types, name, attributes, address in code/global memory
      * 
      */
     public class BytecodeGen
@@ -151,13 +171,17 @@ namespace Lomont.ClScript.CompilerLib
             {
                 // single int32 operand follows
                 case Opcode.Pick:
-                case Opcode.Dup:
                 case Opcode.AddStack:
                 case Opcode.Load:
                 case Opcode.Addr:
-                case Opcode.Return:
                 case Opcode.ForStart:
                     Write((uint)((int)inst.Operands[0]), 4);
+                    break;
+
+                // two int32 operand follows
+                case Opcode.Return:
+                    Write((uint)((int)inst.Operands[0]), 4);
+                    Write((uint)((int)inst.Operands[1]), 4);
                     break;
 
                 // address then label
@@ -166,9 +190,11 @@ namespace Lomont.ClScript.CompilerLib
                     AddFixup((string)inst.Operands[1]);
                     break;
 
-                // single int32/float32 operand follows
+                // single byte/int32/float32 operand follows
                 case Opcode.Push:
-                    if (inst.OperandType == OperandType.Int32)
+                    if (inst.OperandType == OperandType.Byte)
+                        Write((uint)((int)inst.Operands[0]), 1);
+                    else if (inst.OperandType == OperandType.Int32)
                         Write((uint)((int)inst.Operands[0]),4);
                     else if (inst.OperandType == OperandType.Float32)
                         Write((float)(double)(inst.Operands[0]));
@@ -183,10 +209,13 @@ namespace Lomont.ClScript.CompilerLib
                     AddFixup((string)inst.Operands[0]);
                     break;
 
-                case Opcode.Label: // done above - special case
+                // done above - special case
+                case Opcode.Label:  
+                case Opcode.Symbol: 
                     break;
 
                 // nothing to do for these
+                case Opcode.Dup:
                 case Opcode.Store:
                 case Opcode.Pop:
                 case Opcode.Nop:
