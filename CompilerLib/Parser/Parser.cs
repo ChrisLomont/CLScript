@@ -10,6 +10,10 @@ namespace Lomont.ClScript.CompilerLib.Parser
     // 
     // http://matt.might.net/articles/grammars-bnf-ebnf/
     //
+    // Parsing expressions with recursive descent
+    // http://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
+    // Key idea: left-associative operators are consumed in a loop, while right-associative operators are handled with right-recursive productions
+    //
     // good resources
     // http://stackoverflow.com/questions/2245962/is-there-an-alternative-for-flex-bison-that-is-usable-on-8-bit-embedded-systems/2336769#2336769
     // says for each rule of form X = A B C 
@@ -109,7 +113,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return ParseImportDeclaration();
             else if (Lookahead("", TokenType.Module))
                 return ParseModuleDeclaration();
-            else if (Lookahead("", TokenType.LSquareBracket))
+            else if (Lookahead("", TokenType.LeftBracket))
                 return ParseAttributeDeclaration();
             else if (Lookahead("", TokenType.Enum))
                 return ParseEnumDeclaration();
@@ -121,7 +125,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             var exportToken = TryMatch(TokenType.Export);
             var constToken = TryMatch(TokenType.Const);
 
-            if (!Lookahead("", TokenType.OpenParen))
+            if (!Lookahead("", TokenType.LeftParen))
                 return ParseVariableDefinition(importToken, exportToken, constToken,true);
             if (constToken != null)
             {
@@ -155,7 +159,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseAttributeDeclaration()
         {
-            if (Match(TokenType.LSquareBracket, "Attribute expected '['") != ParseAction.Matched)
+            if (Match(TokenType.LeftBracket, "Attribute expected '['") != ParseAction.Matched)
                 return null;
 
             if (!Lookahead("Attribute expected an identifier", TokenType.Identifier))
@@ -168,7 +172,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             ast.Token = id;
 
-            if (Match(TokenType.RSquareBracket, "Attribute expected ']'") != ParseAction.Matched)
+            if (Match(TokenType.RightBracket, "Attribute expected ']'") != ParseAction.Matched)
                 return null;
 
             return ast;
@@ -337,7 +341,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         // parses '[' an optional expression, then ']', then repeats
         Ast ParseArray(bool requireSize)
         {
-            if (!Lookahead("Expected '[' for array", TokenType.LSquareBracket))
+            if (!Lookahead("Expected '[' for array", TokenType.LeftBracket))
                 return null;
             TokenStream.Consume(); // '['
 
@@ -355,7 +359,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 arrayAst.AddChild(expr);
             }
 
-            if (Match(TokenType.RSquareBracket, "array declaration missing closing ']'") !=
+            if (Match(TokenType.RightBracket, "array declaration missing closing ']'") !=
                 ParseAction.Matched)
                 return null;
             return arrayAst;
@@ -391,7 +395,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 }
                 idAsts.Add(new TypedItemAst(nameToken,typeToken));
 
-                while (Lookahead("", TokenType.LSquareBracket))
+                while (Lookahead("", TokenType.LeftBracket))
                 {
                     var arrAst = ParseArray(requireSizes);
                     if (arrAst == null)
@@ -416,11 +420,11 @@ namespace Lomont.ClScript.CompilerLib.Parser
         List<Ast> FunctionHelper(string itemName, bool requireNames)
         {
             // prototype (ret vals) func name (params)
-            if (Match(TokenType.OpenParen, $"function expected {itemName} in '(' and ')'") != ParseAction.Matched)
+            if (Match(TokenType.LeftParen, $"function expected {itemName} in '(' and ')'") != ParseAction.Matched)
                 return null;
 
             Ast items = null;
-            if (!Lookahead("", TokenType.CloseParen))
+            if (!Lookahead("", TokenType.RightParen))
             {
                 // get types
                 items = ParseIdList(null, requireNames, false);
@@ -431,7 +435,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 }
             }
 
-            if (Match(TokenType.CloseParen, $"function expected {itemName} in '(' and ')'") != ParseAction.Matched)
+            if (Match(TokenType.RightParen, $"function expected {itemName} in '(' and ')'") != ParseAction.Matched)
                 return null;
             if (items == null)
                 return new List<Ast>();
@@ -535,7 +539,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             while (TokenStream.Peek(i).TokenType == TokenType.Dot &&
                    TokenStream.Peek(i + 1).TokenType == TokenType.Identifier)
                 i += 2;
-            return TokenStream.Peek(i).TokenType == TokenType.OpenParen;
+            return TokenStream.Peek(i).TokenType == TokenType.LeftParen;
         }
 
         static string[] assignOperators =
@@ -608,9 +612,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             var ast = new TypedItemAst(TokenStream.Consume(), null);
 
-            while (NextTokenOneOf(TokenType.LSquareBracket,TokenType.Dot))
+            while (NextTokenOneOf(TokenType.LeftBracket,TokenType.Dot))
             {
-                if (Lookahead("", TokenType.LSquareBracket))
+                if (Lookahead("", TokenType.LeftBracket))
                 {
                     var arr = ParseArray(true);
                     ast.AddChild(arr);
@@ -853,17 +857,267 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         #region Parse Expression
 
+        static readonly TokenType[] LiteralTokenTypes =
+        {
+            TokenType.BinaryLiteral, TokenType.HexadecimalLiteral, TokenType.DecimalLiteral,
+            TokenType.StringLiteral, TokenType.ByteLiteral, TokenType.FloatLiteral,
+            TokenType.True, TokenType.False
+        };
+
+#if true
+        #region Precedence Climbing
+        // this parser based on
+        // http://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
+
+
+        Ast ParseExpression()
+        {
+            var ast = Exp(0);
+            //if (Lookahead() not EOL or , or ) or??
+            //   error?
+            return ast;
+        }
+
+        Prec[] precedenceTable =
+        {
+            new Prec(12,Assoc.L,BU.U,TokenType.Increment),
+            new Prec(12,Assoc.L,BU.U,TokenType.Decrement),
+            new Prec(12,Assoc.L,BU.B,TokenType.LeftParen),
+            new Prec(12,Assoc.L,BU.B,TokenType.LeftBracket, TokenType.RightBracket),
+            new Prec(12,Assoc.L,BU.B,TokenType.Dot),
+
+            new Prec(11,Assoc.L,BU.U,TokenType.Increment),
+            new Prec(11,Assoc.L,BU.U,TokenType.Decrement),
+            new Prec(11,Assoc.L,BU.U,TokenType.Plus),
+            new Prec(11,Assoc.L,BU.U,TokenType.Minus),
+            new Prec(11,Assoc.L,BU.U,TokenType.Exclamation),
+            new Prec(11,Assoc.L,BU.U,TokenType.Tilde),
+
+            new Prec(10,Assoc.L,BU.B,TokenType.Asterix),
+            new Prec(10,Assoc.L,BU.B,TokenType.Slash),
+            new Prec(10,Assoc.L,BU.B,TokenType.Percent),
+
+
+            new Prec(9,Assoc.L,BU.B,TokenType.Plus),
+            new Prec(9,Assoc.L,BU.B,TokenType.Plus),
+
+            new Prec(8,Assoc.L,BU.B,TokenType.LeftShift),
+            new Prec(8,Assoc.L,BU.B,TokenType.RightShift),
+
+            new Prec(7,Assoc.L,BU.B,TokenType.LeftRotate),
+            new Prec(7,Assoc.L,BU.B,TokenType.RightRotate),
+
+            new Prec(6,Assoc.L,BU.B,TokenType.LessThan),
+            new Prec(6,Assoc.L,BU.B,TokenType.LessThanOrEqual),
+            new Prec(6,Assoc.L,BU.B,TokenType.GreaterThan),
+            new Prec(6,Assoc.L,BU.B,TokenType.GreaterThanOrEqual),
+
+            new Prec(5,Assoc.L,BU.B,TokenType.Compare),
+            new Prec(5,Assoc.L,BU.B,TokenType.NotEqual),
+
+            new Prec(4,Assoc.L,BU.B,TokenType.Ampersand),
+            new Prec(3,Assoc.L,BU.B,TokenType.Caret),
+            new Prec(2,Assoc.L,BU.B,TokenType.Pipe),
+            new Prec(1,Assoc.L,BU.B,TokenType.LogicalAnd),
+            new Prec(0,Assoc.L,BU.B,TokenType.LogicalOr)
+        };
+
+        /* Operator precedence (from C/C++)
+         * 
+         *  high to lowest
+         *  
+         *               description          Associativity   In CLS
+         *  1.  ::       Scope resolution     None            No
+         *  2.  ++       postfix increment    L->R            Yes
+         *      --       postfix decrement
+         *      ()       function call
+         *      []       array dereference
+         *      .        member dereference
+         *      ->       pointer
+         *      static   casts 
+         *  3.  ++       prefix increment     R->L
+         *      --       prefix decrement
+         *      +        unary
+         *      -        unary
+         *      !        logical not
+         *      ~        bitwise not
+         *      (cast)   
+         *      *        pointer
+         *      &        address
+         *      sizeof   
+         *      new, new[]
+         *      delete, delete[]
+         *  4.  .*       C++                  L->R
+         *      ->*
+         *  5.  *                             L->R
+         *      /                             
+         *      %                             
+         *  6.  + addition                    L->R
+         *      -                             
+         *  7.  <<                            L->R
+         *      >>                            
+         *  7.1 <<< left rotate               L->R
+         *      >>> right rotate               
+         *  8.  <                             L->R
+         *      <=                            
+         *      >                             
+         *      >=                            
+         *  9. ==                             
+         *     !=                                
+         * 10. & bitwise and                  L->R      
+         * 11. ^ bitwise xor                  L->R
+         * 12. | bitwise or                   L->R
+         * 13. && logical and                 L->R
+         * 14. || logical or                  L->R
+         * 15. ?: ternary if                  R->L
+         * 16. = assignment                   R->L
+         *     +=
+         *     -=
+         *     *=
+         *     /=
+         *     %=
+         *     <<<=
+         *     >>>=
+         *     <<=
+         *     >>=
+         *     &=
+         *     ^=
+         *     !=
+         * 17. throw                          R->L
+         * 18. , (separator)                  L->R
+         */
+
+
+        enum Assoc
+        {
+            L, // left
+            R  // right
+        }
+
+        enum BU
+        {
+            B, // binary
+            U  // unary
+        }
+
+        class Prec
+        {
+
+            public Prec(int precedence, Assoc assoc, BU bu, TokenType type, TokenType closeType = TokenType.None)
+            {
+                this.type = type;
+                this.precedence = precedence;
+                this.assoc = assoc;
+                this.Bu = bu;
+                this.closeType = closeType;
+            }
+
+            public TokenType type, closeType;
+            public int precedence;
+            public Assoc assoc;
+            public BU Bu;
+        }
+
+        bool NextOp(BU bu, out Prec prec ,out Token token)
+        {
+            prec = null;
+            token = TokenStream.Current;
+            var tt = TokenStream.Current.TokenType;
+            foreach (var item in precedenceTable)
+            {
+                if (item.type == tt && bu == item.Bu)
+                {
+                    prec = item;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
+        Ast Exp(int p)
+        {
+            var t = P();
+            if (t == null)
+            {
+                ErrorMessage("expected expression");
+                return null;
+            }
+
+            Prec prec;
+            Token token;
+            while (NextOp(BU.B, out prec, out token) && prec != null && prec.precedence >= p)
+            {
+                TokenStream.Consume();
+                var q = prec.assoc == Assoc.R ? prec.precedence : 1+prec.precedence;
+                var t1 = Exp(q);
+                if (prec.closeType != TokenType.None &&
+                    Match(prec.closeType, "Expected closing ']'") != ParseAction.Matched)
+                    return null;
+                if (t1 == null)
+                {
+                    ErrorMessage("expected expression");
+                    return null;
+                }
+                t = new ExpressionAst {Token = token, Children = {t,t1}};
+            }
+            return t;
+        }
+
+        Ast P()
+        {
+            Prec prec;
+            Token token;
+            Ast t;
+            NextOp(BU.U, out prec, out token);
+            if (prec != null && prec.Bu == BU.U)
+            {
+                // if next is a unary operator
+                TokenStream.Consume();
+                var q = prec.precedence;
+                t = Exp(q);
+                if (t == null)
+                {
+                    ErrorMessage("expected expression");
+                    return null;
+                }
+                return new ExpressionAst {Token = token, Children = {t}};
+            }
+            else if (token.TokenType == TokenType.LeftParen)
+            {
+                TokenStream.Consume();
+                t = Exp(0);
+                if (t == null)
+                {
+                    ErrorMessage("expected expression");
+                    return null;
+                }
+                if (Match(TokenType.RightParen, "No closing ')'") != ParseAction.Matched)
+                {
+                    return null;
+                }
+                return t;
+            }
+            else if (NextTokenOneOf(LiteralTokenTypes))
+                return new LiteralAst(TokenStream.Consume());
+            else if (Lookahead("",TokenType.Identifier,TokenType.LeftParen))
+                return ParseFunctionCall();
+            //else if (Lookahead("", TokenType.Identifier, TokenType.LeftBracket))
+            //    return ParseArray(todo);
+            else if (Lookahead("", TokenType.Identifier))
+                return new IdentifierAst(TokenStream.Consume());
+
+            ErrorMessage("Expected expression");
+            return null;
+        }
+
+
+        #endregion
+
+#else
         Ast ParseExpression()
         {
             return ParseLogicalOrExpression();
-        }
-
-        bool NextTokenOneOf(params TokenType[] tokenTypes)
-        {
-            var matched = false;
-            foreach (var tokenType in tokenTypes)
-                matched |= Lookahead("", tokenType);
-            return matched;
         }
 
         Ast ExpressionHelper(
@@ -871,6 +1125,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             string leftMessage,
             ParseDelegate rightFunc,
             string rightMessage,
+            bool leftAssociative,
             params TokenType[] midTokens)
         {
             var ast = leftFunc();
@@ -879,6 +1134,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ErrorMessage($"Expected {leftMessage} expression");
                 return null;
             }
+            // todo - associative needs done...
 
             // see if lookahead is ok
             var matched = NextTokenOneOf(midTokens);
@@ -908,7 +1164,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ParseLogicalAndExpression,
                 "logical AND",
                 ParseLogicalOrExpression,
-                "logical OR", TokenType.LogicalOr);
+                "logical OR", 
+                true,
+                TokenType.LogicalOr);
         }
 
         Ast ParseLogicalAndExpression()
@@ -917,7 +1175,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ParseInclusiveOrExpression,
                 "inclusive OR",
                 ParseLogicalAndExpression,
-                "logical AND", TokenType.LogicalAnd);
+                "logical AND", 
+                true,
+                TokenType.LogicalAnd);
         }
 
         Ast ParseInclusiveOrExpression()
@@ -926,7 +1186,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ParseExclusiveOrExpression,
                 "exclusive OR",
                 ParseInclusiveOrExpression,
-                "inclusive OR", TokenType.Pipe);
+                "inclusive OR", 
+                true,
+                TokenType.Pipe);
         }
 
         Ast ParseExclusiveOrExpression()
@@ -935,7 +1197,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ParseAndExpression,
                 "AND",
                 ParseExclusiveOrExpression,
-                "exclusive OR", TokenType.Caret);
+                "exclusive OR", 
+                true,
+                TokenType.Caret);
         }
 
         Ast ParseAndExpression()
@@ -944,7 +1208,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 EqualityExpression,
                 "equality",
                 ParseAndExpression,
-                "AND", TokenType.Ampersand);
+                "AND", 
+                true,
+                TokenType.Ampersand);
         }
 
         Ast EqualityExpression()
@@ -954,6 +1220,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 "relational",
                 EqualityExpression,
                 "equality",
+                true,
                 TokenType.Compare, TokenType.NotEqual
             );
         }
@@ -965,6 +1232,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 "shift",
                 RelationalExpression,
                 "relational",
+                true,
                 TokenType.LessThanOrEqual, TokenType.GreaterThanOrEqual, TokenType.LessThan, TokenType.GreaterThan
             );
         }
@@ -976,6 +1244,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 "rotate",
                 ShiftExpression,
                 "shift",
+                true,
                 TokenType.LeftShift, TokenType.RightShift
             );
         }
@@ -987,6 +1256,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 "additive",
                 RotateExpression,
                 "rotate",
+                true,
                 TokenType.LeftRotate, TokenType.RightRotate
             );
         }
@@ -998,6 +1268,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 "multiplicative",
                 AdditiveExpression,
                 "additive",
+                true,
                 TokenType.Plus, TokenType.Minus
             );
         }
@@ -1009,6 +1280,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 "unary",
                 MultiplicativeExpression,
                 "multiplicative",
+                true,
                 TokenType.Asterix, TokenType.Slash, TokenType.Percent
             );
         }
@@ -1054,7 +1326,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             var suffixes = new List<Ast>();
             while (true)
             {
-                if (Lookahead("", TokenType.LSquareBracket))
+                if (Lookahead("", TokenType.LeftBracket))
                 {
                     var arrAst = ParseArray(true);
                     suffixes.Add(arrAst);
@@ -1091,7 +1363,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (Lookahead("", TokenType.Identifier))
                 return new IdentifierAst(TokenStream.Consume());
             // must be ( expr )
-            if (Match(TokenType.OpenParen, "expected '(' followed by expression") != ParseAction.Matched)
+            if (Match(TokenType.LeftParen, "expected '(' followed by expression") != ParseAction.Matched)
                 return null;
             ast = ParseExpression();
             if (ast == null)
@@ -1099,17 +1371,11 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 ErrorMessage("Expected expression after '('");
                 return null;
             }
-            if (Match(TokenType.CloseParen, "expected ')' following expression") != ParseAction.Matched)
+            if (Match(TokenType.RightParen, "expected ')' following expression") != ParseAction.Matched)
                 return null;
             return ast;
         }
 
-        static readonly TokenType[] LiteralTokenTypes =
-        {
-            TokenType.BinaryLiteral, TokenType.HexadecimalLiteral, TokenType.DecimalLiteral,
-            TokenType.StringLiteral, TokenType.ByteLiteral, TokenType.FloatLiteral,
-            TokenType.True, TokenType.False
-        };
 
         Ast LiteralExpression()
         {
@@ -1118,36 +1384,38 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return null;
         }
 
+#endif
         Ast ParseFunctionCall()
         {
             Ast idAst;
             if ((idAst = ParseOrError(ParseScopedId, "Expected function call")) == null)
                 return null;
-            if (!Lookahead("Expected '(' for function call",TokenType.OpenParen))
+            if (!Lookahead("Expected '(' for function call", TokenType.LeftParen))
                 return null;
             TokenStream.Consume(); // '('
             var parameters = ParseExpressionList(0);
-            if (Match(TokenType.CloseParen, "Expected ')' to close function call") != ParseAction.Matched)
+            if (Match(TokenType.RightParen, "Expected ')' to close function call") != ParseAction.Matched)
                 return null;
             return new FunctionCallAst(idAst.Token, parameters);
         }
-
         Ast ParseScopedId()
         {
-            return ParseList<HelperAst>(TokenType.Identifier, "Expected identifier", 
-                1, 
+            return ParseList<HelperAst>(TokenType.Identifier, "Expected identifier",
+                1,
                 (a, n) =>
                 {
                     if (n.Token == null)
                         n.Token = a.Token;
                     else
                         n.Token = new Token(
-                            n.Token.TokenType, 
+                            n.Token.TokenType,
                             n.Token.TokenValue + "." + a.Token.TokenValue,
                             n.Token.Position);
                 },
                 TokenType.Dot);
         }
+
+
 
         #endregion
 
@@ -1156,6 +1424,14 @@ namespace Lomont.ClScript.CompilerLib.Parser
         #region Helpers
 
         delegate Ast ParseDelegate();
+
+        bool NextTokenOneOf(params TokenType[] tokenTypes)
+        {
+            var matched = false;
+            foreach (var tokenType in tokenTypes)
+                matched |= Lookahead("", tokenType);
+            return matched;
+        }
 
         // try to parse, if nothing, rollback internals
         Ast TryParse(ParseDelegate func)
@@ -1225,7 +1501,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             }
         }
 
-        #region New helpers - error methods
+#region New helpers - error methods
 
         // match sequence of things, if all match, create type, and 
         // populate with items marked with keep
@@ -1446,10 +1722,10 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
 
 
-        #endregion
+#endregion
 
 
-        #endregion
+#endregion
 
     }
 }

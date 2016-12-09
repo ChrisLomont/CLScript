@@ -983,6 +983,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return (int) v;
         }
 
+
         InternalType ProcessBinaryExpression(ExpressionAst node)
         {
             var left  = node.Children[0] as ExpressionAst;
@@ -990,6 +991,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             if (left == null || right == null)
                 throw new InternalFailure("Expected ExpressionAst");
+
+            if (node.Token.TokenType == TokenType.LeftBracket)
+                return DereferenceArray(node,left,right);
 
             if (left.Type != right.Type)
             {
@@ -1000,7 +1004,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             foreach (var entry in binaryActionTable)
             {
                 if (entry.actionType == node.Token.TokenType &&
-                    entry.leftValueType == left.Type.SymbolType &&
+                    entry.leftValueType  == left.Type.SymbolType &&
                     entry.rightValueType == right.Type.SymbolType
                     )
                 {
@@ -1010,13 +1014,44 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     if (entry.result != SymbolType.MatchAny)
                         node.Type = mgr.TypeManager.GetType(entry.result);
                     else
-                        node.Type = left.Type; // so far left and right same
+                        node.Type = left.Type; // left and right same here
                     return node.Type;
                 }
             }
             env.Error($"Binary operator {node} cannot be applied to left {left} and {right}");
             return null;
         }
+
+        // do type checking on array dereference, return type
+        InternalType DereferenceArray(ExpressionAst node, ExpressionAst left, ExpressionAst right)
+        {
+            // left must be array type, right must be type Int32 or byte
+            if (!left.Type.ArrayDimensions.Any())
+            {
+                env.Error($"Cannot apply array dereference '[' ']' to non-array {left}");
+                return null;
+            }
+
+            if (right.Type != mgr.TypeManager.GetType(SymbolType.Byte) &&
+                right.Type != mgr.TypeManager.GetType(SymbolType.Int32) &&
+                right.Type != mgr.TypeManager.GetType(SymbolType.EnumValue)
+            )
+            {
+                env.Error($"Array dereference {node} needs integral array index {right}");
+                return null;
+            }
+
+            // costly, but need array dim here...
+            var arrd = new List<int>();
+            for (var i = 0; i < left.Type.ArrayDimensions.Count - 1; ++i)
+                arrd.Add(left.Type.ArrayDimensions[i]);
+            return mgr.TypeManager.GetType(
+                left.Type.SymbolType,
+                arrd,
+                left.Type.UserTypeName
+            );
+        }
+
 
         #endregion 
 

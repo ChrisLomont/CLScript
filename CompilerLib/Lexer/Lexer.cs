@@ -148,10 +148,10 @@ namespace Lomont.ClScript.CompilerLib.Lexer
 
 
                 // single char
-                new MatchKeyword(TokenType.LSquareBracket, "["),
-                new MatchKeyword(TokenType.RSquareBracket, "]"),
-                new MatchKeyword(TokenType.OpenParen, "("),
-                new MatchKeyword(TokenType.CloseParen, ")"),
+                new MatchKeyword(TokenType.LeftBracket, "["),
+                new MatchKeyword(TokenType.RightBracket, "]"),
+                new MatchKeyword(TokenType.LeftParen, "("),
+                new MatchKeyword(TokenType.RightParen, ")"),
 
                 new MatchKeyword(TokenType.Equals, "="),
                 new MatchKeyword(TokenType.GreaterThan, ">"),

@@ -85,10 +85,10 @@ namespace Lomont.ClScript.CompilerLib
         Identifier,
 
         // single chars
-        LSquareBracket,
-        RSquareBracket,
-        OpenParen,
-        CloseParen,
+        LeftBracket,
+        RightBracket,
+        LeftParen,
+        RightParen,
 
         Equals,
         GreaterThan,
