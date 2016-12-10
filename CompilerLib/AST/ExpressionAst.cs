@@ -19,13 +19,13 @@ namespace Lomont.ClScript.CompilerLib.AST
 
             var msg = "";
             if (BoolValue.HasValue)
-                msg += $"<{BoolValue.Value}>";
+                msg += $"={BoolValue.Value}";
             if (ByteValue.HasValue)
-                msg += $"<{ByteValue.Value}>";
+                msg += $"={ByteValue.Value}";
             if (IntValue.HasValue)
-                msg += $"<{IntValue.Value}>";
+                msg += $"={IntValue.Value}";
             if (FloatValue.HasValue)
-                msg += $"<{FloatValue.Value}>";
+                msg += $"={FloatValue.Value}";
 
             return Format(msg);
         }

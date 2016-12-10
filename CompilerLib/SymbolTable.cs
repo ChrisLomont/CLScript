@@ -263,7 +263,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <param name="table"></param>
         /// <param name="symbol"></param>
         /// <returns></returns>
-        SymbolEntry Lookup(SymbolTable table, string symbol)
+        public SymbolEntry Lookup(SymbolTable table, string symbol)
         {
             if (table == null) return null;
             foreach (var entry in table.Entries)

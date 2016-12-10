@@ -19,7 +19,47 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         public void Start(Ast ast)
         {
+            // remap for pretty printing
+            var sw = new StringWriter();
+            var temp = output;
+            output = sw;
+
+            // header
+            output.WriteLine("AST node :: token :: TokenType :: Type :: Value/Base type :: const/import/export");
+
+            // recurse tree
             Visit(ast, "" , true);
+            output = temp;
+            
+            // align items
+            Align(sw.ToString().Split('\n'));
+        }
+
+        void Align(string[] lines)
+        {
+            // get column sizes
+            var cols = new List<int>();
+            foreach (var line in lines)
+            {
+                var words = line.Split(new string[] {"::"}, StringSplitOptions.None);
+                while (cols.Count < words.Length)
+                    cols.Add(0);
+                for (var i = 0; i < words.Length; ++i)
+                    cols[i] = Math.Max(cols[i], words[i].Length);
+            }
+
+            // output
+            foreach (var line in lines)
+            {
+                var words = line.Split(new string[] {"::"}, StringSplitOptions.None);
+                for (var i = 0; i < words.Length; ++i)
+                {
+                    var w = words[i].Replace("\r", "");
+                    var format = $"{{0,-{cols[i] + 2}}}";
+                    output.Write(String.Format(format,w));
+                }
+                output.WriteLine();
+            }
         }
 
 

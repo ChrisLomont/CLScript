@@ -610,14 +610,15 @@ namespace Lomont.ClScript.CompilerLib.Parser
             // initial item
             if (!Lookahead("Expected identifier in assignment", TokenType.Identifier))
                 return null;
-            var ast = new TypedItemAst(TokenStream.Consume(), null);
+            Ast ast = new TypedItemAst(TokenStream.Consume(), null);
 
             while (NextTokenOneOf(TokenType.LeftBracket,TokenType.Dot))
             {
                 if (Lookahead("", TokenType.LeftBracket))
                 {
                     var arr = ParseArray(true);
-                    ast.AddChild(arr);
+                    arr.AddChild(ast);
+                    ast = arr;
                 }
 
                 else if (Lookahead("", TokenType.Dot))
@@ -627,7 +628,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     if (!Lookahead("Expected identifier in assignment", TokenType.Identifier))
                         return null;
                     var id = TokenStream.Consume();
-                    ast.AddChild(new DotAst(id));
+                    var dd = new DotAst(id);
+                    dd.AddChild(ast);
+                    ast = dd;
                 }
             }
             return ast;
@@ -878,13 +881,13 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return ast;
         }
 
-        Prec[] precedenceTable =
+        readonly Prec[] precedenceTable =
         {
             new Prec(12,Assoc.L,BU.U,TokenType.Increment),
             new Prec(12,Assoc.L,BU.U,TokenType.Decrement),
             new Prec(12,Assoc.L,BU.B,TokenType.LeftParen),
-            new Prec(12,Assoc.L,BU.B,TokenType.LeftBracket, TokenType.RightBracket),
-            new Prec(12,Assoc.L,BU.B,TokenType.Dot),
+            new Prec(12,Assoc.L,BU.U,TokenType.LeftBracket),
+            new Prec(12,Assoc.L,BU.U,TokenType.Dot),
 
             new Prec(11,Assoc.L,BU.U,TokenType.Increment),
             new Prec(11,Assoc.L,BU.U,TokenType.Decrement),
@@ -1003,16 +1006,15 @@ namespace Lomont.ClScript.CompilerLib.Parser
         class Prec
         {
 
-            public Prec(int precedence, Assoc assoc, BU bu, TokenType type, TokenType closeType = TokenType.None)
+            public Prec(int precedence, Assoc assoc, BU bu, TokenType tokenType)
             {
-                this.type = type;
+                this.tokenType = tokenType;
                 this.precedence = precedence;
                 this.assoc = assoc;
                 this.Bu = bu;
-                this.closeType = closeType;
             }
 
-            public TokenType type, closeType;
+            public TokenType tokenType;
             public int precedence;
             public Assoc assoc;
             public BU Bu;
@@ -1025,7 +1027,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             var tt = TokenStream.Current.TokenType;
             foreach (var item in precedenceTable)
             {
-                if (item.type == tt && bu == item.Bu)
+                if (item.tokenType == tt && bu == item.Bu)
                 {
                     prec = item;
                     return true;
@@ -1051,9 +1053,6 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 TokenStream.Consume();
                 var q = prec.assoc == Assoc.R ? prec.precedence : 1+prec.precedence;
                 var t1 = Exp(q);
-                if (prec.closeType != TokenType.None &&
-                    Match(prec.closeType, "Expected closing ']'") != ParseAction.Matched)
-                    return null;
                 if (t1 == null)
                 {
                     ErrorMessage("expected expression");
@@ -1105,8 +1104,8 @@ namespace Lomont.ClScript.CompilerLib.Parser
             //else if (Lookahead("", TokenType.Identifier, TokenType.LeftBracket))
             //    return ParseArray(todo);
             else if (Lookahead("", TokenType.Identifier))
-                return new IdentifierAst(TokenStream.Consume());
-
+                return ParseAssignItem();
+                //return new IdentifierAst(TokenStream.Consume());
             ErrorMessage("Expected expression");
             return null;
         }
@@ -1398,6 +1397,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             return new FunctionCallAst(idAst.Token, parameters);
         }
+
         Ast ParseScopedId()
         {
             return ParseList<HelperAst>(TokenType.Identifier, "Expected identifier",

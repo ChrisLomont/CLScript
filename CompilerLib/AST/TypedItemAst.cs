@@ -26,7 +26,7 @@ namespace Lomont.ClScript.CompilerLib.AST
 
         public override string ToString()
         {
-            return Format($"({Name}:{BaseTypeToken?.TokenValue}) {ImportToken} {ExportToken} {ConstToken}");
+            return Format($"({BaseTypeToken?.TokenValue}) :: ({ImportToken?.Format(false)} {ExportToken?.Format(false)} {ConstToken?.Format(false)})");
         }
     }
 }

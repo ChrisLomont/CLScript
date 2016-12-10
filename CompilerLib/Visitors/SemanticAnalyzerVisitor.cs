@@ -56,20 +56,57 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         void Recurse(Ast node)
         {
+            var recurseChildren = true;
             mgr.EnterAst(node);
 
             // for statement loop variable needs set here, before children processed
             if (node is BlockAst && node.Parent is ForStatementAst)
                 ProcessForStatement((ForStatementAst)(node.Parent));
 
-            // recurse children
-            foreach (var child in node.Children)
-                Recurse(child);
+            // special case: '.' cannot have right child resolved in usual way...
+            //if (node is ExpressionAst && node.Token.TokenType == TokenType.Dot)
+            //{
+            //    ProcessDot(node as ExpressionAst);
+            //    recurseChildren = false;
+            //}
+
+
+
+            if (recurseChildren)
+            {
+                // recurse children
+                foreach (var child in node.Children)
+                    Recurse(child);
+            }
 
             // adds type info, does type checking
             ProcessTypeForNode(node);
 
             mgr.ExitAst(node);
+        }
+
+        void ProcessDot(ExpressionAst node)
+        {
+            if (node.Children.Count != 2 || node.Token.TokenType != TokenType.Dot)
+            {
+                env.Error($"Dereference '.' ast node malformed {node}");
+                return;
+            }
+            
+            // get type for this one
+            Recurse(node.Children[0]);
+
+            // do children of other (should be none?)
+            foreach (var child in node.Children[1].Children)
+                Recurse(child);
+
+            // now set the type and symbol of the right one
+            var tbl = mgr.GetTableWithScope(node.Children[0].Type.UserTypeName);
+            var symbol = mgr.Lookup(tbl, node.Children[1].Token.TokenValue);
+            node.Children[1].Type = symbol.Type;
+
+            // and set the type of this one
+            node.Type = symbol.Type;
         }
 
 
@@ -994,6 +1031,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             if (node.Token.TokenType == TokenType.LeftBracket)
                 return DereferenceArray(node,left,right);
+            if (node.Token.TokenType == TokenType.Dot)
+            {
+                if (node.Type == null)
+                    throw new InternalFailure($"Dereference node {node} should already be typed");
+                return node.Type; // done elsewhere
+            }
 
             if (left.Type != right.Type)
             {

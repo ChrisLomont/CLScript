@@ -22,13 +22,20 @@ namespace Lomont.ClScript.CompilerLib
         public string TokenValue;
         public CharacterPosition Position;
 
-        public override string ToString()
+        public string Format(bool showValue = true)
         {
             var v = TokenValue;
             if (TokenType == TokenType.EndOfLine)
                 v = "\\n";
             var msg = $"[{TokenType}, {Position.LineNumber}:{Position.LinePosition}-{Position.LinePosition + TokenValue.Length}]";
-            return $"({v}) : {msg}";
+            if (showValue)
+                return $"({v}) :: {msg}";
+            return msg;
+        }
+
+        public override string ToString()
+        {
+            return Format();
         }
     }
 

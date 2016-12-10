@@ -17,7 +17,7 @@ namespace Lomont.ClScript.CompilerLib.AST
 
         public override string ToString()
         {
-            return $"{base.ToString()} : {ImportToken} {ExportToken}";
+            return $"{base.ToString()} :: ({ImportToken?.Format(false)} {ExportToken?.Format(false)})";
         }
     }
 }

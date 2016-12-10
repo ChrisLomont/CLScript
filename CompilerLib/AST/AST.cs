@@ -36,9 +36,7 @@ namespace Lomont.ClScript.CompilerLib.AST
         {
             var typeStr = Type == null ? "" : $" <{Type}>";
 
-            return this.GetType().Name + $"{typeStr} {insertion} {Token}" 
-                   // Children.Aggregate("", (acc, ast) => acc + " " + ast) + 
-                   ;
+            return $"{this.GetType().Name.Replace("Ast", "")} :: {Token} :: {typeStr} :: {insertion}";
         }
 
         public override string ToString()
