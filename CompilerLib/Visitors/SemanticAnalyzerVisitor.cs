@@ -23,6 +23,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
          * Resolving types of unknown items - such as for loop variables, etc...
          * 
          * Also fills in values of enums, memory item sizes, etc
+         * 
+         * TODO 
+         * 1. check globals have values
+         * 2. array sizes must be constant
+         * 
          */
 
         public SemanticAnalyzerVisitor(Environment environment)
@@ -63,15 +68,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node is BlockAst && node.Parent is ForStatementAst)
                 ProcessForStatement((ForStatementAst)(node.Parent));
 
-            // special case: '.' cannot have right child resolved in usual way...
-            //if (node is ExpressionAst && node.Token.TokenType == TokenType.Dot)
-            //{
-            //    ProcessDot(node as ExpressionAst);
-            //    recurseChildren = false;
-            //}
-
-
-
             if (recurseChildren)
             {
                 // recurse children
@@ -83,30 +79,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             ProcessTypeForNode(node);
 
             mgr.ExitAst(node);
-        }
-
-        void ProcessDot(ExpressionAst node)
-        {
-            if (node.Children.Count != 2 || node.Token.TokenType != TokenType.Dot)
-            {
-                env.Error($"Dereference '.' ast node malformed {node}");
-                return;
-            }
-            
-            // get type for this one
-            Recurse(node.Children[0]);
-
-            // do children of other (should be none?)
-            foreach (var child in node.Children[1].Children)
-                Recurse(child);
-
-            // now set the type and symbol of the right one
-            var tbl = mgr.GetTableWithScope(node.Children[0].Type.UserTypeName);
-            var symbol = mgr.Lookup(tbl, node.Children[1].Token.TokenValue);
-            node.Children[1].Type = symbol.Type;
-
-            // and set the type of this one
-            node.Type = symbol.Type;
         }
 
 
@@ -130,6 +102,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 typeName = ((TypedItemAst) node).Name;
             else if (node is LiteralAst)
                 symbolType = ProcessLiteral(node as LiteralAst, env);
+            else if (node is ArrayAst)
+                internalType = ProcessArray(node as ArrayAst);
+            else if (node is DotAst)
+                internalType = ProcessDot(node as DotAst);
             //else if (node is AssignItemAst)
             //    internalType = ProcessAssignItem((AssignItemAst)node);
             else if (node is AssignStatementAst)
@@ -170,6 +146,82 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     node.Type = type1;
             }
         }
+
+        InternalType ProcessDot(DotAst node)
+        {
+            if (node.Children.Count != 1)
+            {
+                env.Error($"Dot ast malformed {node}");
+                return null;
+            }
+            // get type of child
+            var type = node.Children[0].Type;
+            if (type == null)
+            {
+                env.Error($"Dot ast missing child type {node}");
+                return null;
+            }
+            if (String.IsNullOrEmpty(type.UserTypeName))
+            {
+                env.Error($"Dot ast missing child type {node}");
+                return null;
+            }
+            var symbolName = node.Token.TokenValue;
+            var typeTable = mgr.GetTableWithScope(type.UserTypeName);
+            var symbol = mgr.Lookup(typeTable, symbolName);
+            if (symbol == null)
+            {
+                env.Error($"Dot ast cannot locate symbol {symbolName} in type {type.UserTypeName}");
+                return null;
+            }
+            node.Symbol = symbol;
+            return symbol.Type;
+        }
+
+        // do type checking on array dereference, return type
+        InternalType ProcessArray(ArrayAst node)
+        {
+            if (node.Children.Count == 1)
+                return null; // this is in a definition like i32 a[5]
+
+            if (node.Children.Count != 2)
+            {
+                env.Error($"Array ast malformed {node}");
+                return null;
+            }
+            var indexNode = node.Children[0];
+            var indexType = indexNode.Type;
+            var itemNode = node.Children[1];
+            var itemType = itemNode.Type;
+
+            // item must be array type, right must be type Int32 or byte
+            if (!itemType.ArrayDimensions.Any())
+            {
+                env.Error($"Cannot apply array dereference '[' ']' to non-array {itemNode}");
+                return null;
+            }
+
+            // allowed index types: int32, byte, enum value
+            if (indexType != mgr.TypeManager.GetType(SymbolType.Byte) &&
+                indexType != mgr.TypeManager.GetType(SymbolType.Int32) &&
+                indexType != mgr.TypeManager.GetType(SymbolType.EnumValue)
+            )
+            {
+                env.Error($"Array dereference {node} needs integral array index {indexNode}");
+                return null;
+            }
+
+            // costly, but need array dim here...
+            var arrd = new List<int>();
+            for (var i = 0; i < itemType.ArrayDimensions.Count - 1; ++i)
+                arrd.Add(itemType.ArrayDimensions[i]);
+            return mgr.TypeManager.GetType(
+                itemType.SymbolType,
+                arrd,
+                itemType.UserTypeName
+            );
+        }
+
 
         void ProcessAttribute(AttributeAst node)
         {
@@ -1029,15 +1081,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (left == null || right == null)
                 throw new InternalFailure("Expected ExpressionAst");
 
-            if (node.Token.TokenType == TokenType.LeftBracket)
-                return DereferenceArray(node,left,right);
-            if (node.Token.TokenType == TokenType.Dot)
-            {
-                if (node.Type == null)
-                    throw new InternalFailure($"Dereference node {node} should already be typed");
-                return node.Type; // done elsewhere
-            }
-
             if (left.Type != right.Type)
             {
                 env.Error($"Cannot combine types {left} and {right} via {node}");
@@ -1064,37 +1107,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             env.Error($"Binary operator {node} cannot be applied to left {left} and {right}");
             return null;
         }
-
-        // do type checking on array dereference, return type
-        InternalType DereferenceArray(ExpressionAst node, ExpressionAst left, ExpressionAst right)
-        {
-            // left must be array type, right must be type Int32 or byte
-            if (!left.Type.ArrayDimensions.Any())
-            {
-                env.Error($"Cannot apply array dereference '[' ']' to non-array {left}");
-                return null;
-            }
-
-            if (right.Type != mgr.TypeManager.GetType(SymbolType.Byte) &&
-                right.Type != mgr.TypeManager.GetType(SymbolType.Int32) &&
-                right.Type != mgr.TypeManager.GetType(SymbolType.EnumValue)
-            )
-            {
-                env.Error($"Array dereference {node} needs integral array index {right}");
-                return null;
-            }
-
-            // costly, but need array dim here...
-            var arrd = new List<int>();
-            for (var i = 0; i < left.Type.ArrayDimensions.Count - 1; ++i)
-                arrd.Add(left.Type.ArrayDimensions[i]);
-            return mgr.TypeManager.GetType(
-                left.Type.SymbolType,
-                arrd,
-                left.Type.UserTypeName
-            );
-        }
-
 
         #endregion 
 
