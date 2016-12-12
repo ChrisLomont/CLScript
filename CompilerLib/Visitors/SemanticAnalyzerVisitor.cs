@@ -55,7 +55,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 var attr = pair.Item1 as AttributeAst;
                 var func = pair.Item2 as FunctionDeclarationAst;
                 var symbol = mgr.Lookup(func.Name);
-                symbol.Attributes.Add(new Attribute(attr.Token.TokenValue,attr.Children.Select(c=>((LiteralAst)c).Token.TokenValue)));
+                symbol.Attributes.Add(new Attribute(attr.Name,attr.Children.Select(c=>((LiteralAst)c).Name)));
             }
         }
 
@@ -166,7 +166,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 env.Error($"Dot ast missing child type {node}");
                 return null;
             }
-            var symbolName = node.Token.TokenValue;
+            var symbolName = node.Name;
             var typeTable = mgr.GetTableWithScope(type.UserTypeName);
             var symbol = mgr.Lookup(typeTable, symbolName);
             if (symbol == null)
@@ -292,7 +292,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // set node type to return type, and return it
         InternalType ProcessFunctionCall(FunctionCallAst node)
         {
-            var symbol = mgr.Lookup(node.Token.TokenValue);
+            var symbol = mgr.Lookup(node.Name);
             if (symbol == null)
             {
                 env.Error($"Cannot find function definition for {node}");
@@ -336,7 +336,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             if (node.Children.Count != 2 || !(node.Children[1] is BlockAst))
                 throw new InternalFailure($"For structure invalid {node}");
-            var forVar = mgr.Lookup(node.ForVariable);
+            var forVar = mgr.Lookup(node.Name);
             var bounds = node.Children[0];
             if (bounds is ExpressionListAst)
             { // tuple of 2 or 3 i32
@@ -433,14 +433,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 env.Error($"Function {node} requires a return statement at end.");
         }
 
-        //InternalType ProcessAssignItem(AssignItemAst node)
-        //{
-        //    var symbol = mgr.Lookup(node.Token.TokenValue);
-        //    if (symbol == null)
-        //        env.Error($"Cannot find symbol {node}");
-        //    return symbol?.Type;
-        //}
-
+        // check assignment statements have same number of items and types match
         void CheckAssignments(Ast node, List<InternalType> left, List<InternalType> right)
         {
             // todo - check type symbols exist for user defined
@@ -477,7 +470,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             foreach (var item in items.Children)
             {
                 var asn = item as TypedItemAst;
-                if (asn.Symbol == null)
+                if (asn != null && asn.Symbol == null)
                     asn.Symbol = mgr.Lookup(asn.Name);
             }
         }
@@ -501,7 +494,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         static Int32 ParseInt(Ast node)
         {
-            var text = node.Token.TokenValue;
+            var text = node.Name;
             text = text.Replace("_", ""); // remove underscores
             text = text.ToLower();
             var error = false;
@@ -555,7 +548,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (t == TokenType.FloatLiteral)
             {
                 double v;
-                if (!Double.TryParse(node.Token.TokenValue, out v))
+                if (!Double.TryParse(node.Name, out v))
                     env.Error($"Invalid floating point value {node}");
                 else
                     ((LiteralAst)node).FloatValue = v;
@@ -702,7 +695,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     }
                 }
                 env.Error(
-                    $"Unary operator {node.Token.TokenValue} cannot be applied to type {child.Type.SymbolType}");
+                    $"Unary operator {node.Name} cannot be applied to type {child.Type.SymbolType}");
                 return null;
         }
 

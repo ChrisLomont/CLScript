@@ -510,7 +510,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // call stack: return item space, parameters, then call
 
             // return space
-            var symbol = mgr.Lookup(node.Token.TokenValue);
+            var symbol = mgr.Lookup(node.Name);
             var retSize = symbol.Type.ReturnType.Count;
             if (retSize < 0)
                 throw new InternalFailure($"Return size < 0 {symbol}");
@@ -521,7 +521,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             foreach (var child in node.Children)
                 EmitExpression((ExpressionAst)child);
 
-            EmitS(Opcode.Call, node.Token.TokenValue);
+            EmitS(Opcode.Call, node.Name);
         }
 
         void EmitFunction(FunctionDeclarationAst node)
@@ -597,6 +597,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 if (node is FunctionCallAst)
                     EmitFunctionCall(node as FunctionCallAst);
+                else if (node is ArrayAst)
+                    throw new InternalFailure("Array not yet implemented");
+                else if (node is DotAst)
+                    EmitDot(node as DotAst);
                 else if (node.Children.Count == 2)
                 {
                     EmitExpression((ExpressionAst) node.Children[0]); // do left
@@ -614,11 +618,31 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         ReadValue((node as IdentifierAst).Symbol);
                     else
                         throw new InternalFailure($"ExpressionAst not emitted {node}");
-                    
+
                 }
                 else
                     throw new InternalFailure($"Expression must have 0 to 2 children! {node}");
             }
+        }
+
+        void EmitDot(DotAst node)
+        {
+            var d = node as DotAst;
+            if (d.Children.Count != 1 || !(d.Children[0] is ExpressionAst))
+                throw new InternalFailure("Malformed dot ast {node}");
+
+            // address of item of which to take '.'
+            var c = d.Children[0] as ExpressionAst;
+            EmitExpression(c);
+
+            // type from which to take '.'
+            var type = c.Type;
+            var nameOfOffset = c.Name;
+            var offsetOfType = mgr.GetTypeOffset(type.UserTypeName, nameOfOffset);
+
+            env.Error("EmitDot unfinished");
+
+            //todo
         }
 
         void EmitUnaryOp(ExpressionAst node)
