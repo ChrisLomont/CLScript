@@ -16,6 +16,11 @@ namespace Lomont.ClScript.CompilerLib.AST
         public Ast Parent { get; set; }
 
         /// <summary>
+        /// Get the name associated, which is just the token value
+        /// </summary>
+        public string Name => Token?.TokenValue;
+
+        /// <summary>
         /// Type of this node for type checking
         /// </summary>
         public InternalType Type { get; set; }

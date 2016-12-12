@@ -1137,7 +1137,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     else
                         n.Token = new Token(
                             n.Token.TokenType,
-                            n.Token.TokenValue + "." + a.Token.TokenValue,
+                            n.Name  + "." + a.Name,
                             n.Token.Position);
                 },
                 TokenType.Dot);

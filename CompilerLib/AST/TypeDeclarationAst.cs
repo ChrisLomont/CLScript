@@ -8,6 +8,5 @@ namespace Lomont.ClScript.CompilerLib.AST
 {
     class TypeDeclarationAst : Ast
     {
-        public string Name => Token.TokenValue;
     }
 }

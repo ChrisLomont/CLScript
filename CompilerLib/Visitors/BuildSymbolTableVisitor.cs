@@ -96,7 +96,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node.Parent is ForStatementAst)
             {
                 var forNode = node.Parent as ForStatementAst;
-                var varName = forNode.Token.TokenValue;
+                var varName = forNode.Name;
                 var symbol = mgr.AddSymbol(node.Parent, varName, SymbolType.ToBeResolved, VariableUse.ForLoop);
                 forNode.VariableSymbol = symbol;
             }

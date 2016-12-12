@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
-    class DotAst : Ast
+    class DotAst : ExpressionAst
     {
         public DotAst(Token token)
         {
