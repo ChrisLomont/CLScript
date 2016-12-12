@@ -32,9 +32,9 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public TypeManager TypeManager { get; private set; }
 
-        public SymbolTableManager(Environment env)
+        public SymbolTableManager(Environment environment)
         {
-            environment = env;
+            env = environment;
             RootTable = new SymbolTable(null, GlobalScope);
             tables.Push(RootTable);
             stack.Push(new Tuple<string, bool>(GlobalScope, true));
@@ -95,9 +95,9 @@ namespace Lomont.ClScript.CompilerLib
             {
                 var msg = $"Symbol {symbolName} already defined, {symbol.Node} and {match.Item1.Node}";
                 if (!ReferenceEquals(match.Item2, SymbolTable))
-                    environment.Warning(msg);
+                    env.Warning(msg);
                 else
-                    environment.Error(msg);
+                    env.Error(msg);
             }
             return symbol;
         }
@@ -373,7 +373,7 @@ namespace Lomont.ClScript.CompilerLib
 
         #endregion
 
-        Environment environment;
+        Environment env;
 
         void AddBasicTypes()
         {
@@ -394,6 +394,12 @@ namespace Lomont.ClScript.CompilerLib
         bool onlyScan = false;
 
 
+        // given the name of a type, and the name of a member, get the offset
+        public int GetTypeOffset(string typeName, string offsetName)
+        {
+            env.Error("GetTypeOffset unfinished");
+            return -1;
+        }
     }
 
     public class SymbolTable
