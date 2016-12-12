@@ -617,6 +617,11 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 if (Lookahead("", TokenType.LeftBracket))
                 {
                     var arr = ParseArray(true);
+                    if (arr == null)
+                    {
+                        env.Error($"Could not parse array near {TokenStream.Current}");
+                        return null;
+                    }
                     arr.AddChild(ast);
                     ast = arr;
                 }

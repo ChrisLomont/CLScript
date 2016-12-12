@@ -322,9 +322,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         #region Read/Write variable values and addresses
 
         // write value on stack top into given symbol
+        // value, then address on stack, then write
         void WriteValue(SymbolEntry symbol)
         {
-            LoadAddress(symbol);
             var opType = GetOperandType(symbol);
             EmitT(Opcode.Write, opType);
         }
@@ -592,7 +592,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (node is FunctionCallAst)
                     EmitFunctionCall(node as FunctionCallAst);
                 else if (node is ArrayAst)
-                    throw new InternalFailure("Array not yet implemented");
+                {
+                    EmitArrayAddress(node as ArrayAst);
+                    if (!leaveAddressOnly)
+                        // todo - needs local/global
+                        Emit2(Opcode.Read, OperandType.Global, node.Name); // convert address to value
+                }
                 else if (node is DotAst)
                 {
                     EmitDotAddress(node as DotAst);
@@ -627,6 +632,42 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 else
                     throw new InternalFailure($"Expression must have 0 to 2 children! {node}");
             }
+        }
+
+        void EmitArrayAddress(ArrayAst node)
+        {
+            // todo - optimization: for all that are const, pack the value into offset
+
+            var d = node as ArrayAst;
+            if (d.Children.Count != 2 || !(d.Children[0] is ExpressionAst) || !(d.Children[1] is ExpressionAst))
+                throw new InternalFailure($"Malformed ArrayAst {node}");
+
+            // offset into array
+            var offsetNode = d.Children[0] as ExpressionAst;
+            EmitExpression(offsetNode);
+
+            // node with type being dereferenced
+            var typeNode = d.Children[1] as ExpressionAst;
+
+            // bounds check
+            var arraySize = typeNode.Type.ArrayDimensions.Last();
+            EmitI(Opcode.Push, arraySize);
+            EmitO(Opcode.Bound);
+
+            // array item size
+            var itemSize = node.Type.StackSize;
+            if (itemSize != 1)
+            {
+                // create stack offset
+                EmitI(Opcode.Push,itemSize);
+                EmitT(Opcode.Mul, OperandType.Int32);
+            }
+
+            // address of item from which to take array
+            EmitExpression(typeNode, true);
+
+            // final offset
+            EmitT(Opcode.Add, OperandType.Int32);
         }
 
         // given a dot expression, get the address on the stack

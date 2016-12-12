@@ -41,6 +41,9 @@ namespace Lomont.ClScript.CompilerLib
         Write,              // [BIF] address on stack top, value one underneath, store it. Note addr creates absolute addresses on stack
         Addr,               // [GLC] push physical address of variable. Global/const are absolute, local computed relative to base pointer
 
+        // array
+        Bound,              // [   ] array index I pushed, then array dim D. If I<0 or D <= I then runtime fails, leaves I on stack
+
         // label/branch/call/ret
         Call,               // [   ] relative call address
         Return,             // [   ] two values (parameter entries, local stack entries) for cleaning stack after call

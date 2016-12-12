@@ -307,6 +307,14 @@ namespace Lomont.ClScript.CompilerLib
                     else
                         throw new InternalFailure($"Illegal operand type {opType} in Addr");
                     break;
+               case Opcode.Bound:
+                    // Bound,              // [   ] array index I pushed, then array dim D. If I<0 or D <= I then runtime fails, leaves I on stack
+                    p1 = PopStack(); // max size
+                    p2 = PopStack(); // index
+                    if (p2 < 0 || p1 <= p2)
+                        throw new InternalFailure($"Stack out of bounds {p1} {p2} at address {ProgramCounter}");
+                    PushStack(p2); // put back
+                    break;
 
                 // label/branch/call/ret
                 case Opcode.Call:

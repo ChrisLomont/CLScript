@@ -1,8 +1,23 @@
 // test array and '.' in func locals and global and params
 
-i32 a
-i32 b[10]
-i32 c = b[3]+a
+type t1
+   i32 x,y,z  // size 3 stack
+   
+t1 tt[3],ttt  // size 12, addresses 0-11
+
+i32 a = 1    // address 12
+i32 b[2]     // address 13
+i32 c[3][4]  // address 15, size 12
+
+i32 d = tt[1].z + b[a+3] + c[1][a] + ttt.x + a // address 27
+
+(i32) func()
+   t1 lt
+   lt.x,lt.y,lt.z = 4,5,6
+   return 0
+
+
+
 
 /*
 type t1
