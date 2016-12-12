@@ -37,7 +37,8 @@ namespace Lomont.ClScript.CompilerLib
         // mem   
         // todo - these will need sized to handle byte accesses later
         Load,               // [GLC] push value from memory location onto stack
-        Store,              // [BIF] address on stack top, value one underneath, store it. Note addr creates absolute addresses on stack
+        Read,               // [GLC] Push value onto stack whose address on stack top
+        Write,              // [BIF] address on stack top, value one underneath, store it. Note addr creates absolute addresses on stack
         Addr,               // [GLC] push physical address of variable. Global/const are absolute, local computed relative to base pointer
 
         // label/branch/call/ret

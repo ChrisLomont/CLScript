@@ -1,11 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Emit;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Visitors
@@ -66,6 +60,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 EmitFunction((FunctionDeclarationAst) node);
                 return;
             }
+            else if (node is TypeDeclarationAst)
+                return; // no code emitted for types
             else if (node is IfStatementAst)
             {
                 EmitIfStatement((IfStatementAst) node);
@@ -255,69 +251,69 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // store in variables in reverse order
             for (var i = 0; i < items.Count; ++i)
             {
+                // todo - these can be address expressions such as array, etc...
                 var item = items[items.Count - i - 1];
-                var symbol = (item as TypedItemAst).Symbol;
+                EmitExpression(item as ExpressionAst,true); // address of expression
+
+                var symbol = (item as ExpressionAst).Symbol;
                 var operandType = GetOperandType(symbol);
 
                 // for +=, etc. read var, perform, 
                 // todo - make much shorter, table driven
+                if (assignType != TokenType.Equals)
+                {
+                    EmitO(Opcode.Dup);  // address alreay already there 
+                    Emit2(Opcode.Read, OperandType.Global, symbol.Name); // read it
+                }
                 switch (assignType)
                 {
+                    case TokenType.Equals:
+                        break;
                     case TokenType.AddEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.Add);
                         break;
                     case TokenType.SubEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.Swap);
                         EmitT(Opcode.Sub,operandType);
                         break;
                     case TokenType.MulEq:
-                        ReadValue(symbol);
                         EmitT(Opcode.Mul, operandType);
                         break;
                     case TokenType.DivEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.Swap);
                         EmitT(Opcode.Div, operandType);
                         break;
                     case TokenType.XorEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.Xor);
                         break;
                     case TokenType.AndEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.And);
                         break;
                     case TokenType.OrEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.Or);
                         break;
                     case TokenType.ModEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.Swap);
                         EmitT(Opcode.Mod, operandType);
                         break;
                     case TokenType.RightShiftEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.Swap);
                         EmitT(Opcode.RightShift, operandType);
                         break;
                     case TokenType.LeftShiftEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.Swap);
                         EmitT(Opcode.LeftShift, operandType);
                         break;
                     case TokenType.RightRotateEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.Swap);
                         EmitT(Opcode.RightRotate, operandType);
                         break;
                     case TokenType.LeftRotateEq:
-                        ReadValue(symbol);
                         EmitO(Opcode.Swap);
                         EmitT(Opcode.LeftRotate, operandType);
                         break;
+                    default:
+                        throw new InternalFailure($"Unknown operation {assignType} in AssignHelper");
                 }
                 WriteValue(symbol);
             }
@@ -330,24 +326,20 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             LoadAddress(symbol);
             var opType = GetOperandType(symbol);
-            EmitT(Opcode.Store, opType);
+            EmitT(Opcode.Write, opType);
         }
 
         // Put the value of the variable in the symbol on the stack
-        void ReadValue(SymbolEntry symbol)
+        void LoadValue(SymbolEntry symbol)
         {
-            if (symbol.Type.PassByRef)
-            {
-                LoadAddress(symbol);
-                return;
-            }
-
             if (symbol.VariableUse == VariableUse.Global)
                 Emit2(Opcode.Load, OperandType.Global, symbol.Name, symbol.Address.Value);
             else if (symbol.VariableUse == VariableUse.Local || symbol.VariableUse == VariableUse.ForLoop)
                 Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.Address.Value + callStackSuffixSize);
             else if (symbol.VariableUse == VariableUse.Param)
                 Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.Address.Value - callStackPrefixSize);
+            else if (symbol.VariableUse == VariableUse.Member)
+                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.Address.Value);
             else
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }
@@ -358,11 +350,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (symbol.VariableUse == VariableUse.Global)
                 Emit2(Opcode.Addr, OperandType.Global, symbol.Name, symbol.Address.Value);
             else if (symbol.VariableUse == VariableUse.Local)
-                // todo - this wrong - fix
                 Emit2(Opcode.Addr, OperandType.Local, symbol.Name,  symbol.Address.Value + callStackSuffixSize);
             else if (symbol.VariableUse == VariableUse.Param)
-                // todo - this wrong - fix
                 Emit2(Opcode.Addr, OperandType.Local, symbol.Name,  symbol.Address.Value - callStackPrefixSize);
+            else if (symbol.VariableUse == VariableUse.Member)
+                Emit2(Opcode.Addr, OperandType.Local, symbol.Name, symbol.Address.Value);
             else
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }
@@ -535,12 +527,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var block = node.Children[2] as BlockAst;
             EmitBlock(block);
             if (block.Children.Last().Token.TokenType != TokenType.Return)
-                EmitReturn(null); // last was not a return. Needs one
+                EmitReturn(node); // last was not a return. Needs one
         }
 
         // emit a return. 
         // If node is null, was added at function end, needs no parameters
-        void EmitReturn(JumpStatementAst node)
+        void EmitReturn(Ast node)
         {
             if (node != null)
             {
@@ -566,13 +558,15 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         #region Expression
 
-        // process expression
-        void EmitExpression(ExpressionAst node)
+        // process expression, leaves a value on stack, unless address asked for
+        void EmitExpression(ExpressionAst node, bool leaveAddressOnly = false)
         {
             if (node == null)
                 throw new InternalFailure("Expression node cannot be null");
             if (node.HasValue)
             {
+                if (leaveAddressOnly)
+                    throw new InternalFailure("EmitExpression cannot emit address for const");
                 // emit known value, ignore children
                 switch (node.Type.SymbolType)
                 {
@@ -600,22 +594,32 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 else if (node is ArrayAst)
                     throw new InternalFailure("Array not yet implemented");
                 else if (node is DotAst)
-                    EmitDot(node as DotAst);
+                {
+                    EmitDotAddress(node as DotAst);
+                    if (!leaveAddressOnly)
+                        // todo - needs local/global
+                        Emit2(Opcode.Read,OperandType.Global, node.Name); // convert address to value
+                }
                 else if (node.Children.Count == 2)
                 {
-                    EmitExpression((ExpressionAst) node.Children[0]); // do left
-                    EmitExpression((ExpressionAst) node.Children[1]); // do right
+                    EmitExpression((ExpressionAst) node.Children[0]); // get left value
+                    EmitExpression((ExpressionAst) node.Children[1]); // get right value
                     EmitBinaryOp((ExpressionAst) node); // do operation
                 }
                 else if (node.Children.Count == 1)
                 {
-                    EmitExpression((ExpressionAst) node.Children[0]); // do child
+                    EmitExpression((ExpressionAst) node.Children[0]); // get value
                     EmitUnaryOp((ExpressionAst) node); // do operation
                 }
                 else if (node.Children.Count == 0)
                 {
-                    if (node is IdentifierAst)
-                        ReadValue((node as IdentifierAst).Symbol);
+                    if ((node is IdentifierAst) || (node is TypedItemAst))
+                    {
+                        if (leaveAddressOnly)
+                            LoadAddress(node.Symbol);
+                        else
+                            LoadValue(node.Symbol);
+                    }
                     else
                         throw new InternalFailure($"ExpressionAst not emitted {node}");
 
@@ -625,26 +629,31 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        void EmitDot(DotAst node)
+        // given a dot expression, get the address on the stack
+        void EmitDotAddress(DotAst node)
         {
             var d = node as DotAst;
             if (d.Children.Count != 1 || !(d.Children[0] is ExpressionAst))
-                throw new InternalFailure("Malformed dot ast {node}");
+                throw new InternalFailure($"Malformed dot ast {node}");
+
+            // todo - optimization: for all that are const, pack the value into offset
 
             // address of item of which to take '.'
             var c = d.Children[0] as ExpressionAst;
-            EmitExpression(c);
+            EmitExpression(c,true);
 
             // type from which to take '.'
             var type = c.Type;
-            var nameOfOffset = c.Name;
+            var nameOfOffset = node.Name;
             var offsetOfType = mgr.GetTypeOffset(type.UserTypeName, nameOfOffset);
-
-            env.Error("EmitDot unfinished");
-
-            //todo
+            if (offsetOfType != 0)
+            { // compute offset
+                Emit2(Opcode.Push, OperandType.Int32, nameOfOffset, offsetOfType);
+                EmitO(Opcode.Add);
+            }
         }
 
+        // given value on stack, and unary operation, evaluate the operation
         void EmitUnaryOp(ExpressionAst node)
         {
             switch (node.Token.TokenType)
@@ -732,6 +741,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         };
 
 
+        // given two values on stack, emit the binary operation on them
+        // leaves value on stack
         void EmitBinaryOp(ExpressionAst node)
         {
             foreach (var entry in binTbl)

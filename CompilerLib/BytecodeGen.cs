@@ -216,7 +216,8 @@ namespace Lomont.ClScript.CompilerLib
 
                 // nothing to do for these
                 case Opcode.Dup:
-                case Opcode.Store:
+                case Opcode.Read: 
+                case Opcode.Write: 
                 case Opcode.Pop:
                 case Opcode.Nop:
                 case Opcode.Swap:

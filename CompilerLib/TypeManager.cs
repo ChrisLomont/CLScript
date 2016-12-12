@@ -158,7 +158,7 @@ namespace Lomont.ClScript.CompilerLib
 
         string FormatType(bool showSizes)
         {
-            var sizeText = ByteSize >= 0 ? ":" + ByteSize.ToString() + ":" : "";
+            var sizeText = ByteSize >= 0 ? "," + ByteSize : "";
             if (showSizes == false)
                 sizeText = "";
             //return $"{h.Symbol},[{h.ArrayDimension}],{h.Text}";

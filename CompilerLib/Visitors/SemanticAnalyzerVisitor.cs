@@ -99,7 +99,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 ((IdentifierAst) node).Symbol = mgr.Lookup(typeName);
             }
             else if (node is TypedItemAst && !(node.Parent.Parent is FunctionDeclarationAst))
+            {
                 typeName = ((TypedItemAst) node).Name;
+                ((TypedItemAst)node).Symbol = mgr.Lookup(typeName);
+            }
             else if (node is LiteralAst)
                 symbolType = ProcessLiteral(node as LiteralAst, env);
             else if (node is ArrayAst)

@@ -263,12 +263,14 @@ namespace Lomont.ClScript.CompilerLib
         /// <param name="table"></param>
         /// <param name="symbol"></param>
         /// <returns></returns>
-        public SymbolEntry Lookup(SymbolTable table, string symbol)
+        public SymbolEntry Lookup(SymbolTable table, string symbol, bool noParents = false)
         {
             if (table == null) return null;
             foreach (var entry in table.Entries)
                 if (symbol == entry.Name)
                     return entry;
+            if (noParents)
+                return null;
             return Lookup(table.Parent, symbol);
         }
 
@@ -395,9 +397,20 @@ namespace Lomont.ClScript.CompilerLib
 
 
         // given the name of a type, and the name of a member, get the offset
-        public int GetTypeOffset(string typeName, string offsetName)
+        public int GetTypeOffset(string typeName, string memberName)
         {
-            env.Error("GetTypeOffset unfinished");
+            var r = RootTable;
+            foreach (var c in r.Children)
+            {
+                if (c.Scope == NestScope(GlobalScope, typeName))
+                {
+                    var s = Lookup(c, memberName, true);
+                    if (s?.Address != null)
+                        return s.Address.Value;
+                    break;
+                }
+            }
+            env.Error($"GetTypeOffset did not find member {memberName} in type {typeName}");
             return -1;
         }
     }

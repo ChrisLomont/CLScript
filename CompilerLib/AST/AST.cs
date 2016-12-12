@@ -39,7 +39,7 @@ namespace Lomont.ClScript.CompilerLib.AST
         // allows derived nodes to insert some info
         protected string Format(string insertion)
         {
-            var typeStr = Type == null ? "" : $" <{Type}>";
+            var typeStr = Type == null ? "" : $"<{Type}>";
 
             return $"{this.GetType().Name.Replace("Ast", "")} :: {Token} :: {typeStr} :: {insertion}";
         }

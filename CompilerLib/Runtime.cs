@@ -279,15 +279,24 @@ namespace Lomont.ClScript.CompilerLib
                     else if (opType == OperandType.Local)
                         PushStack(ReadRam(p1 + BasePointer, "Load"));
                     else
-                        throw new InternalFailure("Store optype {opType} unsupported");
+                        throw new InternalFailure($"Write optype {opType} unsupported");
                     break;
-                case Opcode.Store:
+                case Opcode.Read:
+                    p1 = ReadCodeItem(OperandType.Int32); // address
+                    if (opType == OperandType.Global)
+                        PushStack(ReadRam(p1, "Read"));
+                    else if (opType == OperandType.Local)
+                        PushStack(ReadRam(p1 + BasePointer, "Read"));
+                    else
+                        throw new InternalFailure($"Read optype {opType} unsupported");
+                    break;
+                case Opcode.Write:
                     p1 = PopStack();
                     p2 = PopStack();
                     // todo - store byte if byte sized
                     if (opType == OperandType.Float32 || opType == OperandType.Int32)
-                        WriteRam(p1, p2, "Store");
-                    else throw new InternalFailure("Store optype {opType} unsupported");
+                        WriteRam(p1, p2, "Write");
+                    else throw new InternalFailure($"Write optype {opType} unsupported");
                     break;
                 case Opcode.Addr:
                     p1 = ReadCodeItem(OperandType.Int32);
@@ -296,7 +305,7 @@ namespace Lomont.ClScript.CompilerLib
                     else if (opType == OperandType.Global)
                         PushStack(p1);
                     else
-                        throw new InternalFailure("Illegal operand type in Addr");
+                        throw new InternalFailure($"Illegal operand type {opType} in Addr");
                     break;
 
                 // label/branch/call/ret

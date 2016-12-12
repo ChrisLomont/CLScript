@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
-    class TypedItemAst : Ast
+    class TypedItemAst : ExpressionAst
     {
         public Token ImportToken { get; set; }
         public Token ExportToken { get; set; }
@@ -19,8 +19,6 @@ namespace Lomont.ClScript.CompilerLib.AST
         }
 
         public Token BaseTypeToken;
-
-        public SymbolEntry Symbol { get; set; }
 
         public override string ToString()
         {

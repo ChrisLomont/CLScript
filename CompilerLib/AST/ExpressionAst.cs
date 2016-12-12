@@ -14,6 +14,9 @@ namespace Lomont.ClScript.CompilerLib.AST
         public Double? FloatValue { get; set; }
         public bool HasValue => FloatValue.HasValue || IntValue.HasValue || BoolValue.HasValue || ByteValue.HasValue;
 
+        // some espressions have an associated symbol 
+        public SymbolEntry Symbol { get; set; }
+
         public override string ToString()
         {
 
