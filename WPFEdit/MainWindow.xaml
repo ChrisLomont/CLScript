@@ -42,19 +42,62 @@
                 ItemsSource="{Binding Messages}"
                 />
         </GroupBox>
-        
-        <GroupBox 
-            DockPanel.Dock="Right" 
-            Header="Lexer" 
-            Visibility="{Binding ShowLexer, Converter={StaticResource HiddenConverter}}"
-            >
-            <ListBox
-            DockPanel.Dock="Right"
-            ItemsSource="{Binding Tokens}"
-            />
-        </GroupBox>
 
-        <GroupBox DockPanel.Dock="Right" Header="Codegen" 
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <GroupBox Header="Code"
+            Grid.Column="0"
+                      Visibility="{Binding ShowCode, Converter={StaticResource HiddenConverter}}">
+                <avalonEdit:TextEditor 
+            Background="Bisque"
+    xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
+    x:Name="textEditor"
+    FontFamily="Consolas"
+    SyntaxHighlighting="C#"
+    FontSize="10pt"/>
+            </GroupBox>
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
+            <GroupBox Header="AST" 
+            Grid.Column="2"
+            DockPanel.Dock="Right" 
+            Visibility="{Binding ShowAst, Converter={StaticResource HiddenConverter}}"
+            >
+                <avalonEdit:TextEditor 
+                Background="LightCyan"
+                xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
+                x:Name="treeView"
+                FontFamily="Consolas"
+                SyntaxHighlighting="C#"
+                FontSize="10pt"/>
+            </GroupBox>
+            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch" />
+            <GroupBox Header="Symbol table" 
+            Grid.Column="4"
+                  DockPanel.Dock="Right" 
+                  Visibility="{Binding ShowSymbols, Converter={StaticResource HiddenConverter}}">
+                <avalonEdit:TextEditor 
+                Background="Cornsilk"
+                xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
+                x:Name="symbolView"
+                FontFamily="Consolas"
+                SyntaxHighlighting="C#"
+                FontSize="10pt"/>
+            </GroupBox>
+            <GridSplitter Grid.Column="5" Width="5" HorizontalAlignment="Stretch" />
+            <GroupBox Header="Codegen" 
+                      Grid.Column="6"
+                  DockPanel.Dock="Right" 
                   Visibility="{Binding ShowCodegen, Converter={StaticResource HiddenConverter}}">
             <avalonEdit:TextEditor 
                 Background="LightCyan"
@@ -64,41 +107,22 @@
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>
         </GroupBox>
-        <GroupBox DockPanel.Dock="Right" Header="Symbol table" 
-                  Visibility="{Binding ShowSymbols, Converter={StaticResource HiddenConverter}}">
-            <avalonEdit:TextEditor 
-                Background="Cornsilk"
-                xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
-                x:Name="symbolView"
-                FontFamily="Consolas"
-                SyntaxHighlighting="C#"
-                FontSize="10pt"/>
-        </GroupBox>
-
-        <GroupBox 
+            <GridSplitter Grid.Column="7" Width="5" HorizontalAlignment="Stretch" />
+            <GroupBox Header="Lexer" 
+                      Grid.Column="8"
+                      
             DockPanel.Dock="Right" 
-            Header="AST" 
-            Visibility="{Binding ShowAst, Converter={StaticResource HiddenConverter}}"
+            
+            Visibility="{Binding ShowLexer, Converter={StaticResource HiddenConverter}}"
             >
-            <avalonEdit:TextEditor 
-                Background="LightCyan"
-                xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
-                x:Name="treeView"
-                FontFamily="Consolas"
-                SyntaxHighlighting="C#"
-                FontSize="10pt"/>
-        </GroupBox>
+                <ListBox
+            DockPanel.Dock="Right"
+            ItemsSource="{Binding Tokens}"
+            />
+            </GroupBox>
+        </Grid>
 
-        <GroupBox Header="Code"
-                      Visibility="{Binding ShowCode, Converter={StaticResource HiddenConverter}}">
-            <avalonEdit:TextEditor 
-            Grid.Column="0"
-            Background="Bisque"
-    xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
-    x:Name="textEditor"
-    FontFamily="Consolas"
-    SyntaxHighlighting="C#"
-    FontSize="10pt"/>
-                </GroupBox>
+
+
     </DockPanel>
 </Window>
