@@ -148,8 +148,8 @@ namespace Lomont.ClScript.CompilerLib
                 }
                 foreach (var dim in t.ArrayDimensions)
                 {
-                    stackSize += Runtime.ArrayHeaderSize + stackSize*dim;
-                    byteSize  += Runtime.ArrayHeaderSize*4 + byteSize*dim;
+                    stackSize = Runtime.ArrayHeaderSize + stackSize*dim;
+                    byteSize  = Runtime.ArrayHeaderSize*4 + byteSize*dim;
                 }
                 if (byteSize > 0)
                 {
@@ -457,7 +457,7 @@ namespace Lomont.ClScript.CompilerLib
 
         public void Dump(TextWriter output, string indent)
         {
-            output.WriteLine($"{indent}Symbol Table Scope: {Scope} :{StackEntries}:");
+            output.WriteLine($"{indent}Symbol Table : {Scope} : stack {StackEntries}:");
             foreach (var entry in Entries)
                 output.WriteLine(indent+entry);
             output.WriteLine($"{indent}****************************");
@@ -530,7 +530,7 @@ namespace Lomont.ClScript.CompilerLib
             foreach (var attr in Attributes)
                 attributes += attr.ToString();
 
-            return $"{name,-12} {flags,-3} {value,-8} {addr,-8} {VariableUse,-6} {Type,-15} {attributes} ";
+            return $"name:{name,-8} flags:{flags,-3} val:{value,-4} addr:{addr,-4} Use:{VariableUse,-6} Type:{Type,-15} Attr:{attributes} ";
         }
     }
 

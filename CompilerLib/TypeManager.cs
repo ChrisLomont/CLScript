@@ -158,15 +158,21 @@ namespace Lomont.ClScript.CompilerLib
 
         string FormatType(bool showSizes)
         {
-            var sizeText = ByteSize >= 0 ? "," + ByteSize : "";
+            var sizeText = ByteSize >= 0 ? 
+                $",{ByteSize}b,{StackSize}s"
+                : "";
             if (showSizes == false)
                 sizeText = "";
             //return $"{h.Symbol},[{h.ArrayDimension}],{h.Text}";
             if (SymbolType == SymbolType.Function)
             {
                 var ret = FormatTypeList(ReturnType);
+                if (String.IsNullOrEmpty(ret))
+                    ret = "()";
                 var par = FormatTypeList(ParamsType);
-                return $"{SymbolType} {par} => {ret}";
+                if (String.IsNullOrEmpty(par))
+                    par = "()";
+                return $"{par} => {ret}";
             }
             //if (h.ArrayDimension == 0)
             //    return h.Symbol.ToString();

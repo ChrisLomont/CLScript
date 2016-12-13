@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.Serialization;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Visitors
@@ -181,7 +182,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var symbolType = GetSymbolType(node.BaseTypeToken.TokenType);
             var userName = "";
             if (symbolType == SymbolType.ToBeResolved)
-            { // replace with type name
+            {
+                // replace with type name
                 symbolType = SymbolType.UserType1;
                 userName = node.BaseTypeToken.TokenValue;
             }
@@ -189,30 +191,52 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             List<int> arrayDimensions = null;
 
             if (node.Children.Any())
-            {   // walk down array list to get dimensions
-                arrayDimensions = new List<int>();
-                Ast current = node;
-                while (current.Children.Any())
+            {
+                Ast arrayAst = node.Children[0] as ArrayAst;
+                // walk down array list to get dimensions
+                while (true)
                 {
-                    var arrChild = current.Children[0] as ArrayAst;
-                    if (arrChild == null || arrChild.Children.Count != 1)
+                    if (arrayAst == null || 2 < arrayAst.Children.Count)
                         throw new InternalFailure($"Array formed incorrectly {node}");
+                    if (arrayDimensions == null)
+                        arrayDimensions = new List<int>();
 
-                    var exprChild = arrChild.Children[0] as ExpressionAst;
+                    // some arrays have size, such as declarations, others have no size specified, such as function parameters
+                    // children can therefore be: expression , expression + array , array, none
 
-                    // todo - eval const, enum, expr before this.... or do in semantic.... or how to do?
-                    if (exprChild is LiteralAst)
-                        SemanticAnalyzerVisitor.ProcessLiteral(exprChild as LiteralAst, environment);
+                    // get dimension (1 if none present)
+                    var dim = 0;
+                    var count = arrayAst.Children.Count;
+                    if (count > 0 && !(arrayAst.Children[0] is ArrayAst))
+                    {
+                        // not array, must be an constant expression
+                        var exprChild = arrayAst.Children[0] as ExpressionAst;
 
-                    if (exprChild == null || !exprChild.HasValue || !exprChild.IntValue.HasValue)
-                        environment.Error($"Array size {arrChild} not constant");
+                        // todo - eval const, enum, expr before this.... or do in semantic.... or how to do?
+                        if (exprChild is LiteralAst)
+                            SemanticAnalyzerVisitor.ProcessLiteral(exprChild as LiteralAst, environment);
+
+                        if (exprChild == null || !exprChild.HasValue || !exprChild.IntValue.HasValue)
+                            environment.Error($"Array size {arrayAst} not constant");
+                        else
+                            dim = exprChild.IntValue.Value;
+                    }
                     else
-                        arrayDimensions.Add(exprChild.IntValue.Value);
-                    current = arrChild;
+                        dim = 1; // todo - check parent hits a FunctionDeclarationAst before a BlockAst
+
+                    arrayDimensions.Add(dim);
+
+                    // get next array if present
+                    if (count == 1 && arrayAst.Children[0] is ArrayAst)
+                        arrayAst = arrayAst.Children[0] as ArrayAst;
+                    else if (count == 2 && arrayAst.Children[1] is ArrayAst)
+                        arrayAst = arrayAst.Children[1] as ArrayAst;
+                    else
+                        break; // done
                 }
             }
 
-            return mgr.TypeManager.GetType(symbolType, arrayDimensions,userName);
+            return mgr.TypeManager.GetType(symbolType, arrayDimensions, userName);
         }
 
         void AddTypedItem(TypedItemAst node, VariableUse usage)
@@ -238,6 +262,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 itemType.UserTypeName, 
                 null, null);
             node.Symbol = s;
+            node.Type = itemType;
         }
     }
 }
