@@ -1,26 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Security.Principal;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Xml;
-using System.Xml.Serialization;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Visitors
 {
     // build symbol tables, attached to nodes
+    // attaches types when possible to nodes
     class BuildSymbolTableVisitor
     {
-        public Environment environment;
+        public Environment env;
         public SymbolTableManager mgr;
 
-        public BuildSymbolTableVisitor(Environment environment1)
+        public BuildSymbolTableVisitor(Environment environment)
         {
-            environment = environment1;
-            mgr = new SymbolTableManager(environment);
+            env = environment;
+            mgr = new SymbolTableManager(env);
         }
 
         public SymbolTableManager BuildTable(Ast ast)
@@ -47,7 +41,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is ReturnValuesAst)
                 return; // these have no names, not added to symbol table
             else if (node is ParameterListAst)
-                return; // these added to symbol table during block
+                return; // these added to symbol table during function block
             else if (node is EnumAst)
                 mgr.AddSymbol(node, ((EnumAst)node).Name, SymbolType.Enum, VariableUse.None);
             else if (node is EnumValueAst)
@@ -57,7 +51,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is ModuleAst)
                 mgr.AddSymbol(node, ((ModuleAst) node).Name, SymbolType.Module, VariableUse.None);
 
-            // todo - handle: attribute?
+            // todo - handle: attributes?
 
             mgr.EnterAst(node);
 
@@ -73,7 +67,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         // determine use of this variable
-        static VariableUse NodeVariableType(Ast node)
+        public static VariableUse NodeVariableType(Ast node)
         {
             var p = node.Parent;
             while (p != null)
@@ -112,9 +106,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 foreach (var item in par.Children)
                     AddTypedItem(item as TypedItemAst, VariableUse.Param);
             }
-            
         }
 
+        // get list of types, used for function parameter and return lists
         List<InternalType> ParseTypelist(List<Ast> nodes)
         {
             var list = new List<InternalType>();
@@ -214,10 +208,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
                         // todo - eval const, enum, expr before this.... or do in semantic.... or how to do?
                         if (exprChild is LiteralAst)
-                            SemanticAnalyzerVisitor.ProcessLiteral(exprChild as LiteralAst, environment);
+                            SemanticAnalyzerVisitor.ProcessLiteral(exprChild as LiteralAst, env);
 
                         if (exprChild == null || !exprChild.HasValue || !exprChild.IntValue.HasValue)
-                            environment.Error($"Array size {arrayAst} not constant");
+                            env.Error($"Array size {arrayAst} not constant");
                         else
                             dim = exprChild.IntValue.Value;
                     }

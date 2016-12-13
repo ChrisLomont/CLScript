@@ -68,6 +68,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node is BlockAst && node.Parent is ForStatementAst)
                 ProcessForStatement((ForStatementAst)(node.Parent));
 
+            if (node is TypedItemAst && node.Children.Any())
+            {
+                // do not do children. This is a type definition, and should already be typed
+                var ti = (TypedItemAst) node;
+                if (ti.Type == null || ti.Symbol == null)
+                    throw new InternalFailure($"TypedItemAst {node} not filled in.");
+                recurseChildren = false;
+            }
+
+            if (node is ParameterListAst || node is ReturnValuesAst)
+                recurseChildren = false; // no semantics to check - syntax was enough, and checking causes later problems
+
             if (recurseChildren)
             {
                 // recurse children
@@ -109,8 +121,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 internalType = ProcessArray(node as ArrayAst);
             else if (node is DotAst)
                 internalType = ProcessDot(node as DotAst);
-            //else if (node is AssignItemAst)
-            //    internalType = ProcessAssignItem((AssignItemAst)node);
             else if (node is AssignStatementAst)
                 ProcessAssignment((AssignStatementAst) node);
             else if (node is VariableDefinitionAst)
