@@ -129,27 +129,27 @@ namespace Lomont.ClScript.CompilerLib
             // fill in basic types in type table
             foreach (var t in TypeManager.Types)
             {
-                var byteSize = 0; // size in packed bytes
+                var byteSize  = 0; // size in packed bytes
                 var stackSize = 0; // size on stack
                 switch (t.SymbolType)
                 {
                     case SymbolType.Byte:
                     case SymbolType.Bool:
-                        byteSize = 1;
+                        byteSize  = 1;
                         stackSize = 1; // one entry
                         break;
                     case SymbolType.String:
                     case SymbolType.EnumValue:
                     case SymbolType.Float32:
                     case SymbolType.Int32:
-                        byteSize = 4;
+                        byteSize  = 4;
                         stackSize = 1; // one entry
                         break;
                 }
                 foreach (var dim in t.ArrayDimensions)
                 {
-                    byteSize *= dim;
-                    stackSize *= dim;
+                    stackSize += Runtime.ArrayHeaderSize + stackSize*dim;
+                    byteSize  += Runtime.ArrayHeaderSize*4 + byteSize*dim;
                 }
                 if (byteSize > 0)
                 {

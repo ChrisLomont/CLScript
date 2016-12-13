@@ -42,7 +42,9 @@ namespace Lomont.ClScript.CompilerLib
         Addr,               // [GLC] push physical address of variable. Global/const are absolute, local computed relative to base pointer
 
         // array
-        Bound,              // [   ] array index I pushed, then array dim D. If I<0 or D <= I then runtime fails, leaves I on stack
+        Array,              // [   ] checked array access: takes k indices on stack, reverse order, then address of array, 
+                            //       k is in code after opcode. Then computes address of item, checking bounds along the way
+                            //       Array in memory has length at position -1, and a stack size of rest in -2 (header size 2)
 
         // label/branch/call/ret
         Call,               // [   ] relative call address

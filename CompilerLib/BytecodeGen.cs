@@ -174,6 +174,7 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.AddStack:
                 case Opcode.Load:
                 case Opcode.Addr:
+                case Opcode.Array:
                 case Opcode.ForStart:
                     Write((uint)((int)inst.Operands[0]), 4);
                     break;
@@ -218,7 +219,6 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Dup:
                 case Opcode.Read: 
                 case Opcode.Write: 
-                case Opcode.Bound:
                 case Opcode.Pop:
                 case Opcode.Nop:
                 case Opcode.Swap:

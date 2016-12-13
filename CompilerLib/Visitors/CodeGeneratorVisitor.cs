@@ -592,19 +592,15 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 if (node is FunctionCallAst)
                     EmitFunctionCall(node as FunctionCallAst);
-                else if (node is ArrayAst)
+                else if (node is ArrayAst || node is DotAst)
                 {
-                    EmitArrayAddress(node as ArrayAst);
+                    if (node is ArrayAst)
+                        EmitArrayAddress(node as ArrayAst);
+                    else
+                        EmitDotAddress(node as DotAst);
                     if (!leaveAddressOnly)
                         // todo - needs local/global
                         Emit2(Opcode.Read, OperandType.Global, node.Name); // convert address to value
-                }
-                else if (node is DotAst)
-                {
-                    EmitDotAddress(node as DotAst);
-                    if (!leaveAddressOnly)
-                        // todo - needs local/global
-                        Emit2(Opcode.Read,OperandType.Global, node.Name); // convert address to value
                 }
                 else if (node.Children.Count == 2)
                 {
@@ -637,38 +633,40 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         void EmitArrayAddress(ArrayAst node)
         {
+            // [   ] checked array access: takes k indices on stack, reverse order, then address of array, 
+            //       k is in code after opcode. Then computes address of item, checking bounds along the way
+            //       Array in memory has length at position -1, and a stack size of rest in -2 (header size 2)
+
             // todo - optimization: for all that are const, pack the value into offset
 
-            var d = node as ArrayAst;
-            if (d.Children.Count != 2 || !(d.Children[0] is ExpressionAst) || !(d.Children[1] is ExpressionAst))
-                throw new InternalFailure($"Malformed ArrayAst {node}");
+            // walk down array dimensions, putting items on stack
+            var k = 0; // number of items
 
-            // offset into array
-            var offsetNode = d.Children[0] as ExpressionAst;
-            EmitExpression(offsetNode);
-
-            // node with type being dereferenced
-            var typeNode = d.Children[1] as ExpressionAst;
-
-            // bounds check
-            var arraySize = typeNode.Type.ArrayDimensions.Last();
-            EmitI(Opcode.Push, arraySize);
-            EmitO(Opcode.Bound);
-
-            // array item size
-            var itemSize = node.Type.StackSize;
-            if (itemSize != 1)
+            Ast d = node;
+            while (d.Children.Count == 2 && d.Children[1] is ArrayAst)
             {
-                // create stack offset
-                EmitI(Opcode.Push,itemSize);
-                EmitT(Opcode.Mul, OperandType.Int32);
+                if (d.Children.Count != 2 || !(d.Children[0] is ExpressionAst) || !(d.Children[1] is ExpressionAst))
+                    throw new InternalFailure($"Malformed ArrayAst {node}");
+
+                ++k;
+
+                // offset into array
+                var offsetNode = d.Children[0] as ExpressionAst;
+                EmitExpression(offsetNode);
+
+                d = d.Children[1]; // next possible array level
+
             }
 
-            // address of item from which to take array
-            EmitExpression(typeNode, true);
+            var ti = d.Children[1] as TypedItemAst;
+            if (ti == null)
+                throw new InternalFailure($"Array needs typed item {d.Children[1]}");
 
-            // final offset
-            EmitT(Opcode.Add, OperandType.Int32);
+            // address of ti
+            LoadAddress(ti.Symbol);
+
+            // emit code to turn all this into an address on stack
+            EmitI(Opcode.Array,k);
         }
 
         // given a dot expression, get the address on the stack

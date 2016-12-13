@@ -50,6 +50,7 @@ namespace Lomont.ClScript.CompilerLib
 
 
         public static int GenVersion = 1; // major.minor nibbles of code
+        public static int ArrayHeaderSize = 2; // in stack entries, these are before array address
 
         // all locals - minimize memory
         #region Locals
@@ -307,13 +308,21 @@ namespace Lomont.ClScript.CompilerLib
                     else
                         throw new InternalFailure($"Illegal operand type {opType} in Addr");
                     break;
-               case Opcode.Bound:
-                    // Bound,              // [   ] array index I pushed, then array dim D. If I<0 or D <= I then runtime fails, leaves I on stack
-                    p1 = PopStack(); // max size
-                    p2 = PopStack(); // index
-                    if (p2 < 0 || p1 <= p2)
-                        throw new InternalFailure($"Stack out of bounds {p1} {p2} at address {ProgramCounter}");
-                    PushStack(p2); // put back
+               case Opcode.Array:
+                    var addr = PopStack(); // current array address
+                    var k = ReadCodeItem(OperandType.Int32); // number of levels
+                    if (k < 1)
+                        throw new InternalFailure($"Array called with non-positive number of indices {k}");
+                    for (var i = 0; i < k; ++i)
+                    {
+                        var bi = PopStack(); // index entry
+                        var maxSize = ReadRam(addr - 1, "Error accessing array size");
+                        if (bi < 0 || maxSize <= bi)
+                            throw new InternalFailure($"Array out of bounds {bi}, max {maxSize}, address {ProgramCounter}");
+                        var nextSize = ReadRam(addr - 2, "Error accessing array stride");
+                        addr += bi*nextSize + ArrayHeaderSize;
+                    }
+                    PushStack(addr);
                     break;
 
                 // label/branch/call/ret
