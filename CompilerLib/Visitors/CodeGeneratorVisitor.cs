@@ -255,15 +255,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 var item = items[items.Count - i - 1];
                 EmitExpression(item as ExpressionAst,true); // address of expression
 
-                var symbol = (item as ExpressionAst).Symbol;
-                var operandType = GetOperandType(symbol);
+                var operandType = GetOperandType(item.Type.SymbolType);
+
+                //var operandType = GetOperandType(symbol);
 
                 // for +=, etc. read var, perform, 
                 // todo - make much shorter, table driven
                 if (assignType != TokenType.Equals)
                 {
                     EmitO(Opcode.Dup);  // address alreay already there 
-                    Emit2(Opcode.Read, OperandType.Global, symbol.Name); // read it
+                    var symbol = (item as ExpressionAst).Symbol;
+                    Emit2(Opcode.Read, OperandType.Global, symbol?.Name); // read it
                 }
                 switch (assignType)
                 {
@@ -315,7 +317,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     default:
                         throw new InternalFailure($"Unknown operation {assignType} in AssignHelper");
                 }
-                WriteValue(symbol);
+                WriteValue(operandType);
             }
         }
 
@@ -323,10 +325,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         // write value on stack top into given symbol
         // value, then address on stack, then write
-        void WriteValue(SymbolEntry symbol)
+        void WriteValue(OperandType operandType)
         {
-            var opType = GetOperandType(symbol);
-            EmitT(Opcode.Write, opType);
+            EmitT(Opcode.Write, operandType);
         }
 
         // Put the value of the variable in the symbol on the stack
@@ -594,13 +595,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     EmitFunctionCall(node as FunctionCallAst);
                 else if (node is ArrayAst || node is DotAst)
                 {
-                    if (node is ArrayAst)
-                        EmitArrayAddress(node as ArrayAst);
-                    else
-                        EmitDotAddress(node as DotAst);
-                    if (!leaveAddressOnly)
-                        // todo - needs local/global
-                        Emit2(Opcode.Read, OperandType.Global, node.Name); // convert address to value
+                    EmitItemAddressOrValue(node, leaveAddressOnly);
                 }
                 else if (node.Children.Count == 2)
                 {
@@ -631,8 +626,22 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
+        // emit expression address. Node is an array or a '.'
+        void EmitItemAddressOrValue(ExpressionAst node, bool leaveAddressOnly)
+        {
+            if (!(node is ArrayAst) && !(node is DotAst))
+                throw new InternalFailure($"Node must be DotAst or ArrayAst {node}");
+
+            //todo
+
+            if (!leaveAddressOnly)
+                // todo - needs local/global
+                Emit2(Opcode.Read, OperandType.Global, node.Name); // convert address to value
+        }
+#if false
         void EmitArrayAddress(ArrayAst node)
         {
+            todo
             // [   ] checked array access: takes k indices on stack, reverse order, then address of array, 
             //       k is in code after opcode. Then computes address of item, checking bounds along the way
             //       Array in memory has length at position -1, and a stack size of rest in -2 (header size 2)
@@ -673,6 +682,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // returns if it is global, local, or param
         void EmitDotAddress(DotAst node)
         {
+            todo
             var d = node as DotAst;
             if (d.Children.Count != 1 || !(d.Children[0] is ExpressionAst))
                 throw new InternalFailure($"Malformed dot ast {node}");
@@ -693,6 +703,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 EmitO(Opcode.Add);
             }
         }
+#endif
 
         // given value on stack, and unary operation, evaluate the operation
         void EmitUnaryOp(ExpressionAst node)
@@ -801,9 +812,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             throw new InternalFailure($"Cannot emit binary op {node}");
         }
 
-        #endregion Expression
+#endregion Expression
 
-        #region Memory Layout
+#region Memory Layout
         void LayoutMemory(Ast node)
         {
             // size each symbol type
@@ -878,7 +889,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // tbl.ParamsSize = paramSize;
         }
 
-        #endregion
+#endregion
 
     }
 }
