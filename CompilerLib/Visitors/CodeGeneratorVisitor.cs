@@ -502,7 +502,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // call stack: return item space, parameters, then call
 
             // return space
-            var symbol = mgr.Lookup(node.Name);
+
+            var symbol = node.Symbol; 
             var retSize = symbol.Type.ReturnType.Count;
             if (retSize < 0)
                 throw new InternalFailure($"Return size < 0 {symbol}");
@@ -671,6 +672,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         // given a dot expression, get the address on the stack
+        // returns if it is global, local, or param
         void EmitDotAddress(DotAst node)
         {
             var d = node as DotAst;

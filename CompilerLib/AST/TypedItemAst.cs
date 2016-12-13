@@ -22,7 +22,10 @@ namespace Lomont.ClScript.CompilerLib.AST
 
         public override string ToString()
         {
-            return Format($"({BaseTypeToken?.TokenValue}) :: ({ImportToken?.Format(false)} {ExportToken?.Format(false)} {ConstToken?.Format(false)})");
+            var bt = "";
+            if (BaseTypeToken != null)
+                bt = $"({BaseTypeToken.TokenValue})";
+            return Format($"{bt} :: {FormatSymbol()} :: ({ImportToken?.Format(false)} {ExportToken?.Format(false)} {ConstToken?.Format(false)})");
         }
     }
 }

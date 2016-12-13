@@ -369,7 +369,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         // if type is null, types are read from the list
         Ast ParseIdList(Token type1, bool requireNames, bool requireSizes)
         {
-            var idAsts = new List<Ast>();
+            var idList = new List<Ast>();
             while (true)
             {
                 Token typeToken = type1;
@@ -393,8 +393,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
                         return null;
                     }
                 }
-                idAsts.Add(new TypedItemAst(nameToken,typeToken));
+                idList.Add(new TypedItemAst(nameToken,typeToken));
 
+                var last = idList.Last();
                 while (Lookahead("", TokenType.LeftBracket))
                 {
                     var arrAst = ParseArray(requireSizes);
@@ -403,14 +404,15 @@ namespace Lomont.ClScript.CompilerLib.Parser
                         ErrorMessage("Expected array");
                         return null;
                     }
-                    idAsts.Last().AddChild(arrAst);
+                    last.AddChild(arrAst);
+                    last = arrAst;
                 }
 
                 if (!Lookahead("", TokenType.Comma))
                     break; // done
                 TokenStream.Consume();
             }
-            return MakeAst(typeof(TypedItemsAst), null, idAsts.ToArray());
+            return MakeAst(typeof(TypedItemsAst), null, idList.ToArray());
 
         }
 
@@ -1126,6 +1128,11 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return null;
             TokenStream.Consume(); // '('
             var parameters = ParseExpressionList(0);
+            if (parameters == null)
+            {
+                ErrorMessage($"Parameter list in function call malformed {TokenStream.Current}");
+                return null;
+            }
             if (Match(TokenType.RightParen, "Expected ')' to close function call") != ParseAction.Matched)
                 return null;
             return new FunctionCallAst(idAst.Token, parameters);

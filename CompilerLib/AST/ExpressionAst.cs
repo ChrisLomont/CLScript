@@ -17,6 +17,13 @@ namespace Lomont.ClScript.CompilerLib.AST
         // some espressions have an associated symbol 
         public SymbolEntry Symbol { get; set; }
 
+        protected string FormatSymbol()
+        {
+            if (Symbol == null)
+                return "";
+            return $"{Symbol.Address} {Symbol.VariableUse}";
+        }
+
         public override string ToString()
         {
 
@@ -30,7 +37,9 @@ namespace Lomont.ClScript.CompilerLib.AST
             if (FloatValue.HasValue)
                 msg += $"={FloatValue.Value}";
 
-            return Format(msg);
+            msg += $":: {FormatSymbol()} ";
+
+        return Format(msg);
         }
     }
 }

@@ -187,23 +187,28 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
 
             List<int> arrayDimensions = null;
+
             if (node.Children.Any())
-            { // for now, only support one array
+            {   // walk down array list to get dimensions
                 arrayDimensions = new List<int>();
-                foreach (var child in node.Children)
+                Ast current = node;
+                while (current.Children.Any())
                 {
-                    var arrChild = child as ArrayAst;
+                    var arrChild = current.Children[0] as ArrayAst;
                     if (arrChild == null || arrChild.Children.Count != 1)
                         throw new InternalFailure($"Array formed incorrectly {node}");
+
                     var exprChild = arrChild.Children[0] as ExpressionAst;
-                    
+
                     // todo - eval const, enum, expr before this.... or do in semantic.... or how to do?
                     if (exprChild is LiteralAst)
                         SemanticAnalyzerVisitor.ProcessLiteral(exprChild as LiteralAst, environment);
+
                     if (exprChild == null || !exprChild.HasValue || !exprChild.IntValue.HasValue)
                         environment.Error($"Array size {arrChild} not constant");
                     else
                         arrayDimensions.Add(exprChild.IntValue.Value);
+                    current = arrChild;
                 }
             }
 

@@ -25,7 +25,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             output = sw;
 
             // header
-            output.WriteLine("AST node :: token :: TokenType :: Type :: Value/Base type :: const/import/export");
+            output.WriteLine("AST node :: token :: TokenType :: Type :: Value/Base type :: symbol :: const/import/export");
 
             // recurse tree
             Visit(ast, "" , true);
