@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Visitors
@@ -136,7 +137,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 // a,b form, var from a to b by c, where c is determined here
                 EmitExpression(exprs.Children[0] as ExpressionAst);
                 EmitExpression(exprs.Children[1] as ExpressionAst);
-                EmitI(Opcode.Push,0);
+                EmitI(Opcode.Push, 0);
             }
             else
             {
@@ -151,7 +152,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 
             // compute for loop start into this spot
-            var forLoopVaribleAddress = node.VariableSymbol.Address.Value+callStackSuffixSize;
+            var forLoopVaribleAddress = node.VariableSymbol.Address.Value + callStackSuffixSize;
             var forLoopVariableName = node.VariableSymbol.Name;
 
             Emit2(Opcode.ForStart, OperandType.None, forLoopVariableName, forLoopVaribleAddress);
@@ -174,7 +175,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else
                 EmitExpression(exprs.Children[1] as ExpressionAst);
 
-            Emit2(Opcode.ForLoop, OperandType.None, forLoopVariableName, forLoopVaribleAddress, startLabel); // update increment, loop if more
+            Emit2(Opcode.ForLoop, OperandType.None, forLoopVariableName, forLoopVaribleAddress, startLabel);
+                // update increment, loop if more
 
             // end of for loop
             EmitS(Opcode.Label, endLabel);
@@ -253,7 +255,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 // todo - these can be address expressions such as array, etc...
                 var item = items[items.Count - i - 1];
-                EmitExpression(item as ExpressionAst,true); // address of expression
+                EmitExpression(item as ExpressionAst, true); // address of expression
 
                 var operandType = GetOperandType(item.Type.SymbolType);
 
@@ -263,7 +265,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 // todo - make much shorter, table driven
                 if (assignType != TokenType.Equals)
                 {
-                    EmitO(Opcode.Dup);  // address alreay already there 
+                    EmitO(Opcode.Dup); // address alreay already there 
                     var symbol = (item as ExpressionAst).Symbol;
                     Emit2(Opcode.Read, OperandType.Global, symbol?.Name); // read it
                 }
@@ -276,7 +278,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         break;
                     case TokenType.SubEq:
                         EmitO(Opcode.Swap);
-                        EmitT(Opcode.Sub,operandType);
+                        EmitT(Opcode.Sub, operandType);
                         break;
                     case TokenType.MulEq:
                         EmitT(Opcode.Mul, operandType);
@@ -351,9 +353,20 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (symbol.VariableUse == VariableUse.Global)
                 Emit2(Opcode.Addr, OperandType.Global, symbol.Name, symbol.Address.Value);
             else if (symbol.VariableUse == VariableUse.Local)
-                Emit2(Opcode.Addr, OperandType.Local, symbol.Name,  symbol.Address.Value + callStackSuffixSize);
+                Emit2(Opcode.Addr, OperandType.Local, symbol.Name, symbol.Address.Value + callStackSuffixSize);
             else if (symbol.VariableUse == VariableUse.Param)
-                Emit2(Opcode.Addr, OperandType.Local, symbol.Name,  symbol.Address.Value - callStackPrefixSize);
+            {
+                if (symbol.Type.PassByRef)
+                {
+                    // address passed in param, copy it
+                    Emit2(Opcode.Push, OperandType.Int32, symbol.Name, symbol.Address.Value - callStackPrefixSize);
+                    Emit2(Opcode.Read, OperandType.Local, symbol.Name);
+                }
+                else
+                { // item value on param stack, get its address
+                    Emit2(Opcode.Addr, OperandType.Local, symbol.Name, symbol.Address.Value - callStackPrefixSize);
+                }
+            }
             else if (symbol.VariableUse == VariableUse.Member)
                 Emit2(Opcode.Addr, OperandType.Local, symbol.Name, symbol.Address.Value);
             else
@@ -399,14 +412,15 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void EmitVariableDef(VariableDefinitionAst node)
         {
             if (node.Children.Count == 2)
-            { // process assignments
+            {
+                // process assignments
                 var items = node.Children[0].Children;
-                var expr  = node.Children[1].Children;
+                var expr = node.Children[1].Children;
                 AssignHelper(items, expr, TokenType.Equals);
             }
         }
 
-        void Emit2(Opcode opcode, OperandType type, string comment, params object [] operands)
+        void Emit2(Opcode opcode, OperandType type, string comment, params object[] operands)
         {
             var inst = new Instruction(opcode, type, comment, operands);
             instructions.Add(inst);
@@ -418,18 +432,21 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var inst = new Instruction(opcode, OperandType.None, "", label);
             instructions.Add(inst);
         }
+
         // emit opcode with integer
         void EmitI(Opcode opcode, int value)
         {
             var inst = new Instruction(opcode, OperandType.Int32, "", value);
             instructions.Add(inst);
         }
+
         // emit opcode only
         void EmitO(Opcode opcode)
         {
             var inst = new Instruction(opcode, OperandType.Int32, "");
             instructions.Add(inst);
         }
+
         // emit opcode and type
         void EmitT(Opcode opcode, OperandType type)
         {
@@ -438,59 +455,60 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         #region Function/Return
-        /* Functions and call stacks
-         * 
-         * Variables passed to and from function in call/return order, i32/byte/float/bool on stack, else address
-         * 
-         * 
-         *    -----------
-         *    |ret val 1|  \
-         *    -----------   \
-         *    |   ...   |    |  space made by caller for return values/addresses
-         *    -----------   /
-         *    |ret val n|  / 
-         *    -----------    
-         *    
-         *    -----------
-         *    | param 1 |  \
-         *    -----------   \
-         *    |   ...   |    | done by caller before call
-         *    -----------   /  
-         *    | param N |  /
-         *    -----------   
-         * 
-         *    -----------  
-         *    | ret addr|  \
-         *    -----------   | done by call instruction, cleaned by ret function
-         *    | base ptr|  /
-         *    -----------    <--- base pointer points here = sp at the time
-         * 
-         *    -----------      
-         *    | local 1 |  \ 
-         *    -----------   \
-         *    |   ...   |    | space saved by callee
-         *    -----------   /
-         *    | local M |  /
-         *    -----------     <----- stack points here
-         *    
-         *    
-         *    Caller then either consumes or cleans stack
-         *    
-         *    To do return a,b,c, push values on stack, call return (which handles copies and cleaning)
-         *    
-         *    return instruction: takes N = # parameters then M = # of stack entries for locals
-         *    Executes:
-         *       n = # return entries        = cur stack - (base pointer + M)
-         *       s = source stack entry      = cur stack - n
-         *       d = dest source stack entry = base pointer - 2 - N - n
-         *       copy n stack entries to return variable locations
-         *       sp <- bp
-         *       bp = pop stack
-         *       r  = pop stack
-         *       pop N entries
-         *       return to address r. 
-         * 
-         */
+
+/* Functions and call stacks
+                                 * 
+                                 * Variables passed to and from function in call/return order, i32/byte/float/bool on stack, else address
+                                 * 
+                                 * 
+                                 *    -----------
+                                 *    |ret val 1|  \
+                                 *    -----------   \
+                                 *    |   ...   |    |  space made by caller for return values/addresses
+                                 *    -----------   /
+                                 *    |ret val n|  / 
+                                 *    -----------    
+                                 *    
+                                 *    -----------
+                                 *    | param 1 |  \
+                                 *    -----------   \
+                                 *    |   ...   |    | done by caller before call
+                                 *    -----------   /  
+                                 *    | param N |  /
+                                 *    -----------   
+                                 * 
+                                 *    -----------  
+                                 *    | ret addr|  \
+                                 *    -----------   | done by call instruction, cleaned by ret function
+                                 *    | base ptr|  /
+                                 *    -----------    <--- base pointer points here = sp at the time
+                                 * 
+                                 *    -----------      
+                                 *    | local 1 |  \ 
+                                 *    -----------   \
+                                 *    |   ...   |    | space saved by callee
+                                 *    -----------   /
+                                 *    | local M |  /
+                                 *    -----------     <----- stack points here
+                                 *    
+                                 *    
+                                 *    Caller then either consumes or cleans stack
+                                 *    
+                                 *    To do return a,b,c, push values on stack, call return (which handles copies and cleaning)
+                                 *    
+                                 *    return instruction: takes N = # parameters then M = # of stack entries for locals
+                                 *    Executes:
+                                 *       n = # return entries        = cur stack - (base pointer + M)
+                                 *       s = source stack entry      = cur stack - n
+                                 *       d = dest source stack entry = base pointer - 2 - N - n
+                                 *       copy n stack entries to return variable locations
+                                 *       sp <- bp
+                                 *       bp = pop stack
+                                 *       r  = pop stack
+                                 *       pop N entries
+                                 *       return to address r. 
+                                 * 
+                                 */
 
         // used to compute spacing later for variable access
         // symbol table addresses are based on base pointer pointing to 
@@ -504,7 +522,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             // return space
 
-            var symbol = node.Symbol; 
+            var symbol = node.Symbol;
             var retSize = symbol.Type.ReturnType.Count;
             if (retSize < 0)
                 throw new InternalFailure($"Return size < 0 {symbol}");
@@ -513,7 +531,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             // basic types passed by value, others by address
             foreach (var child in node.Children)
-                EmitExpression((ExpressionAst)child);
+                EmitExpression((ExpressionAst) child);
 
             EmitS(Opcode.Call, node.Name);
         }
@@ -553,8 +571,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             Emit2(Opcode.Return, OperandType.None, "",
                 func.Symbol.Type.ParamsType.Count,
                 func.SymbolTable.StackEntries
-                );
+            );
         }
+
         #endregion
 
 
@@ -579,7 +598,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         EmitI(Opcode.Push, node.IntValue.Value);
                         break;
                     case SymbolType.Float32:
-                        Emit2(Opcode.Push, OperandType.Float32,"", node.FloatValue.Value);
+                        Emit2(Opcode.Push, OperandType.Float32, "", node.FloatValue.Value);
                         break;
                     case SymbolType.Byte:
                         EmitI(Opcode.Push, node.ByteValue.Value);
@@ -626,14 +645,95 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
+        #region Item Address
+
+        // Structure:
+        // 1. DotAst must have one child of type ArrayAst or TypedItemAst. 
+        // 2. ArrayAst must have 2 children, first is index (LiteralAst or ExpressionAst), second TypedItemAst or ArrayAst or DotAst
+        // 3. TypedItemAst has no children
+        // 
+        // How to evaluate: (goal, compute address of item)
+        // 1. DotAst has field name and type of field, DotAst.child has encloding type
+        // 2. TypedItemAst has a Name, a Type, and a Symbol (for addresses)
+        // 
+        // todo - optimization: for all that are const, pack the value into offset
+
+        void EmitDotAddress(DotAst node)
+        {
+            if (node.Children.Count != 1)
+                throw new InternalFailure($"Malformed dot ast {node}");
+
+            // address of item of which to take '.'
+            var child = node.Children[0] as ExpressionAst;
+            if (child is TypedItemAst)
+                LoadAddress(child.Symbol);
+            else if (child is ArrayAst)
+                EmitArrayAddress(child as ArrayAst, true);
+            else
+                throw new InternalFailure($"Malformed dot ast {node}");
+
+            // type from which to take '.' to get offset
+            var type = child.Type;
+            var nameOfOffset = node.Name;
+            var offsetOfType = mgr.GetTypeOffset(type.UserTypeName, nameOfOffset);
+            if (offsetOfType != 0)
+            {
+                // compute offset
+                Emit2(Opcode.Push, OperandType.Int32, nameOfOffset, offsetOfType);
+                EmitO(Opcode.Add);
+            }
+        }
+
+        void EmitArrayAddress(ArrayAst node, bool leaveAddressOnly)
+        {
+            // [   ] checked array access: takes k indices on stack, reverse order, then address of array, 
+            //       k is in code after opcode. Then computes address of item, checking bounds along the way
+            //       Array in memory has length at position -1, and a stack size of rest in -2 (header size 2)
+
+            // walk down array dimensions, putting index values on stack
+            var k = 0; // number of items
+            // todo - check first level structure
+            Ast current = node;
+            while (current.Children.Count == 2 && current.Children[1] is ArrayAst)
+            {
+                if (current.Children.Count != 2 || !(current.Children[0] is ExpressionAst) || !(current.Children[1] is ExpressionAst))
+                    throw new InternalFailure($"Malformed ArrayAst {node}");
+
+                ++k;
+
+                // offset into array
+                var offsetNode = current.Children[0] as ExpressionAst;
+                EmitExpression(offsetNode);
+
+                current = current.Children[1]; // next possible array level
+            }
+
+            // array address
+            var addr = current.Children[1];
+            if (addr is TypedItemAst)
+                LoadAddress(((ExpressionAst)addr).Symbol);
+            else if (addr is DotAst)
+                EmitDotAddress(addr as DotAst);
+            else
+                throw new InternalFailure($"Array needs typed item {current.Children[1]}");
+
+            // emit code to turn all this into an address on stack
+            EmitI(Opcode.Array, k);
+        }
+
         // emit expression address. Node is an array or a '.'
+        // These items are expressions of form a[1].b[3].c.d[2][1].e
         void EmitItemAddressOrValue(ExpressionAst node, bool leaveAddressOnly)
         {
-            if (!(node is ArrayAst) && !(node is DotAst))
+            if (node is DotAst)
+                EmitDotAddress((DotAst) node);
+            else if (node is ArrayAst)
+                EmitArrayAddress((ArrayAst) node, leaveAddressOnly);
+            else
                 throw new InternalFailure($"Node must be DotAst or ArrayAst {node}");
 
-            //todo
-
+            // todo - eval items if param, global, local, const?
+            // if want value instead of simply address, now get the value from the address
             if (!leaveAddressOnly)
                 // todo - needs local/global
                 Emit2(Opcode.Read, OperandType.Global, node.Name); // convert address to value
@@ -704,6 +804,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 #endif
+        #endregion
 
         // given value on stack, and unary operation, evaluate the operation
         void EmitUnaryOp(ExpressionAst node)
