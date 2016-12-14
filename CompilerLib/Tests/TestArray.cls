@@ -1,7 +1,39 @@
 // test array and '.' in func locals and global and params
 // sizes in stack slots
 
+[Entry]
+(i32) func()
+   i32 a[10]
+   func2(a,10)
+   
+   i32 b = 0
+   for i in 1..10
+      b += a[i-1]
+      
+   return b
+   
+() func2(i32 a[], i32 n)
+    for i in 0..n-1
+       a[i] = i + 1
+   
 
+
+/*
+type t1
+   i32 a,b,c
+
+[Entry]
+(i32) test()
+   i32 a[3]
+   i32 b[2][3]
+   t1 dd[2]
+   for i in 1..10
+      i32 c[2]
+      a[1] += c[1]
+   return a[1]
+*/
+
+/*
 type t1
    i32 x,y,z    // 3
 
@@ -33,6 +65,6 @@ i32 w = 3 + v + t13[1].z + v2[v+3] + v34[1][v+2] + t11.x + t22[1].tt[1].y // add
     m += c[1]
     m += d[1][2]
     return m
-
+*/
 
 // end of file

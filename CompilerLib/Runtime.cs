@@ -45,6 +45,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <returns></returns>
         public bool Run(byte[] image, string entryAttribute)
         {
+            // todo - zero memory in C/C++ style environments
             return RunImage(image, entryAttribute);
         }
 
@@ -308,7 +309,35 @@ namespace Lomont.ClScript.CompilerLib
                     else
                         throw new InternalFailure($"Illegal operand type {opType} in Addr");
                     break;
-               case Opcode.Array:
+                case Opcode.MakeArr:
+                {
+                    var p = ReadCodeItem(OperandType.Int32); // address
+                    if (opType == OperandType.Local)
+                        p += BasePointer;
+                    else if (opType != OperandType.Global)
+                        throw new InternalFailure($"MakeArr optype {opType} unsupported");
+                    var n = ReadCodeItem(OperandType.Int32); // dimension, dims are x1,x2,...,xn
+                    var si = ReadCodeItem(OperandType.Int32);
+                    var m = 1;
+                    for (var i = 0; i < n; ++i)
+                    {
+                        var xi = ReadCodeItem(OperandType.Int32);
+                        if (xi == 0 || ((si - ArrayHeaderSize)%xi) != 0)
+                            throw new InternalFailure($"Array sizes invalid, not divisible {si}/{xi}");
+                        si = (si - ArrayHeaderSize)/xi;
+                        for (var j = 0; j < m; ++j)
+                        {
+                            WriteRam(p + j*si - 1, xi, $"MakeArr dim {xi} position {i + 1} out of bounds");
+                            WriteRam(p + j*si - 2, si, $"MakeArr stride {si} position {i + 1} out of bounds");
+
+                        }
+                        p += ArrayHeaderSize;
+                        m *= xi;
+                    }
+                    break;
+                }
+                case Opcode.Array:
+                {
                     var addr = PopStack(); // current array address
                     var k = ReadCodeItem(OperandType.Int32); // number of levels
                     if (k < 1)
@@ -318,13 +347,14 @@ namespace Lomont.ClScript.CompilerLib
                         var bi = PopStack(); // index entry
                         var maxSize = ReadRam(addr - 1, "Error accessing array size");
                         if (bi < 0 || maxSize <= bi)
-                            throw new InternalFailure($"Array out of bounds {bi}, max {maxSize}, address {ProgramCounter}");
+                            throw new InternalFailure(
+                                $"Array out of bounds {bi}, max {maxSize}, address {ProgramCounter}");
                         var nextSize = ReadRam(addr - 2, "Error accessing array stride");
                         addr += bi*nextSize + ArrayHeaderSize;
                     }
                     PushStack(addr);
                     break;
-
+                }
                 // label/branch/call/ret
                 case Opcode.Call:
                     ProgramCounter += ReadCodeItem(OperandType.Int32); // jump to here

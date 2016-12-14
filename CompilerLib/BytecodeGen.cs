@@ -133,7 +133,7 @@ namespace Lomont.ClScript.CompilerLib
 
             header.AddRange(code);
 
-            for (var i =0; i < 10; ++i)
+            for (var i =0; i < Math.Min(10,code.Count); ++i)
                 env.Info($"Code byte 0x{code[i]:X2}");
 
             CompiledAssembly = header.ToArray();
@@ -169,6 +169,12 @@ namespace Lomont.ClScript.CompilerLib
             // handle parameters
             switch (inst.Opcode)
             {
+                // arbitrary int32 values
+                case Opcode.MakeArr:
+                    foreach (var item in inst.Operands)
+                        Write((uint)((int)item), 4);
+                    break;
+
                 // single int32 operand follows
                 case Opcode.Pick:
                 case Opcode.AddStack:

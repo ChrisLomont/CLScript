@@ -14,15 +14,16 @@ using Lomont.ClScript.CompilerLib.Visitors;
 /* TODO
  *
  *  1. Redo array syntax - only C like, not multidim
- *  2. assignment of complex types needs done
- *  3. const implemented - values in ROM
- *  4. remove warning when type member and global var has same name
+ *  2. Assignment of complex types needs done
+ *  3. Const implemented - values in ROM
+ *  4. Remove warning when type member and global var has same name
  *  5. Output C header for link entries
- *  6. line continues if last non-whitespace is whitespace isolated '\' char
+ *  6. Line continues if last non-whitespace is whitespace isolated '\' char
  *  7. Short circuted booleans
  *  8. Add RuntimeException for things that happen during runtime execution
  *  9. Expression eval right to left - reverse this!
- * 10. code must put array headers on stack
+ * 10. Code must put array headers on stack
+ * 11. Make globals section, binary blob simply loaded into startup memory/stack
  */
 
 namespace Lomont.ClScript.CompilerLib

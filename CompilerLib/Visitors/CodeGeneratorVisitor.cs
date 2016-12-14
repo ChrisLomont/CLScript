@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Lomont.ClScript.CompilerLib.AST;
@@ -87,6 +88,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return; // skip this - atttibute attached to symbol elsewhere
 
             mgr.EnterAst(node);
+
+            if (node is BlockAst)
+                MakeArrays(); // make any array structures
+
+
             // recurse children
             foreach (var child in node.Children)
                 Recurse(child);
@@ -236,6 +242,43 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return $"label_{labelCount}";
         }
 
+        // make arrays for the current symbol table
+        void MakeArrays()
+        {
+            foreach (var entry in mgr.SymbolTable.Entries)
+            {
+                var type = entry.Type;
+                if (entry.VariableUse != VariableUse.Param && type.ArrayDimensions.Any())
+                {
+                    // make this array - do not make them for param
+                    var n = type.ArrayDimensions.Count;// # of dimensions
+
+                    var operands = new List<object>();
+                    operands.Add(LoadAddressAddress(entry)); // address of array to create
+                    operands.Add(n);
+
+                    operands.Add(type.StackSize);
+
+#if true // testing
+                    var size = 1; // assume basic type
+                    if (!String.IsNullOrEmpty(type.UserTypeName))
+                        size = mgr.Lookup(type.UserTypeName).Type.StackSize;
+                    var s = size;
+                    for (var i = 0; i < type.ArrayDimensions.Count; ++i)
+                        s = type.ArrayDimensions[n - i - 1]*s + Runtime.ArrayHeaderSize;
+                    if (s != type.StackSize)
+                        throw new InternalFailure($"Mismatched sizes {s} {type.StackSize}");
+#endif
+                    foreach (var d in type.ArrayDimensions)
+                        operands.Add(d);
+
+                    // create it
+                    var use = entry.VariableUse == VariableUse.Global?OperandType.Global : OperandType.Local;
+                    Emit2(Opcode.MakeArr, use, entry.Name, operands.ToArray());
+                }
+            }
+            EmitO(Opcode.Nop);
+        }
 
         void EmitBlock(BlockAst node)
         {
@@ -347,28 +390,46 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }
 
+        int LoadAddressAddress(SymbolEntry symbol)
+        {
+            if (symbol.VariableUse == VariableUse.Global)
+                return symbol.Address.Value;
+            else if (symbol.VariableUse == VariableUse.Local)
+                return symbol.Address.Value + callStackSuffixSize;
+            else if (symbol.VariableUse == VariableUse.Param)
+                return symbol.Address.Value - callStackPrefixSize;
+            else if (symbol.VariableUse == VariableUse.Member)
+                return symbol.Address.Value;
+            else
+                throw new InternalFailure($"Unsupported address type {symbol}");
+
+        }
+
         // given a symbol, load it's address
         void LoadAddress(SymbolEntry symbol)
         {
+            var addr = LoadAddressAddress(symbol);
+
+
             if (symbol.VariableUse == VariableUse.Global)
-                Emit2(Opcode.Addr, OperandType.Global, symbol.Name, symbol.Address.Value);
+                Emit2(Opcode.Addr, OperandType.Global, symbol.Name, addr);
             else if (symbol.VariableUse == VariableUse.Local)
-                Emit2(Opcode.Addr, OperandType.Local, symbol.Name, symbol.Address.Value + callStackSuffixSize);
+                Emit2(Opcode.Addr, OperandType.Local, symbol.Name, addr);
             else if (symbol.VariableUse == VariableUse.Param)
             {
                 if (symbol.Type.PassByRef)
                 {
                     // address passed in param, copy it
-                    Emit2(Opcode.Push, OperandType.Int32, symbol.Name, symbol.Address.Value - callStackPrefixSize);
+                    Emit2(Opcode.Push, OperandType.Int32, symbol.Name, addr);
                     Emit2(Opcode.Read, OperandType.Local, symbol.Name);
                 }
                 else
                 { // item value on param stack, get its address
-                    Emit2(Opcode.Addr, OperandType.Local, symbol.Name, symbol.Address.Value - callStackPrefixSize);
+                    Emit2(Opcode.Addr, OperandType.Local, symbol.Name, addr);
                 }
             }
             else if (symbol.VariableUse == VariableUse.Member)
-                Emit2(Opcode.Addr, OperandType.Local, symbol.Name, symbol.Address.Value);
+                Emit2(Opcode.Addr, OperandType.Local, symbol.Name, addr);
             else
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }

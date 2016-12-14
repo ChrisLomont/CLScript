@@ -45,6 +45,9 @@ namespace Lomont.ClScript.CompilerLib
         Array,              // [   ] checked array access: takes k indices on stack, reverse order, then address of array, 
                             //       k is in code after opcode. Then computes address of item, checking bounds along the way
                             //       Array in memory has length at position -1, and a stack size of rest in -2 (header size 2)
+        MakeArr,            // [GL ] make an array by filling in values. 
+                            //       values in code, in order: address a, # dims n, s total size, dims in order x1,x2,...,xn
+                            //       total size s is h + x1(h+x2(h+x3...(h+xn*t)..) where t is base type size
 
         // label/branch/call/ret
         Call,               // [   ] relative call address

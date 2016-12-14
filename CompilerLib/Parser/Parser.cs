@@ -908,7 +908,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
 
             new Prec(9,Assoc.L,BU.B,TokenType.Plus),
-            new Prec(9,Assoc.L,BU.B,TokenType.Plus),
+            new Prec(9,Assoc.L,BU.B,TokenType.Minus),
 
             new Prec(8,Assoc.L,BU.B,TokenType.LeftShift),
             new Prec(8,Assoc.L,BU.B,TokenType.RightShift),
