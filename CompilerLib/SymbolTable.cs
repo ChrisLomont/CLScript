@@ -170,8 +170,11 @@ namespace Lomont.ClScript.CompilerLib
                 }
                 if (e.ArrayDimensions != null)
                 {
-                    foreach (var dim in e.ArrayDimensions)
+                    // these must be computed in reverse
+                    var dim1 = e.ArrayDimensions.Count;
+                    for (var i =0; i < dim1; ++i)
                     {
+                        var dim = e.ArrayDimensions[dim1-1-i];
                         stackSize = Runtime.ArrayHeaderSize + stackSize*dim;
                         byteSize = Runtime.ArrayHeaderSize*4 + byteSize*dim;
                     }
@@ -400,6 +403,7 @@ namespace Lomont.ClScript.CompilerLib
 
 
         // given the name of a type, and the name of a member, get the offset
+        // returns ReferenceAddress, not LayoutAddress
         public int GetTypeOffset(string typeName, string memberName)
         {
             var r = RootTable;
@@ -408,8 +412,8 @@ namespace Lomont.ClScript.CompilerLib
                 if (c.Scope == NestScope(GlobalScope, typeName))
                 {
                     var s = Lookup(c, memberName, true);
-                    if (s?.Address != null)
-                        return s.Address.Value;
+                    if (s?.LayoutAddress != null)
+                        return s.ReferenceAddress;
                     break;
                 }
             }
@@ -501,11 +505,32 @@ namespace Lomont.ClScript.CompilerLib
 
         /// <summary>
         /// Address offset if the symbol has a fixed value
+        /// Used in memory layout. For items with a header 
+        /// (arrays, for example), this is where the header starts.
+        /// See ReferenceAddress
         /// </summary>
-        public int? Address { get; set; }
+        public int? LayoutAddress { get; set; }
 
         /// <summary>
-        /// Domensions if array type
+        /// Address offset if the symbol has a fixed value
+        /// Used to reference the variable in code generation layout. 
+        /// For items with a header (arrays, for example), this is past 
+        /// the header. See LayoutAddress.
+        /// </summary>
+        public int ReferenceAddress
+        {
+            get
+            {
+                if (ArrayDimensions != null && ArrayDimensions.Any() && LayoutAddress.HasValue)
+                    return LayoutAddress.Value + Runtime.ArrayHeaderSize;
+                return LayoutAddress ?? -1;
+            }
+        }
+
+
+
+        /// <summary>
+        /// Dimensions if array type
         /// </summary>
         public List<int> ArrayDimensions { get; set; }
 
@@ -551,7 +576,7 @@ namespace Lomont.ClScript.CompilerLib
             if ((Attrib & SymbolAttribute.Import) != SymbolAttribute.None)
                 flags += "i";
             var value = Value.HasValue?Value.ToString():"";
-            var addr  = Address.HasValue ? Address.ToString() : "";
+            var addr  = LayoutAddress.HasValue ? LayoutAddress.ToString() : "";
             var attributes = "";
             foreach (var attr in Attributes)
                 attributes += attr.ToString();

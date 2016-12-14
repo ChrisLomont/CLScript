@@ -14,14 +14,14 @@ namespace Lomont.ClScript.CompilerLib.AST
         public Double? FloatValue { get; set; }
         public bool HasValue => FloatValue.HasValue || IntValue.HasValue || BoolValue.HasValue || ByteValue.HasValue;
 
-        // some espressions have an associated symbol 
+        // some expressions have an associated symbol 
         public SymbolEntry Symbol { get; set; }
 
         protected string FormatSymbol()
         {
             if (Symbol == null)
                 return "";
-            return $"{Symbol.Address} {Symbol.VariableUse}";
+            return $"{Symbol.LayoutAddress} {Symbol.VariableUse}";
         }
 
         public override string ToString()

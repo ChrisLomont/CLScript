@@ -329,11 +329,12 @@ namespace Lomont.ClScript.CompilerLib
                         var xi = ReadCodeItem(OperandType.Int32);
                         if (xi == 0 || ((si - ArrayHeaderSize)%xi) != 0)
                             throw new InternalFailure($"Array sizes invalid, not divisible {si}/{xi}");
+                        var si2 = si;
                         si = (si - ArrayHeaderSize)/xi;
                         for (var j = 0; j < m; ++j)
                         {
-                            WriteRam(p + j*si - 1, xi, $"MakeArr dim {xi} position {i + 1} out of bounds");
-                            WriteRam(p + j*si - 2, si, $"MakeArr stride {si} position {i + 1} out of bounds");
+                            WriteRam(p + j*si2 - 1, xi, $"MakeArr dim {xi} position {i + 1} out of bounds");
+                            WriteRam(p + j*si2 - 2, si, $"MakeArr stride {si} position {i + 1} out of bounds");
 
                         }
                         p += ArrayHeaderSize;
@@ -356,6 +357,8 @@ namespace Lomont.ClScript.CompilerLib
                                 $"Array out of bounds {bi}, max {maxSize}, address {ProgramCounter}");
                         var nextSize = ReadRam(addr - 2, "Error accessing array stride");
                         addr += bi*nextSize;
+                        if (i != k - 1) // add this, except for last frame
+                            addr += ArrayHeaderSize;
                     }
                     PushStack(addr);
                     break;

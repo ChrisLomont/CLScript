@@ -158,7 +158,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 
             // compute for loop start into this spot
-            var forLoopVaribleAddress = node.VariableSymbol.Address.Value + callStackSuffixSize;
+            var forLoopVaribleAddress = node.VariableSymbol.ReferenceAddress + callStackSuffixSize;
             var forLoopVariableName = node.VariableSymbol.Name;
 
             Emit2(Opcode.ForStart, OperandType.None, forLoopVariableName, forLoopVaribleAddress);
@@ -378,13 +378,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void LoadValue(SymbolEntry symbol)
         {
             if (symbol.VariableUse == VariableUse.Global)
-                Emit2(Opcode.Load, OperandType.Global, symbol.Name, symbol.Address.Value);
+                Emit2(Opcode.Load, OperandType.Global, symbol.Name, symbol.ReferenceAddress);
             else if (symbol.VariableUse == VariableUse.Local || symbol.VariableUse == VariableUse.ForLoop)
-                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.Address.Value + callStackSuffixSize);
+                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.ReferenceAddress + callStackSuffixSize);
             else if (symbol.VariableUse == VariableUse.Param)
-                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.Address.Value - callStackPrefixSize);
+                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.ReferenceAddress - callStackPrefixSize);
             else if (symbol.VariableUse == VariableUse.Member)
-                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.Address.Value);
+                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.ReferenceAddress);
             else
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }
@@ -392,13 +392,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         int LoadAddressAddress(SymbolEntry symbol)
         {
             if (symbol.VariableUse == VariableUse.Global)
-                return symbol.Address.Value;
+                return symbol.ReferenceAddress;
             else if (symbol.VariableUse == VariableUse.Local)
-                return symbol.Address.Value + callStackSuffixSize;
+                return symbol.ReferenceAddress + callStackSuffixSize;
             else if (symbol.VariableUse == VariableUse.Param)
-                return symbol.Address.Value - callStackPrefixSize;
+                return symbol.ReferenceAddress - callStackPrefixSize;
             else if (symbol.VariableUse == VariableUse.Member)
-                return symbol.Address.Value;
+                return symbol.ReferenceAddress;
             else
                 throw new InternalFailure($"Unsupported address type {symbol}");
 
@@ -819,74 +819,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // todo - eval items if param, global, local, const?
             // if want value instead of simply address, now get the value from the address
             if (!leaveAddressOnly)
-                Emit2(Opcode.Read, opType, node.Name); // convert address to value
-        }
-#if false
-        void EmitArrayAddress(ArrayAst node)
-        {
-            todo
-            // [   ] checked array access: takes k indices on stack, reverse order, then address of array, 
-            //       k is in code after opcode. Then computes address of item, checking bounds along the way
-            //       Array in memory has length at position -1, and a stack size of rest in -2 (header size 2)
-
-            // todo - optimization: for all that are const, pack the value into offset
-
-            // walk down array dimensions, putting items on stack
-            var k = 0; // number of items
-
-            Ast d = node;
-            while (d.Children.Count == 2 && d.Children[1] is ArrayAst)
             {
-                if (d.Children.Count != 2 || !(d.Children[0] is ExpressionAst) || !(d.Children[1] is ExpressionAst))
-                    throw new InternalFailure($"Malformed ArrayAst {node}");
-
-                ++k;
-
-                // offset into array
-                var offsetNode = d.Children[0] as ExpressionAst;
-                EmitExpression(offsetNode);
-
-                d = d.Children[1]; // next possible array level
-
-            }
-
-            var ti = d.Children[1] as TypedItemAst;
-            if (ti == null)
-                throw new InternalFailure($"Array needs typed item {d.Children[1]}");
-
-            // address of ti
-            LoadAddress(ti.Symbol);
-
-            // emit code to turn all this into an address on stack
-            EmitI(Opcode.Array,k);
-        }
-
-        // given a dot expression, get the address on the stack
-        // returns if it is global, local, or param
-        void EmitDotAddress(DotAst node)
-        {
-            todo
-            var d = node as DotAst;
-            if (d.Children.Count != 1 || !(d.Children[0] is ExpressionAst))
-                throw new InternalFailure($"Malformed dot ast {node}");
-
-            // todo - optimization: for all that are const, pack the value into offset
-
-            // address of item of which to take '.'
-            var c = d.Children[0] as ExpressionAst;
-            EmitExpression(c,true);
-
-            // type from which to take '.'
-            var type = c.Type;
-            var nameOfOffset = node.Name;
-            var offsetOfType = mgr.GetTypeOffset(type.UserTypeName, nameOfOffset);
-            if (offsetOfType != 0)
-            { // compute offset
-                Emit2(Opcode.Push, OperandType.Int32, nameOfOffset, offsetOfType);
-                EmitO(Opcode.Add);
+                // note that at this point, the address on stack is already global 
+                Emit2(Opcode.Read, OperandType.Global, node.Name); // convert address to value
+//                Emit2(Opcode.Read, opType, node.Name); // convert address to value
             }
         }
-#endif
+
         #endregion
 
         // given value on stack, and unary operation, evaluate the operation
@@ -1021,7 +960,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (entry.StackSize < 0)
                     throw new InternalFailure("Stack size not set in Place Locals");
                 total += entry.StackSize;
-                entry.Address += shift;
+                entry.LayoutAddress += shift;
             }
             foreach (var child in table.Children)
                 PlaceLocals(child,total+shift);
@@ -1041,7 +980,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 if (e.VariableUse == VariableUse.Param)
                 {
-                    e.Address = paramSize;
+                    e.LayoutAddress = paramSize;
                     paramSize += 1; // every parameter takes one stack slot
 //                    if (e.Type.PassByRef)
 //                        paramSize += 4;
@@ -1050,12 +989,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 }
                 else if (e.VariableUse == VariableUse.ForLoop)
                 { // todo - rethink this....
-                    e.Address = size; // stores for loop info here
+                    e.LayoutAddress = size; // stores for loop info here
                     size += ForLoopStackSize; 
                 }
                 else
                 {
-                    e.Address = size; // stores here
+                    e.LayoutAddress = size; // stores here
                     size += e.StackSize;
                 }
             }
@@ -1064,7 +1003,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             foreach (var e in tbl.Entries.Where(e => e.ByteSize > 0))
             {
                 if (e.VariableUse == VariableUse.Param)
-                    e.Address = -(paramSize - e.Address.Value);
+                    e.LayoutAddress = -(paramSize - e.LayoutAddress.Value);
             }
  
             // max of child block sizes:
