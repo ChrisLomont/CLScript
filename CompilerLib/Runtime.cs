@@ -95,6 +95,7 @@ namespace Lomont.ClScript.CompilerLib
             }
             if (error)
                 return 0;
+            Trace($"RI:{ramImage1[offset]}");
             return ramImage1[offset];
         }
 
@@ -213,12 +214,16 @@ namespace Lomont.ClScript.CompilerLib
 
             // now entry looks like a Call instruction to the code
 
+            Trace("TRACE: Tracing" + System.Environment.NewLine);
+            Trace("TRACE: PC   Opcode   ?    Operands     SP  BP" + System.Environment.NewLine);
+
             while (!error)
             {
                 if (!Execute())
                     break;
             }
 
+            Trace("TRACE: Stackdump: " + System.Environment.NewLine);
             DumpStack(StackPointer,10);
 
             return error;
@@ -232,6 +237,7 @@ namespace Lomont.ClScript.CompilerLib
         // return true if not ending
         bool Execute()
         {
+            bool retval = true; // assume this not last instruction
             int p1, p2;
             float f1, f2;
 
@@ -240,7 +246,7 @@ namespace Lomont.ClScript.CompilerLib
             OperandType opType = (OperandType)ReadCodeItem(OperandType.Byte);
 
             // trace address, instruction here
-            env.Info($"{ProgramCounter}: {opcode}");
+            Trace($"TRACE: {ProgramCounter,4}: {opcode,-10} {opType,-6} SP:{StackPointer:X4} BP:{BasePointer:X4}  : ");
 
             // handle parameters
             switch (opcode)
@@ -288,7 +294,6 @@ namespace Lomont.ClScript.CompilerLib
                         throw new InternalFailure($"Write optype {opType} unsupported");
                     break;
                 case Opcode.Read:
-                    //p1 = ReadCodeItem(OperandType.Int32); // address
                     p1 = PopStack(); // address
                     if (opType == OperandType.Global)
                         PushStack(ReadRam(p1, "Read"));
@@ -384,7 +389,7 @@ namespace Lomont.ClScript.CompilerLib
                     StackPointer -= p1; // pop this many parameter entries
                     ProgramCounter = retAddress;
                     if (ProgramCounter == returnExitAddress)
-                        return false; // done executing entry function
+                        retval = false; // done executing entry function
                     break;
                 case Opcode.BrFalse:
                     p1 = ReadCodeItem(OperandType.Int32);
@@ -586,12 +591,19 @@ namespace Lomont.ClScript.CompilerLib
                 default:
                     throw new InternalFailure($"Unknown opcode {opcode}");
             }
-            return true;
+            Trace(System.Environment.NewLine);
+            return retval;
         }
 
         #endregion
 
         #region Support
+
+        // tracing messages sent here
+        void Trace(string message)
+        {
+            env.Output.Write(message);
+        }
 
         // Read 0 terminated UTF8 string
         string ReadImageString(int offset)
@@ -632,6 +644,7 @@ namespace Lomont.ClScript.CompilerLib
             }
             else
                 throw new InternalFailure("Unknown operand type in Runtime");
+            //Trace($"CI:{value}");
             return value;
         }
 
