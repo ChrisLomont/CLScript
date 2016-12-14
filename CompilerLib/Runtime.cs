@@ -365,9 +365,10 @@ namespace Lomont.ClScript.CompilerLib
                 }
                 // label/branch/call/ret
                 case Opcode.Call:
-                    ProgramCounter += ReadCodeItem(OperandType.Int32); // jump to here
+                    p1 = ReadCodeItem(OperandType.Int32); // program counter delta
                     PushStack(ProgramCounter); // return to here
                     PushStack(BasePointer); // save this
+                    ProgramCounter += p1; // jump to here
                     BasePointer = StackPointer; // base pointer now points here
                     break;
                 case Opcode.Return:
@@ -380,7 +381,7 @@ namespace Lomont.ClScript.CompilerLib
                     StackPointer = BasePointer;
                     BasePointer = PopStack();
                     var retAddress = PopStack();
-                    StackPointer -= p1; // pop this many
+                    StackPointer -= p1; // pop this many parameter entries
                     ProgramCounter = retAddress;
                     if (ProgramCounter == returnExitAddress)
                         return false; // done executing entry function

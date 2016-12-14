@@ -90,7 +90,7 @@ namespace Lomont.ClScript.CompilerLib
             foreach (var fix in fixups)
             {
                 var target = fix.Item1;     // where fixup is written to
-                var label  = fix.Item2;      // label to go to
+                var label  = fix.Item2;     // label to go to
                 var isRelative = fix.Item3; // is it relative? else absolute
 
                 if (labelAddresses.ContainsKey(label))
@@ -139,10 +139,12 @@ namespace Lomont.ClScript.CompilerLib
             CompiledAssembly = header.ToArray();
         }
 
+        // write code address into target address. 
+        // If isRelative is true, write codeAddress-targetAddress
         void Fixup(int codeAddress, int targetAddress, bool isRelative)
         {
-            var delta = (uint)(isRelative?targetAddress-codeAddress:targetAddress);
-            WriteTo(delta,codeAddress);
+            var delta = (uint)(isRelative?codeAddress - targetAddress: codeAddress);
+            WriteTo(delta,targetAddress);
         }
 
 
@@ -305,7 +307,7 @@ namespace Lomont.ClScript.CompilerLib
             }
         }
 
-        // add a label to fix later, with ther result put here. Adds 4 bytes to output
+        // add a label to fix later, with the result put here. Adds 4 bytes to output
         void AddFixup(string label)
         {
             fixups.Add(new Tuple<int, string, bool>(address, label, true));
