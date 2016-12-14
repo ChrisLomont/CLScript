@@ -246,7 +246,7 @@ namespace Lomont.ClScript.CompilerLib
             OperandType opType = (OperandType)ReadCodeItem(OperandType.Byte);
 
             // trace address, instruction here
-            Trace($"TRACE: {ProgramCounter,4}: {opcode,-10} {opType,-6} SP:{StackPointer:X4} BP:{BasePointer:X4}  : ");
+            Trace($"TRACE: {ProgramCounter:X5}: {opcode,-10} {opType,-6} SP:{StackPointer:X4} BP:{BasePointer:X4}  : ");
 
             // handle parameters
             switch (opcode)
@@ -370,10 +370,10 @@ namespace Lomont.ClScript.CompilerLib
                 }
                 // label/branch/call/ret
                 case Opcode.Call:
-                    p1 = ReadCodeItem(OperandType.Int32); // program counter delta
+                    p1 = ProgramCounter + ReadCodeItem(OperandType.Int32); // new program counter 
                     PushStack(ProgramCounter); // return to here
                     PushStack(BasePointer); // save this
-                    ProgramCounter += p1; // jump to here
+                    ProgramCounter = p1; // jump to here
                     BasePointer = StackPointer; // base pointer now points here
                     break;
                 case Opcode.Return:

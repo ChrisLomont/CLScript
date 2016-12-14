@@ -13,15 +13,15 @@ using Lomont.ClScript.CompilerLib.Visitors;
 
 /* TODO
  *
- *  1. Redo array syntax - only C like, not multidim
+ * DONE 1. Redo array syntax - only C like, not multidim
  *  2. Assignment of complex types needs done
  *  3. Const implemented - values in ROM
  *  4. Remove warning when type member and global var has same name
  *  5. Output C header for link entries
  *  6. Line continues if last non-whitespace is whitespace isolated '\' char
- *  7. Short circuted booleans
+ *  7. Short circuited booleans
  *  8. Add RuntimeException for things that happen during runtime execution
- *  9. Expression eval right to left - reverse this!
+ * DONE 9. Expression eval right to left - reverse this!
  * 10. Code must put array headers on stack
  * 11. Make globals section, binary blob simply loaded into startup memory/stack
  * 12. Need global init code to make stacks (or premake, load buffer)

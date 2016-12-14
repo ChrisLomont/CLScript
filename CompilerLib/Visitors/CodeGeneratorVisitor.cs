@@ -409,7 +409,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             var addr = LoadAddressAddress(symbol);
 
-
             if (symbol.VariableUse == VariableUse.Global)
                 Emit2(Opcode.Addr, OperandType.Global, symbol.Name, addr);
             else if (symbol.VariableUse == VariableUse.Local)
@@ -591,7 +590,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             // basic types passed by value, others by address
             foreach (var child in node.Children)
-                EmitExpression((ExpressionAst) child);
+                EmitExpression((ExpressionAst) child, true);
 
             EmitS(Opcode.Call, node.Name);
         }

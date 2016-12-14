@@ -98,6 +98,9 @@ namespace Lomont.ClScript.CompilerLib
         public object[] Operands { get; private set; }
         public OperandType OperandType { get; private set; }
         public string Comment { get; set; }
+        
+        // address for layout, if exists
+        public int? Address { get; set; }
 
         public Instruction(Opcode opcode, OperandType operandType, string comment, params object[] operands)
         {
@@ -109,6 +112,7 @@ namespace Lomont.ClScript.CompilerLib
 
         public override string ToString()
         {
+            var addressTxt = Address.HasValue?$"0x{Address.Value:X5}":"";
             var opcode = Opcode.ToString();
             if (OperandType == OperandType.Float32)
                 opcode += ".f";
@@ -139,7 +143,7 @@ namespace Lomont.ClScript.CompilerLib
             if (!String.IsNullOrEmpty(Comment))
                 comment = $" ; {Comment}";
 
-            return $"{opcode,-20}{operands,-15}{comment}";
+            return $"{addressTxt}{opcode,-20}{operands,-15}{comment}";
         }
 
     }

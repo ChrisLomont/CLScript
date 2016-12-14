@@ -150,6 +150,7 @@ namespace Lomont.ClScript.CompilerLib
 
         void Encode(Instruction inst)
         {
+            inst.Address = address;
             if (inst.Opcode == Opcode.Label)
             {
                 var label = (string) inst.Operands[0];
