@@ -80,15 +80,16 @@ namespace Lomont.ClScript.CompilerLib
             List<InternalType> paramsType = null
             )
         {
+            var arrayDimension = arrayDimensions?.Count ?? 0;
             var iSymbol = TypeManager.GetType(
                 symbolType,
-                arrayDimensions,
+                arrayDimension,
                 typeName,
                 returnType,
                 paramsType
                 );
 
-            var symbol = SymbolTable.AddSymbol(node, Scope, symbolName, usage, iSymbol);
+            var symbol = SymbolTable.AddSymbol(node, Scope, symbolName, usage, iSymbol, arrayDimensions);
             symbol.Attrib = attrib;
             var match = CheckDuplicate(SymbolTable, symbol);
             if (match != null)
@@ -121,53 +122,21 @@ namespace Lomont.ClScript.CompilerLib
         }
 
         /// <summary>
-        /// Compute type sizes in bytes, filling type size fields
+        /// Compute symbol table sizes in bytes, filling type size fields
         /// </summary>
-        /// <param name="env"></param>
-        public void ComputeSizes(Environment env)
+        /// <param name="environment"></param>
+        public void ComputeSizes(Environment environment)
         {
-            // fill in basic types in type table
-            foreach (var t in TypeManager.Types)
-            {
-                var byteSize  = 0; // size in packed bytes
-                var stackSize = 0; // size on stack
-                switch (t.SymbolType)
-                {
-                    case SymbolType.Byte:
-                    case SymbolType.Bool:
-                        byteSize  = 1;
-                        stackSize = 1; // one entry
-                        break;
-                    case SymbolType.String:
-                    case SymbolType.EnumValue:
-                    case SymbolType.Float32:
-                    case SymbolType.Int32:
-                        byteSize  = 4;
-                        stackSize = 1; // one entry
-                        break;
-                }
-                foreach (var dim in t.ArrayDimensions)
-                {
-                    stackSize = Runtime.ArrayHeaderSize + stackSize*dim;
-                    byteSize  = Runtime.ArrayHeaderSize*4 + byteSize*dim;
-                }
-                if (byteSize > 0)
-                {
-                    t.ByteSize = byteSize;
-                    t.StackSize = stackSize;
-                }
-            }
-
             // loop, trying to size types, requires repeating until nothing else can be done
             while (true)
             {
                 int undone = 0, done = 0;
                 InternalType unsizedType = null;
-                ComputeTypeSizes(RootTable, env, ref done, ref undone, ref unsizedType);
+                ComputeTypeSizes(RootTable, environment, ref done, ref undone, ref unsizedType);
                 if (undone > 0 && done == 0)
                 {
                     // show one that was not resolvable
-                    env.Error($"Could not resolve type sizes {unsizedType}");
+                    environment.Error($"Could not resolve type sizes {unsizedType}");
                     break;
                 }
                 if (undone == 0)
@@ -177,11 +146,45 @@ namespace Lomont.ClScript.CompilerLib
 
         // recurse on tables, adding number sized and number unable to be sized this pass
         // return a type of one that cannot be sized if any
-        void ComputeTypeSizes(SymbolTable table, Environment env, ref int done, ref int undone, ref InternalType type)
+        void ComputeTypeSizes(SymbolTable table, Environment environment, ref int done, ref int undone, ref InternalType type)
         {
-            foreach (
-                var item in table.Entries.Where(t => t.Type.SymbolType == SymbolType.UserType1 && t.Type.ByteSize < 0)
-            )
+            // fill in basic types symbols. These are simple types and arrays of simple types
+            foreach (var e in table.Entries)
+            {
+                var byteSize = 0; // size in packed bytes
+                var stackSize = 0; // size on stack
+                switch (e.Type.SymbolType)
+                {
+                    case SymbolType.Byte:
+                    case SymbolType.Bool:
+                        byteSize = 1;
+                        stackSize = 1; // one entry
+                        break;
+                    case SymbolType.String:
+                    case SymbolType.EnumValue:
+                    case SymbolType.Float32:
+                    case SymbolType.Int32:
+                        byteSize = 4;
+                        stackSize = 1; // one entry
+                        break;
+                }
+                if (e.ArrayDimensions != null)
+                {
+                    foreach (var dim in e.ArrayDimensions)
+                    {
+                        stackSize = Runtime.ArrayHeaderSize + stackSize*dim;
+                        byteSize = Runtime.ArrayHeaderSize*4 + byteSize*dim;
+                    }
+                }
+                if (byteSize > 0)
+                {
+                    e.ByteSize = byteSize;
+                    e.StackSize = stackSize;
+                }
+            }
+
+            // loop over unsized user types
+            foreach (var item in table.Entries.Where(e => e.Type.SymbolType == SymbolType.UserType1 && e.ByteSize < 0))
             {
                 // try to compute size
                 var tbl = GetTableWithScope(item.Type.UserTypeName);
@@ -189,7 +192,7 @@ namespace Lomont.ClScript.CompilerLib
                 {
                     undone++;
                     type = item.Type;
-                    env.Error($"Cannot find symbol table for {item} members");
+                    environment.Error($"Cannot find symbol table for {item} members");
                     return;
                 }
                 var byteSize = 0;
@@ -197,10 +200,10 @@ namespace Lomont.ClScript.CompilerLib
                 var allFound = true;
                 foreach (var e in tbl.Entries)
                 {
-                    if (e.Type.ByteSize > 0)
+                    if (e.ByteSize > 0)
                     {
-                        byteSize += e.Type.ByteSize;
-                        stackSize += e.Type.StackSize;
+                        byteSize += e.ByteSize;
+                        stackSize += e.StackSize;
                     }
                     else
                     {
@@ -211,13 +214,13 @@ namespace Lomont.ClScript.CompilerLib
                 if (allFound)
                 {
                     done++;
-                    foreach (var dim in item.Type.ArrayDimensions)
+                    foreach (var dim in item.ArrayDimensions)
                     {
                         byteSize *= dim;
                         stackSize *= dim;
                     }
-                    item.Type.ByteSize = byteSize; // note this may set multiple types if same member structure
-                    item.Type.StackSize = stackSize;
+                    item.ByteSize = byteSize; // note this may set multiple types if same member structure
+                    item.StackSize = stackSize;
                 }
                 else
                 {
@@ -227,7 +230,7 @@ namespace Lomont.ClScript.CompilerLib
             }
             // recurse on children
             foreach (var child in table.Children)
-                ComputeTypeSizes(child, env, ref done, ref undone, ref type);
+                ComputeTypeSizes(child, environment, ref done, ref undone, ref type);
         }
 
 
@@ -446,10 +449,10 @@ namespace Lomont.ClScript.CompilerLib
             Scope = scope;
         }
 
-        public SymbolEntry AddSymbol(Ast node, string scope, string name, VariableUse usage, InternalType symbolType)
+        public SymbolEntry AddSymbol(Ast node, string scope, string name, VariableUse usage, InternalType symbolType, List<int> arrayDimensions)
         {
             // todo - pass scope in and resolve
-            var entry = new SymbolEntry(node, name, usage, symbolType);
+            var entry = new SymbolEntry(node, name, usage, symbolType, arrayDimensions);
             Entries.Add(entry);
             return entry;
         }
@@ -502,20 +505,43 @@ namespace Lomont.ClScript.CompilerLib
         public int? Address { get; set; }
 
         /// <summary>
+        /// Domensions if array type
+        /// </summary>
+        public List<int> ArrayDimensions { get; set; }
+
+        /// <summary>
         /// Attributes associated with this symbol
         /// </summary>
         public List<Attribute> Attributes { get; set; } = new List<Attribute>();
 
-        public SymbolEntry(Ast node, string name, VariableUse usage, InternalType symbolType)
+        /// <summary>
+        /// size of item in bytes - used for code storage
+        /// -1 when not used or relevant
+        /// </summary>
+        public int ByteSize { get; set; }
+        /// <summary>
+        /// size of item in stack entries - used for local variable storage
+        /// -1 when not used or relevant
+        /// </summary>
+        public int StackSize { get; set; }
+
+
+        public SymbolEntry(Ast node, string name, VariableUse usage, InternalType symbolType, List<int> arrayDimensions)
         {
             Node = node;
             Name = name;
             Type = symbolType;
             VariableUse = usage;
+            ArrayDimensions = arrayDimensions;
+            ByteSize = StackSize = -1; // unused
         }
 
         public override string ToString()
         {
+            var sizeText = ByteSize >= 0 ?
+                $",{ByteSize}b,{StackSize}s"
+                : "";
+
             var name = Name;
             var flags = "";
             if ((Attrib & SymbolAttribute.Const) != SymbolAttribute.None)
@@ -530,7 +556,7 @@ namespace Lomont.ClScript.CompilerLib
             foreach (var attr in Attributes)
                 attributes += attr.ToString();
 
-            return $"name:{name,-8} flags:{flags,-3} val:{value,-4} addr:{addr,-4} Use:{VariableUse,-6} Type:{Type,-15} Attr:{attributes} ";
+            return $"name:{name,-8} flags:{flags,-3} val:{value,-4} addr:{addr,-4} Use:{VariableUse,-6} Type:{Type,-15} Size:{sizeText,-5} Attr:{attributes} ";
         }
     }
 

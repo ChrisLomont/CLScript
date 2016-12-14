@@ -1,6 +1,7 @@
 // test array and '.' in func locals and global and params
 // sizes in stack slots
 
+
 [Entry]
 (i32) func()
    i32 a[10]
@@ -11,11 +12,10 @@
       b += a[i-1]
       
    return b
-   
+
 () func2(i32 a[], i32 n)
     for i in 0..n-1
        a[i] = i + 1
-   
 
 
 /*

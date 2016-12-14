@@ -112,6 +112,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         List<InternalType> ParseTypelist(List<Ast> nodes)
         {
             var list = new List<InternalType>();
+            List<int> arrayDimensions; // results tossed
             for (var i = 0; i < nodes.Count; ++i)
             {
                 var node = nodes[i];
@@ -119,7 +120,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (tItem == null)
                     throw new InternalFailure("Id List internals mismatched");
 
-                list.Add(GetTypedItemType(tItem));
+                list.Add(GetTypedItemType(tItem, out arrayDimensions));
             }
             return list;
         }
@@ -138,7 +139,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node.ExportToken != null)
                 attrib |= SymbolAttribute.Export;
 
-            mgr.AddSymbol(node, node.Name, SymbolType.Function, VariableUse.Param, null, attrib,"",returnType,paramsType);
+            var symbol = mgr.AddSymbol(node, node.Name, SymbolType.Function, VariableUse.Param, null, attrib,"",returnType,paramsType);
+            node.Symbol = symbol;
         }
 
 
@@ -170,8 +172,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 
         // helper function that gets needed items to create types based on a TypedItemAst
-        InternalType GetTypedItemType(TypedItemAst node)
+        InternalType GetTypedItemType(TypedItemAst node, out List<int> arrayDimensions )
         {
+            arrayDimensions = null; 
+
             // typed item has variable name and type name
             var symbolType = GetSymbolType(node.BaseTypeToken.TokenType);
             var userName = "";
@@ -181,8 +185,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 symbolType = SymbolType.UserType1;
                 userName = node.BaseTypeToken.TokenValue;
             }
-
-            List<int> arrayDimensions = null;
 
             if (node.Children.Any())
             {
@@ -230,7 +232,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 }
             }
 
-            return mgr.TypeManager.GetType(symbolType, arrayDimensions, userName);
+            var arrayDimension = arrayDimensions?.Count ?? 0;
+            return mgr.TypeManager.GetType(symbolType, arrayDimension, userName);
         }
 
         void AddTypedItem(TypedItemAst node, VariableUse usage)
@@ -246,15 +249,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node.ExportToken != null)
                 attrib |= SymbolAttribute.Export;
 
-            var itemType = GetTypedItemType(node);
+            List<int> arrayDimensions;
+            var itemType = GetTypedItemType(node, out arrayDimensions);
             var s  = mgr.AddSymbol(node, 
                 node.Name,
                 itemType.SymbolType,
                 usage,
-                itemType.ArrayDimensions,
+                arrayDimensions,
                 attrib, 
                 itemType.UserTypeName, 
                 null, null);
+
             node.Symbol = s;
             node.Type = itemType;
         }

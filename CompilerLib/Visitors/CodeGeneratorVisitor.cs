@@ -248,28 +248,28 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             foreach (var entry in mgr.SymbolTable.Entries)
             {
                 var type = entry.Type;
-                if (entry.VariableUse != VariableUse.Param && type.ArrayDimensions.Any())
+                if (entry.VariableUse != VariableUse.Param && type.ArrayDimension>0)
                 {
                     // make this array - do not make them for param
-                    var n = type.ArrayDimensions.Count;// # of dimensions
+                    var n = type.ArrayDimension;// # of dimensions
 
                     var operands = new List<object>();
                     operands.Add(LoadAddressAddress(entry)); // address of array to create
                     operands.Add(n);
 
-                    operands.Add(type.StackSize);
+                    operands.Add(entry.StackSize);
 
 #if true // testing
                     var size = 1; // assume basic type
                     if (!String.IsNullOrEmpty(type.UserTypeName))
-                        size = mgr.Lookup(type.UserTypeName).Type.StackSize;
+                        size = mgr.Lookup(type.UserTypeName).StackSize;
                     var s = size;
-                    for (var i = 0; i < type.ArrayDimensions.Count; ++i)
-                        s = type.ArrayDimensions[n - i - 1]*s + Runtime.ArrayHeaderSize;
-                    if (s != type.StackSize)
-                        throw new InternalFailure($"Mismatched sizes {s} {type.StackSize}");
+                    for (var i = 0; i < type.ArrayDimension; ++i)
+                        s = entry.ArrayDimensions[n - i - 1]*s + Runtime.ArrayHeaderSize;
+                    if (s != entry.StackSize)
+                        throw new InternalFailure($"Mismatched sizes {s} {entry.StackSize}");
 #endif
-                    foreach (var d in type.ArrayDimensions)
+                    foreach (var d in entry.ArrayDimensions)
                         operands.Add(d);
 
                     // create it
@@ -439,7 +439,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (symbol == null)
                 throw new InternalFailure("Null symbol");
             var t = symbol.Type;
-            if (t.ArrayDimensions.Any())
+            if (t.ArrayDimension > 0)
                 throw new InternalFailure("Cannot put array type in simple operand");
             return GetOperandType(t.SymbolType);
         }
@@ -979,7 +979,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 #region Memory Layout
         void LayoutMemory(Ast node)
         {
-            // size each symbol type
+            // size each symbol
             mgr.ComputeSizes(env);
 
             // size all blocks
@@ -996,9 +996,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var total = 0;
             foreach (var entry in table.Entries.Where(t=>t.VariableUse == VariableUse.Local || t.VariableUse == VariableUse.ForLoop))
             {
-                if (entry.Type.StackSize < 0)
+                if (entry.StackSize < 0)
                     throw new InternalFailure("Stack size not set in Place Locals");
-                total += entry.Type.StackSize;
+                total += entry.StackSize;
                 entry.Address += shift;
             }
             foreach (var child in table.Children)
@@ -1015,7 +1015,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // now layout this one
             var size = 0;
             var paramSize = 0;
-            foreach (var e in tbl.Entries.Where(e => e.Type.StackSize > 0))
+            foreach (var e in tbl.Entries.Where(e => e.StackSize > 0))
             {
                 if (e.VariableUse == VariableUse.Param)
                 {
@@ -1034,12 +1034,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 else
                 {
                     e.Address = size; // stores here
-                    size += e.Type.StackSize;
+                    size += e.StackSize;
                 }
             }
             
             // invert parameter sizes
-            foreach (var e in tbl.Entries.Where(e => e.Type.ByteSize > 0))
+            foreach (var e in tbl.Entries.Where(e => e.ByteSize > 0))
             {
                 if (e.VariableUse == VariableUse.Param)
                     e.Address = -(paramSize - e.Address.Value);

@@ -26,26 +26,24 @@ namespace Lomont.ClScript.CompilerLib
         /// Lookup type, if not created, do so
         /// </summary>
         /// <param name="symbolType"></param>
-        /// <param name="arrayDimensions"></param>
+        /// <param name="arrayDimension"></param>
         /// <param name="userTypename"></param>
         /// <param name="returnType"></param>
         /// <param name="paramsType"></param>
         /// <returns></returns>
         public InternalType GetType(
             SymbolType symbolType,
-            List<int> arrayDimensions = null,
+            int arrayDimension = 0,
             string userTypename = "",
             List<InternalType> returnType = null,
             List<InternalType> paramsType = null)
         {
-            if (arrayDimensions == null)
-                arrayDimensions = new List<int>(); // makes comparison correct, since types have non-null lists
             foreach (var e in Types)
             {
                 var symbolMatches = e.SymbolType == symbolType || symbolType == SymbolType.MatchAny;
                 var userMatches = String.IsNullOrEmpty(userTypename) || userTypename == e.UserTypeName;
                 if (symbolMatches &&
-                    SameDimensionSizes(arrayDimensions, e.ArrayDimensions) &&
+                    arrayDimension == e.ArrayDimension && 
                     userMatches &&
                     ListMatches(e.ReturnType, returnType) &&
                     ListMatches(e.ParamsType, paramsType)
@@ -53,26 +51,10 @@ namespace Lomont.ClScript.CompilerLib
                     return e;
             }
 
-            var type = new InternalType(symbolType, userTypename, this, Types.Count, arrayDimensions, returnType,
+            var type = new InternalType(symbolType, userTypename, this, Types.Count, arrayDimension, returnType,
                 paramsType);
             Types.Add(type);
             return type;
-        }
-
-        bool SameDimensionSizes(List<int> list1, List<int> list2)
-        {
-            if (list1 == null && list2 == null)
-                return true;
-            if (list1 == null || list2 == null)
-                return false;
-            if (ReferenceEquals(list1, list2))
-                return true;
-            if (list1.Count != list2.Count)
-                return false;
-            for (var i = 0; i < list1.Count; ++i)
-                if (list1[i] != list2[i])
-                    return false;
-            return true;
         }
 
         bool ListMatches(List<InternalType> list1, List<InternalType> list2)
@@ -106,7 +88,7 @@ namespace Lomont.ClScript.CompilerLib
             string name, 
             TypeManager mgr, 
             int index,
-            List<int> arrayDimensions = null, 
+            int arrayDimension = 0,
             List<InternalType> returnType = null, 
             List<InternalType> paramsType = null)
         {
@@ -115,34 +97,23 @@ namespace Lomont.ClScript.CompilerLib
             typeIndex = index;
             SymbolType = type;
             UserTypeName = name;
-            ArrayDimensions = arrayDimensions??new List<int>();
+            ArrayDimension = arrayDimension;
             ReturnType = returnType;
             ParamsType = paramsType;
-            ByteSize = StackSize = -1;
         }
 
+        public int ArrayDimension { get; set; }
         public SymbolType SymbolType { get; set; }
-        public List<int> ArrayDimensions { get; set; }
         public string UserTypeName { get; set; }
         public List<InternalType> ReturnType { get; set; }
         public List<InternalType> ParamsType { get; set; }
 
-        /// <summary>
-        /// size of item in bytes - used for code storage
-        /// -1 when not used or relevant
-        /// </summary>
-        public int ByteSize { get; set; }
-        /// <summary>
-        /// size of item in stack entries - used for local variable storage
-        /// -1 when not used or relevant
-        /// </summary>
-        public int StackSize { get; set; }
 
         public bool PassByRef
         {
             get
             {
-                if (ArrayDimensions.Any())
+                if (ArrayDimension>0)
                     return true;
                 if (SymbolType == SymbolType.Bool || 
                     SymbolType == SymbolType.Byte || 
@@ -155,14 +126,8 @@ namespace Lomont.ClScript.CompilerLib
             }
 
         }
-
-        string FormatType(bool showSizes)
+        public override string ToString()
         {
-            var sizeText = ByteSize >= 0 ? 
-                $",{ByteSize}b,{StackSize}s"
-                : "";
-            if (showSizes == false)
-                sizeText = "";
             //return $"{h.Symbol},[{h.ArrayDimension}],{h.Text}";
             if (SymbolType == SymbolType.Function)
             {
@@ -177,18 +142,13 @@ namespace Lomont.ClScript.CompilerLib
             //if (h.ArrayDimension == 0)
             //    return h.Symbol.ToString();
             var arrayText = "";
-            if (ArrayDimensions.Any())
-                foreach (var dim in ArrayDimensions)
-                    arrayText += "[" + dim + "]";
+            for (var i = 0; i < ArrayDimension; ++i)
+                    arrayText += "[]";
             if (!String.IsNullOrEmpty(UserTypeName))
-                return $"{UserTypeName}{arrayText}{sizeText}";
-            return $"{SymbolType}{arrayText}{sizeText}";
+                return $"{UserTypeName}{arrayText}";
+            return $"{SymbolType}{arrayText}";
         }
 
-        public override string ToString()
-        {
-            return FormatType(true);
-        }
 
         static string FormatTypeList(List<InternalType> list)
         {
@@ -196,7 +156,7 @@ namespace Lomont.ClScript.CompilerLib
             for (var i = 0; i < list.Count; ++i)
             {
                 var t = list[i];
-                sb.Append(t.FormatType(false));
+                sb.Append(t);
                 if (i != list.Count - 1)
                     sb.Append("*");
             }

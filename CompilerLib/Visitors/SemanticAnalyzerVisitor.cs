@@ -25,7 +25,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
          * Also fills in values of enums, memory item sizes, etc
          * 
          * TODO 
-         * 1. check globals have values
+         * 1. check globals have valuesFuncti
          * 2. array sizes must be constant
          * 
          */
@@ -208,7 +208,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var itemType = itemNode.Type;
 
             // item must be array type, right must be type Int32 or byte
-            if (!itemType.ArrayDimensions.Any())
+            if (itemType.ArrayDimension == 0)
             {
                 env.Error($"Cannot apply array dereference '[' ']' to non-array {itemNode}");
                 return null;
@@ -224,13 +224,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return null;
             }
 
-            // costly, but need array dim here...
-            var arrd = new List<int>();
-            for (var i = 0; i < itemType.ArrayDimensions.Count - 1; ++i)
-                arrd.Add(itemType.ArrayDimensions[i]);
+            // one less array dimension
             return mgr.TypeManager.GetType(
                 itemType.SymbolType,
-                arrd,
+                itemType.ArrayDimension - 1,
                 itemType.UserTypeName
             );
         }
@@ -311,6 +308,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 env.Error($"Cannot find function definition for {node}");
                 return null;
             }
+            node.Symbol = symbol;
 
             var retVals = symbol.Type.ReturnType;
             var parms   = symbol.Type.ParamsType;
