@@ -24,6 +24,9 @@ using Lomont.ClScript.CompilerLib.Visitors;
  *  9. Expression eval right to left - reverse this!
  * 10. Code must put array headers on stack
  * 11. Make globals section, binary blob simply loaded into startup memory/stack
+ * 12. Need global init code to make stacks (or premake, load buffer)
+ * DONE 13. Zero stack creating on locals?
+ * 14. Trace capability for runtime
  */
 
 namespace Lomont.ClScript.CompilerLib

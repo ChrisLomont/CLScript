@@ -197,6 +197,8 @@ namespace Lomont.ClScript.CompilerLib
 
             // todo - get return size to start with
             int returnEntries = 2, parameters = 4;
+            returnEntries = 1;
+            parameters = 0;
             // create call stack
             // 1. Push space for return values
             for (var i = 0; i < returnEntries; ++i)
@@ -269,8 +271,10 @@ namespace Lomont.ClScript.CompilerLib
                     PushStack(p1);
                     PushStack(p2);
                     break;
-                case Opcode.AddStack:
-                    StackPointer += ReadCodeItem(OperandType.Int32);
+                case Opcode.ClearStack:
+                    p1 = ReadCodeItem(OperandType.Int32);
+                    for (var i =0 ; i < p1; ++i)
+                        PushStack(0);
                     break;
 
                 // mem
@@ -284,7 +288,8 @@ namespace Lomont.ClScript.CompilerLib
                         throw new InternalFailure($"Write optype {opType} unsupported");
                     break;
                 case Opcode.Read:
-                    p1 = ReadCodeItem(OperandType.Int32); // address
+                    //p1 = ReadCodeItem(OperandType.Int32); // address
+                    p1 = PopStack(); // address
                     if (opType == OperandType.Global)
                         PushStack(ReadRam(p1, "Read"));
                     else if (opType == OperandType.Local)
@@ -350,7 +355,7 @@ namespace Lomont.ClScript.CompilerLib
                             throw new InternalFailure(
                                 $"Array out of bounds {bi}, max {maxSize}, address {ProgramCounter}");
                         var nextSize = ReadRam(addr - 2, "Error accessing array stride");
-                        addr += bi*nextSize + ArrayHeaderSize;
+                        addr += bi*nextSize;
                     }
                     PushStack(addr);
                     break;

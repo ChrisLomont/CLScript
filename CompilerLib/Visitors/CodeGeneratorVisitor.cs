@@ -277,7 +277,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     Emit2(Opcode.MakeArr, use, entry.Name, operands.ToArray());
                 }
             }
-            EmitO(Opcode.Nop);
         }
 
         void EmitBlock(BlockAst node)
@@ -588,7 +587,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (retSize < 0)
                 throw new InternalFailure($"Return size < 0 {symbol}");
             else if (retSize > 0)
-                Emit2(Opcode.AddStack, OperandType.None, "function return value space", retSize);
+                Emit2(Opcode.ClearStack, OperandType.None, "function return value space", retSize);
 
             // basic types passed by value, others by address
             foreach (var child in node.Children)
@@ -603,7 +602,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             Emit2(Opcode.Label, OperandType.None, node.Symbol.Type.ToString(), node.Name);
 
             // reserve stack space
-            EmitI(Opcode.AddStack, node.SymbolTable.StackEntries);
+            EmitI(Opcode.ClearStack, node.SymbolTable.StackEntries);
 
             var block = node.Children[2] as BlockAst;
             EmitBlock(block);
@@ -719,7 +718,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // 
         // todo - optimization: for all that are const, pack the value into offset
 
-        void EmitDotAddress(DotAst node)
+        OperandType EmitDotAddress(DotAst node, OperandType operandType)
         {
             if (node.Children.Count != 1)
                 throw new InternalFailure($"Malformed dot ast {node}");
@@ -727,9 +726,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // address of item of which to take '.'
             var child = node.Children[0] as ExpressionAst;
             if (child is TypedItemAst)
+            {
                 LoadAddress(child.Symbol);
+                operandType = GetLocality(child.Symbol);
+            }
             else if (child is ArrayAst)
-                EmitArrayAddress(child as ArrayAst, true);
+                EmitArrayAddress(child as ArrayAst, operandType, true);
             else
                 throw new InternalFailure($"Malformed dot ast {node}");
 
@@ -743,9 +745,23 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 Emit2(Opcode.Push, OperandType.Int32, nameOfOffset, offsetOfType);
                 EmitO(Opcode.Add);
             }
+            return operandType;
         }
 
-        void EmitArrayAddress(ArrayAst node, bool leaveAddressOnly)
+        OperandType GetLocality(SymbolEntry symbol)
+        {
+            var use = symbol.VariableUse;
+            if (use == VariableUse.Local ||
+                use == VariableUse.ForLoop || 
+                use == VariableUse.Param
+                )
+                return OperandType.Local;
+            if (use == VariableUse.Global)
+                return OperandType.Global;
+            throw new InternalFailure($"Unsupported variable use {use} in GetLocality");
+        }
+
+        OperandType EmitArrayAddress(ArrayAst node, OperandType operandType, bool leaveAddressOnly)
         {
             // [   ] checked array access: takes k indices on stack, reverse order, then address of array, 
             //       k is in code after opcode. Then computes address of item, checking bounds along the way
@@ -755,7 +771,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var k = 0; // number of items
             // todo - check first level structure
             Ast current = node;
-            while (current.Children.Count == 2 && current.Children[1] is ArrayAst)
+            while (current.Children.Count == 2 && current is ArrayAst)
             {
                 if (current.Children.Count != 2 || !(current.Children[0] is ExpressionAst) || !(current.Children[1] is ExpressionAst))
                     throw new InternalFailure($"Malformed ArrayAst {node}");
@@ -770,34 +786,40 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
 
             // array address
-            var addr = current.Children[1];
-            if (addr is TypedItemAst)
-                LoadAddress(((ExpressionAst)addr).Symbol);
-            else if (addr is DotAst)
-                EmitDotAddress(addr as DotAst);
+            if (current is TypedItemAst)
+            {
+                LoadAddress(((ExpressionAst) current).Symbol);
+                operandType = GetLocality(((TypedItemAst) current).Symbol);
+            }
+            else if (current is DotAst)
+                operandType = EmitDotAddress(current as DotAst, operandType);
             else
                 throw new InternalFailure($"Array needs typed item {current.Children[1]}");
 
             // emit code to turn all this into an address on stack
             EmitI(Opcode.Array, k);
+            return operandType;
         }
 
         // emit expression address. Node is an array or a '.'
         // These items are expressions of form a[1].b[3].c.d[2][1].e
         void EmitItemAddressOrValue(ExpressionAst node, bool leaveAddressOnly)
         {
+            OperandType opType = OperandType.None;
             if (node is DotAst)
-                EmitDotAddress((DotAst) node);
+                opType = EmitDotAddress((DotAst) node, opType);
             else if (node is ArrayAst)
-                EmitArrayAddress((ArrayAst) node, leaveAddressOnly);
+                opType = EmitArrayAddress((ArrayAst) node, opType, leaveAddressOnly);
             else
                 throw new InternalFailure($"Node must be DotAst or ArrayAst {node}");
+
+            if(opType != OperandType.Local && opType != OperandType.Global && opType != OperandType.Const)
+                throw new InternalFailure($"Illegal OperandType {opType} in {node}");
 
             // todo - eval items if param, global, local, const?
             // if want value instead of simply address, now get the value from the address
             if (!leaveAddressOnly)
-                // todo - needs local/global
-                Emit2(Opcode.Read, OperandType.Global, node.Name); // convert address to value
+                Emit2(Opcode.Read, opType, node.Name); // convert address to value
         }
 #if false
         void EmitArrayAddress(ArrayAst node)

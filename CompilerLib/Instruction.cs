@@ -32,7 +32,7 @@ namespace Lomont.ClScript.CompilerLib
         Pick,               // [   ] push stack value from n back onto stack
         Dup,                // [   ] copy top stack value
         Swap,               // [   ] swap top two stack values
-        AddStack,           // [   ] add n to stack pointer
+        ClearStack,         // [   ] add n zeroes to stack (used for function stack frames)
                             
         // mem   
         // todo - these will need sized to handle byte accesses later

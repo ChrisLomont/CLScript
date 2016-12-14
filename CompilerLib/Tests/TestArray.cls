@@ -2,20 +2,28 @@
 // sizes in stack slots
 
 
+//i32 bb[10]
+//i32 b=7
+
 [Entry]
 (i32) func()
-   i32 a[10]
-   func2(a,10)
+   i32 c,d
+   i32 a[13]
+   //bb[1] = 4
+   //func2(a,10)
    
-   i32 b = 0
-   for i in 1..10
-      b += a[i-1]
-      
-   return b
+   //i32 b = 7
+   //for i in 1..10
+   //   b += a[i-1]
 
-() func2(i32 a[], i32 n)
-    for i in 0..n-1
-       a[i] = i + 1
+   //a[b] = 1234 + a[1]//bb[1]
+      
+   return d // a[7]
+
+//() func2(i32 a[], i32 n)
+//    a[0] = 123
+    //for i in 0..n-1
+    //   a[i] = i + 1
 
 
 /*

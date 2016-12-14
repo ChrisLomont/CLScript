@@ -177,7 +177,7 @@ namespace Lomont.ClScript.CompilerLib
 
                 // single int32 operand follows
                 case Opcode.Pick:
-                case Opcode.AddStack:
+                case Opcode.ClearStack:
                 case Opcode.Load:
                 case Opcode.Addr:
                 case Opcode.Array:
