@@ -133,8 +133,8 @@ namespace Lomont.ClScript.CompilerLib
 
             header.AddRange(code);
 
-            for (var i =0; i < Math.Min(10,code.Count); ++i)
-                env.Info($"Code byte 0x{code[i]:X2}");
+            //for (var i =0; i < Math.Min(10,code.Count); ++i)
+            //    env.Info($"Code byte 0x{code[i]:X2}");
 
             CompiledAssembly = header.ToArray();
         }
@@ -183,12 +183,12 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.ClearStack:
                 case Opcode.Load:
                 case Opcode.Addr:
-                case Opcode.Array:
                 case Opcode.ForStart:
                     Write((uint)((int)inst.Operands[0]), 4);
                     break;
 
                 // two int32 operand follows
+                case Opcode.Array:
                 case Opcode.Return:
                     Write((uint)((int)inst.Operands[0]), 4);
                     Write((uint)((int)inst.Operands[1]), 4);

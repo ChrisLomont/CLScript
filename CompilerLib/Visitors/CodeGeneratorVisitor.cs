@@ -396,7 +396,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (symbol.VariableUse == VariableUse.Local)
                 return symbol.ReferenceAddress + callStackSuffixSize;
             else if (symbol.VariableUse == VariableUse.Param)
-                return symbol.ReferenceAddress - callStackPrefixSize;
+                return symbol.LayoutAddress.Value - callStackPrefixSize;
             else if (symbol.VariableUse == VariableUse.Member)
                 return symbol.ReferenceAddress;
             else
@@ -590,7 +590,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             // basic types passed by value, others by address
             foreach (var child in node.Children)
-                EmitExpression((ExpressionAst) child, true);
+            {
+                var addrOnly = child.Type.PassByRef;
+                EmitExpression((ExpressionAst) child,addrOnly);
+            }
 
             EmitS(Opcode.Call, node.Name);
         }
@@ -762,10 +765,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         OperandType EmitArrayAddress(ArrayAst node, OperandType operandType, bool leaveAddressOnly)
         {
-            // [   ] checked array access: takes k indices on stack, reverse order, then address of array, 
-            //       k is in code after opcode. Then computes address of item, checking bounds along the way
-            //       Array in memory has length at position -1, and a stack size of rest in -2 (header size 2)
-
             // walk down array dimensions, putting index values on stack
             var k = 0; // number of items
             // todo - check first level structure
@@ -785,18 +784,24 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
 
             // array address
+            int n = -1; // total array dimension
             if (current is TypedItemAst)
             {
-                LoadAddress(((ExpressionAst) current).Symbol);
-                operandType = GetLocality(((TypedItemAst) current).Symbol);
+                var ti = (TypedItemAst) current;
+                LoadAddress(ti.Symbol);
+                operandType = GetLocality(ti.Symbol);
+                n = ti.Symbol.ArrayDimensions.Count;
             }
             else if (current is DotAst)
+            {
                 operandType = EmitDotAddress(current as DotAst, operandType);
+                throw new NotImplementedException("DotAst needs array size n");
+            }
             else
                 throw new InternalFailure($"Array needs typed item {current.Children[1]}");
 
             // emit code to turn all this into an address on stack
-            EmitI(Opcode.Array, k);
+            Emit2(Opcode.Array, OperandType.None, "", k, n);
             return operandType;
         }
 

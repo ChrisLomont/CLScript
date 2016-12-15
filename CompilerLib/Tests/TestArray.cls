@@ -1,16 +1,6 @@
 // test array and '.' in func locals and global and params
 // sizes in stack slots
 
-/*
-[Entry]
-(i32) f1()
-   f2()
-   i32 a = 16
-   return a
-   
-() f2 ()
-   return
-*/
 
 //i32 bb[10]
 //i32 b=7
@@ -28,13 +18,17 @@
    //   b += a[i-1]
 
    //a[b] = 1234 + a[1]//bb[1]
-   func2(a)
+   a[1][1] = -3
+   func2(a, a[1][1], 5+2)
+   func3(a[2])
       
-   return a[1][2]
+   return 100*a[1][2]+a[2][3]
 
-() func2(i32 a[][])
-   a[1][2] = 4567
-   return
+() func2(i32 a[][], i32 b, i32 c)
+    a[1][2] = 17 + b + c // 17+-2+5 = 20
+
+() func3(i32 a[])
+   a[3] = 34
 
 //() func2(i32 a[], i32 n)
 //    a[0] = 123

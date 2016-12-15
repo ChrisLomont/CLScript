@@ -27,6 +27,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 12. Need global init code to make stacks (or premake, load buffer)
  * DONE 13. Zero stack creating on locals?
  * DONE 14. Trace capability for runtime
+ * 15. Runtime: standalone function call not clearing return values from stack on return
  */
 
 namespace Lomont.ClScript.CompilerLib
@@ -58,10 +59,6 @@ namespace Lomont.ClScript.CompilerLib
                     GenerateSyntaxTree(text) &&
                     AnalyzeSyntaxTree() && 
                     GenerateCode();
-                if (success)
-                    env.Info("Compilation is successful");
-                else
-                    env.Info($"Failed: {env.ErrorCount} errors, {env.WarningCount} warnings");
             }
             catch (Exception ex)
             {
@@ -73,6 +70,11 @@ namespace Lomont.ClScript.CompilerLib
                 } while (ex != null);
                 success = false;
             }
+            env.Info($"Compile: {env.ErrorCount} errors, {env.WarningCount} warnings.");
+            if (success)
+                env.Info("Compilation is successful");
+            else
+                env.Info($"Failed: {env.ErrorCount} errors, {env.WarningCount} warnings");
             return success;
         }
 
@@ -165,7 +167,7 @@ namespace Lomont.ClScript.CompilerLib
             env.Info("Bytecode Generation...");
             var retval = bytecode.Generate(symbolTable, generatedInstructions);
             if (retval)
-                env.Info($"   bytecode assembly {bytecode.CompiledAssembly.Length} bytes");
+                env.Info($"  ...bytecode assembly {bytecode.CompiledAssembly.Length} bytes");
             return retval;
         }
 

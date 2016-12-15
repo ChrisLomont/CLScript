@@ -29,7 +29,6 @@ namespace Lomont.ClScript.CompilerLib
         /// <param name="items"></param>
         public void Info(string format, params object[] items)
         {
-            ++WarningCount;
             WriteLine(String.Format(format, items));
         }
 

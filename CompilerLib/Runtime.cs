@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Text;
@@ -43,10 +44,13 @@ namespace Lomont.ClScript.CompilerLib
         /// <param name="image"></param>
         /// <param name="entryAttribute"></param>
         /// <returns></returns>
-        public bool Run(byte[] image, string entryAttribute)
+        public bool Run(byte[] image, string entryAttribute, int [] parameters, int [] returnValues)
         {
+            useTracing = true;
+
             // todo - zero memory in C/C++ style environments
-            return RunImage(image, entryAttribute);
+            // todo - get return size to start with
+            return RunImage(image, entryAttribute, parameters, returnValues);
         }
 
 
@@ -69,6 +73,10 @@ namespace Lomont.ClScript.CompilerLib
         bool error;
         byte[] romImage1;
         int [] ramImage1 = new int[10000];
+
+        // is tracing on?
+        bool useTracing;
+
         #endregion
 
         // all memory accesses done through a few accessors for runtime security
@@ -95,7 +103,7 @@ namespace Lomont.ClScript.CompilerLib
             }
             if (error)
                 return 0;
-            Trace($"RI:{ramImage1[offset]}");
+            Trace($" r:{ramImage1[offset]}");
             return ramImage1[offset];
         }
 
@@ -116,7 +124,7 @@ namespace Lomont.ClScript.CompilerLib
 
         #region Setup
 
-        bool RunImage(byte[] image, string entryAttribute)
+        bool RunImage(byte[] image, string entryAttribute, int[] parameters, int[] returnValues)
         {
             error = false;
             romImage1 = image;
@@ -149,7 +157,7 @@ namespace Lomont.ClScript.CompilerLib
                     return false;
                 }
 
-                return Process(entryPoint);
+                return Process(entryPoint, parameters, returnValues);
             }
             catch (Exception ex)
             {
@@ -188,7 +196,7 @@ namespace Lomont.ClScript.CompilerLib
 
         // run the code, with the code at the given code offset in the assembly
         // and the entry point address into that
-        bool Process(int startAddress)
+        bool Process(int startAddress, int[] parameters, int[] returnValues)
         {
             env.Info($"Processing code, offset {CodeStartOffset}, entry address {startAddress}");
 
@@ -196,17 +204,13 @@ namespace Lomont.ClScript.CompilerLib
             BasePointer = -1; // out of bounds
             StackPointer = 0; // todo - start past globals, load them as block
 
-            // todo - get return size to start with
-            int returnEntries = 2, parameters = 4;
-            returnEntries = 1;
-            parameters = 0;
             // create call stack
             // 1. Push space for return values
-            for (var i = 0; i < returnEntries; ++i)
+            for (var i = 0; i < returnValues.Length; ++i)
                 PushStack(0);
             // 2. push parameters
-            for (var i = 0; i < parameters; ++i)
-                PushStack(i+1);
+            foreach (var v in parameters)
+                PushStack(v);
             // 3. push ret code (special code to exit), and base pointer, set bp
             PushStack(returnExitAddress);
             PushStack(BasePointer);
@@ -215,7 +219,7 @@ namespace Lomont.ClScript.CompilerLib
             // now entry looks like a Call instruction to the code
 
             Trace("TRACE: Tracing" + System.Environment.NewLine);
-            Trace("TRACE: PC   Opcode   ?    Operands     SP  BP" + System.Environment.NewLine);
+            Trace("TRACE: PC   Opcode   ?    Operands     SP  BP  reads (c=code,r=ram)" + System.Environment.NewLine);
 
             while (!error)
             {
@@ -223,7 +227,8 @@ namespace Lomont.ClScript.CompilerLib
                     break;
             }
 
-            Trace("TRACE: Stackdump: " + System.Environment.NewLine);
+            env.Info("");
+            env.Info("Stackdump: ");
             DumpStack(StackPointer,10);
 
             return error;
@@ -241,12 +246,17 @@ namespace Lomont.ClScript.CompilerLib
             int p1, p2;
             float f1, f2;
 
+            p1 = ProgramCounter; // save before reading
+            
             // read instruction
+            var oldTrace = useTracing;
+            useTracing = false; // do not trace these reads
             Opcode opcode = (Opcode) ReadCodeItem(OperandType.Byte);
             OperandType opType = (OperandType)ReadCodeItem(OperandType.Byte);
+            useTracing = oldTrace; // restore tracing setting
 
             // trace address, instruction here
-            Trace($"TRACE: {ProgramCounter:X5}: {opcode,-10} {opType,-6} SP:{StackPointer:X4} BP:{BasePointer:X4}  : ");
+            Trace($"TRACE: {p1:X5}: {opcode,-10} {opType,-6} SP:{StackPointer:X4} BP:{BasePointer:X4}  : ");
 
             // handle parameters
             switch (opcode)
@@ -350,9 +360,10 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Array:
                 {
                     var addr = PopStack(); // current array address
-                    var k = ReadCodeItem(OperandType.Int32); // number of levels
-                    if (k < 1)
-                        throw new InternalFailure($"Array called with non-positive number of indices {k}");
+                    var k = ReadCodeItem(OperandType.Int32); // number of levels to dereference
+                    var n = ReadCodeItem(OperandType.Int32); // total dimension of array
+                    if (k < 1 || n < k)
+                        throw new InternalFailure($"Array called with non-positive number of indices {k} or too small dimensionality {n}");
                     for (var i = 0; i < k; ++i)
                     {
                         var bi = PopStack(); // index entry
@@ -362,7 +373,7 @@ namespace Lomont.ClScript.CompilerLib
                                 $"Array out of bounds {bi}, max {maxSize}, address {ProgramCounter}");
                         var nextSize = ReadRam(addr - 2, "Error accessing array stride");
                         addr += bi*nextSize;
-                        if (i != k - 1) // add this, except for last frame
+                        if (i != n - 1) // add this, except for last possible frame
                             addr += ArrayHeaderSize;
                     }
                     PushStack(addr);
@@ -602,7 +613,8 @@ namespace Lomont.ClScript.CompilerLib
         // tracing messages sent here
         void Trace(string message)
         {
-            env.Output.Write(message);
+            if (useTracing)
+                env.Output.Write(message);
         }
 
         // Read 0 terminated UTF8 string
@@ -612,7 +624,7 @@ namespace Lomont.ClScript.CompilerLib
             int b;
             do
             {
-                b = ReadRom(offset++, "ReadImagString");
+                b = ReadRom(offset++, "ReadImageString");
                 if (b != 0)
                     sb.Append((char) b);
             } while (b != 0 && !error);
@@ -644,7 +656,7 @@ namespace Lomont.ClScript.CompilerLib
             }
             else
                 throw new InternalFailure("Unknown operand type in Runtime");
-            //Trace($"CI:{value}");
+            Trace($" c:{value}");
             return value;
         }
 
@@ -686,12 +698,15 @@ namespace Lomont.ClScript.CompilerLib
 
         void DumpStack(int stackTop, int count)
         {
+            var oldTracing = useTracing;
             env.Info("Stack top dump");
             for (var i = stackTop - count; i < stackTop; ++i)
             {
                 if (i < 0 || ramImage1.Length < i)
                     continue;
+                useTracing = false; // ignore for read
                 var val = ReadRam(i, "");
+                useTracing = oldTracing;
                 env.Info($"{i}: {val}");
             }
         }
