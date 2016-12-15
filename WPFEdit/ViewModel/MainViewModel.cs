@@ -150,18 +150,50 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
         void Run()
         {
             Compile();
+
             if (env.ErrorCount == 0)
             {
-                var r = new Runtime(env);
-                r.Run(compiler.CompiledAssembly,"Entry");
+                env.Info("Testing bytecode in runtime environment....");
 
-                // output messages
-                Messages.Clear();
-                var msgs = env.Output.ToString().Split('\n');
-                Messages.Clear();
-                foreach (var msg in msgs)
-                    Messages.Add(msg.Replace("\r", "").Replace("\n", ""));
+                TraceText.Text = "";
+                var traceEnv = new Environment(new StringWriter());
+                var r = new Runtime(traceEnv);
+
+                // get parameters
+                var words = RunParameters.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);
+                var parameters = new int[words.Length];
+                for (var i = 0; i < words.Length; ++i)
+                {
+                    int val;
+                    if (Int32.TryParse(words[i], out val))
+                        parameters[i] = val;
+                    else
+                        parameters[i] = 0;
+                }
+
+                var returnValues = new int[RunReturnValues];
+                var success = r.Run(compiler.CompiledAssembly, RunEntryAttribute, parameters, returnValues);
+
+                if (success)
+                {
+                    env.Info(" .... runtime successful.");
+                }
+                else
+                {
+                    env.Info("  .... runtime failed. See Trace.");
+                }
+
+                // output trace
+                TraceText.Text = traceEnv.Output.ToString();
             }
+
+            // output messages
+            Messages.Clear();
+            var msgs = env.Output.ToString().Split('\n');
+            Messages.Clear();
+            foreach (var msg in msgs)
+                Messages.Add(msg.Replace("\r", "").Replace("\n", ""));
+
         }
 
         // editor article at http://www.codeproject.com/Articles/42490/Using-AvalonEdit-WPF-Text-Editor
@@ -256,10 +288,63 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 Set(() => this.ShowLexer, ref showLexer, value);
             }
         }
+        bool showtrace = true;
+        public bool ShowTrace
+        {
+            get
+            {
+                return showtrace;
+            }
+            set
+            {
+                Set(() => this.ShowTrace, ref showtrace, value);
+            }
+        }
+
+        string runEntryAttribute = "Entry";
+        public string RunEntryAttribute
+        {
+            get
+            {
+                return runEntryAttribute;
+            }
+            set
+            {
+                Set(() => this.RunEntryAttribute, ref runEntryAttribute, value);
+            }
+        }
+
+        int runReturnValues = 1;
+        public int RunReturnValues
+        {
+            get
+            {
+                return runReturnValues;
+            }
+            set
+            {
+                Set(() => this.RunReturnValues, ref runReturnValues, value);
+            }
+        }
+
+        string runParameters = "";
+        public string RunParameters
+        {
+            get
+            {
+                return runParameters;
+            }
+            set
+            {
+                Set(() => this.RunParameters, ref runParameters, value);
+            }
+        }
+
         #endregion
 
 
         public TextEditor SymbolText { get; set; }
+        public TextEditor TraceText { get; set; }
 
 
         public void Loaded()
@@ -268,24 +353,34 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             if (!String.IsNullOrEmpty(filename) && File.Exists(filename))
                 Load(filename);
 
+            RunEntryAttribute = Properties.Settings.Default.RunEntryAttribute;
+            RunReturnValues = Properties.Settings.Default.RunNumReturnValues;
+            RunParameters = Properties.Settings.Default.RunParameters;
+
+
             var v = Properties.Settings.Default.OpenViews;
             ShowCode    = (v &  1) != 0;
             ShowAst     = (v &  2) != 0;
             ShowSymbols = (v &  4) != 0;
             ShowCodegen = (v &  8) != 0;
             ShowLexer   = (v & 16) != 0;
+            ShowTrace   = (v & 32) != 0;
         }
 
         public void Closing()
         {
             Save();
             Properties.Settings.Default.LastFilename = Filename;
+            Properties.Settings.Default.RunEntryAttribute = RunEntryAttribute;
+            Properties.Settings.Default.RunNumReturnValues = RunReturnValues;
+            Properties.Settings.Default.RunParameters = RunParameters;
             var v =
                 (!ShowCode    ? 0 :  1) +
                 (!ShowAst     ? 0 :  2) +
                 (!ShowSymbols ? 0 :  4) +
                 (!ShowCodegen ? 0 :  8) +
-                (!ShowLexer   ? 0 : 16);
+                (!ShowLexer   ? 0 : 16) + 
+                (!ShowTrace   ? 0 : 32);
             Properties.Settings.Default.OpenViews = v;
             Properties.Settings.Default.Save();
         }

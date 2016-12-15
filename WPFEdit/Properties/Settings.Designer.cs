@@ -46,5 +46,41 @@ namespace Lomont.ClScript.WPFEdit.Properties {
                 this["OpenViews"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Entry")]
+        public string RunEntryAttribute {
+            get {
+                return ((string)(this["RunEntryAttribute"]));
+            }
+            set {
+                this["RunEntryAttribute"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
+        public int RunNumReturnValues {
+            get {
+                return ((int)(this["RunNumReturnValues"]));
+            }
+            set {
+                this["RunNumReturnValues"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0 1 2")]
+        public string RunParameters {
+            get {
+                return ((string)(this["RunParameters"]));
+            }
+            set {
+                this["RunParameters"] = value;
+            }
+        }
     }
 }

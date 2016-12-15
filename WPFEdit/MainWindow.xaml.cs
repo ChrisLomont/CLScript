@@ -20,6 +20,7 @@ namespace Lomont.ClScript.WPFEdit
             (this.DataContext as MainViewModel).TreeText = treeView;
             (this.DataContext as MainViewModel).CodegenText = codegenView;
             (this.DataContext as MainViewModel).SymbolText = symbolView;
+            (this.DataContext as MainViewModel).TraceText = traceView;
             textEditor.ShowLineNumbers = true;
 
             (this.DataContext as MainViewModel).Loaded();

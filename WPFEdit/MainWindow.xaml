@@ -23,7 +23,8 @@
         <vm:MainViewModel/>
     </Window.DataContext>
     <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+        <StackPanel DockPanel.Dock="Top" >
+        <StackPanel Orientation="Horizontal">
             <Button Command="{Binding NewCommand}">New</Button>
             <Button Command="{Binding LoadCommand}">Load</Button>
             <Button Command="{Binding SaveCommand}">Save</Button>
@@ -34,6 +35,18 @@
             <CheckBox Margin="9,0,0,0" IsChecked="{Binding ShowSymbols}">Show Symbols</CheckBox>
             <CheckBox Margin="9,0,0,0" IsChecked="{Binding ShowCodegen}">Show Codegen</CheckBox>
             <CheckBox Margin="9,0,0,0" IsChecked="{Binding ShowLexer}">Show Lexer</CheckBox>
+            <CheckBox Margin="9,0,0,0" IsChecked="{Binding ShowTrace}">Show Runtime trace</CheckBox>
+        </StackPanel>
+            <StackPanel Orientation ="Horizontal">
+                <TextBlock Margin="8,0">Run parameters: </TextBlock>
+                <TextBlock Margin="8,0">Entry attribute</TextBlock>
+                <TextBox Width="100" Text="{Binding RunEntryAttribute}"/>
+                <TextBlock Margin="8,0">Parameters (ints)</TextBlock>
+                <TextBox Width="100" Text="{Binding RunParameters}"/>
+                <TextBlock Margin="8,0"># return values</TextBlock>
+                <TextBox Width="100" Text="{Binding RunReturnValues}"/>
+
+            </StackPanel>
         </StackPanel>
         <GroupBox Header="Messages" DockPanel.Dock="Bottom">
             <ListBox 
@@ -54,8 +67,10 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="5"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            
+
             <GroupBox Header="Code"
             Grid.Column="0"
                       Visibility="{Binding ShowCode, Converter={StaticResource HiddenConverter}}">
@@ -69,9 +84,8 @@
             </GroupBox>
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
             <GroupBox Header="AST" 
-            Grid.Column="2"
-            DockPanel.Dock="Right" 
-            Visibility="{Binding ShowAst, Converter={StaticResource HiddenConverter}}"
+            Grid.Column="2" 
+            Visibility="{Binding ShowAst, Converter={StaticResource HiddenConverter}}" 
             >
                 <avalonEdit:TextEditor 
                 Background="LightCyan"
@@ -81,11 +95,10 @@
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>
             </GroupBox>
-            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch" />
+            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch"  />
             <GroupBox Header="Symbol table" 
-            Grid.Column="4"
-                  DockPanel.Dock="Right" 
-                  Visibility="{Binding ShowSymbols, Converter={StaticResource HiddenConverter}}">
+            Grid.Column="4" 
+                  Visibility="{Binding ShowSymbols, Converter={StaticResource HiddenConverter}}" >
                 <avalonEdit:TextEditor 
                 Background="Cornsilk"
                 xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
@@ -96,29 +109,38 @@
             </GroupBox>
             <GridSplitter Grid.Column="5" Width="5" HorizontalAlignment="Stretch" />
             <GroupBox Header="Codegen" 
-                      Grid.Column="6"
-                  DockPanel.Dock="Right" 
+                      Grid.Column="6" 
                   Visibility="{Binding ShowCodegen, Converter={StaticResource HiddenConverter}}">
-            <avalonEdit:TextEditor 
+                <avalonEdit:TextEditor 
                 Background="LightCyan"
                 xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
                 x:Name="codegenView"
                 FontFamily="Consolas"
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>
-        </GroupBox>
-            <GridSplitter Grid.Column="7" Width="5" HorizontalAlignment="Stretch" />
+            </GroupBox>
+            <GridSplitter Grid.Column="7" Width="5" HorizontalAlignment="Stretch"  />
             <GroupBox Header="Lexer" 
-                      Grid.Column="8"
-                      
-            DockPanel.Dock="Right" 
-            
-            Visibility="{Binding ShowLexer, Converter={StaticResource HiddenConverter}}"
+                      Grid.Column="8" 
+                Visibility="{Binding ShowLexer, Converter={StaticResource HiddenConverter}}" 
             >
                 <ListBox
             DockPanel.Dock="Right"
             ItemsSource="{Binding Tokens}"
             />
+            </GroupBox>
+            <GridSplitter Grid.Column="9" Width="5" HorizontalAlignment="Stretch" />
+            <GroupBox Header="Trace" 
+                      Grid.Column="10" 
+            Visibility="{Binding ShowTrace, Converter={StaticResource HiddenConverter}}" 
+            >
+                <avalonEdit:TextEditor 
+                Background="DarkGray"
+                xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
+                x:Name="traceView"
+                FontFamily="Consolas"
+                SyntaxHighlighting="C#"
+                FontSize="10pt"/>
             </GroupBox>
         </Grid>
 
