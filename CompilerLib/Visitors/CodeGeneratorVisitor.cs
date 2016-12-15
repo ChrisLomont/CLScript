@@ -368,7 +368,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 WriteValue(operandType);
             }
             // clean values from stack
-            Emit2(Opcode.AddStack, OperandType.None, "clean assign stack", -items.Count);
+            Emit2(Opcode.PopStack, OperandType.None, "clean assign stack", items.Count);
         }
 
         #region Read/Write variable values and addresses
@@ -601,8 +601,21 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 var addrOnly = child.Type.PassByRef;
                 EmitExpression((ExpressionAst) child,addrOnly);
             }
-
             EmitS(Opcode.Call, node.Name);
+
+            // if result ignored, pop them
+            if (FunctionResultUnused(node))
+                Emit2(Opcode.PopStack, OperandType.None, "clean unused return values", symbol.Type.ReturnType.Count);
+        }
+
+        bool FunctionResultUnused(FunctionCallAst node)
+        {
+            var p = node.Parent;
+            if (p is BlockAst)
+                return true;
+            else if (p is ExpressionAst || p is ExpressionListAst)
+                return false;
+            throw new InternalFailure($"Function return use unknown via parent {p}");
         }
 
         void EmitFunction(FunctionDeclarationAst node)

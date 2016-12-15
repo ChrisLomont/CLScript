@@ -27,7 +27,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 12. Need global init code to make stacks (or premake, load buffer)
  * DONE 13. Zero stack creating on locals?
  * DONE 14. Trace capability for runtime
- * 15. Runtime: standalone function call not clearing return values from stack on return
+ * DONE 15. Runtime: standalone function call not clearing return values from stack on return
  */
 
 namespace Lomont.ClScript.CompilerLib

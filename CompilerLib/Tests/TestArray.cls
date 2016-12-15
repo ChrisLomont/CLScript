@@ -2,10 +2,20 @@
 // sizes in stack slots
 
 // todo - return values not cleaned from function call when called alone
+[Entry]
+(i32) func1()
+   i32 a = 0
+   func2(10)
+   a += func2(3)
+   return func2(func2(a))
+   
+
+(i32) func2(i32 a)
+   return a+2
 
 //i32 bb[10]
 //i32 b=7
-
+/*
 [Entry]
 (i32) testFor()
    i32 a = 0
@@ -13,9 +23,11 @@
      for i in 1..6
           a += i+j*2
    return a
-      
-      
+*/      
+
 /*
+
+[Entry]
 (i32) func1()
    i32 a[3][4]
    a[1][1] = 45
@@ -30,9 +42,9 @@
    func3(a[2])
    
    for i in 1..10
-      a[3][2] += i
+      a[2][2] += i
       
-   return 1000*a[3][2] + 100*a[1][2] + a[2][3]
+   return 1000*a[2][2] + 100*a[1][2] + a[2][3]
 
 () func2(i32 a[][], i32 b, i32 c)
     a[1][2] = 17 + b + c // 17+-2+5 = 20
@@ -42,7 +54,8 @@
    
 (i32) func4()
    return 3
-*/
+*/   
+
 //() func2(i32 a[], i32 n)
 //    a[0] = 123
     //for i in 0..n-1

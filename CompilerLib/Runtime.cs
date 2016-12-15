@@ -292,9 +292,9 @@ namespace Lomont.ClScript.CompilerLib
                     for (var i =0 ; i < p1; ++i)
                         PushStack(0);
                     break;
-                case Opcode.AddStack:
+                case Opcode.PopStack:
                     p1 = ReadCodeItem(OperandType.Int32);
-                    StackPointer += p1;
+                    StackPointer -= p1;
                     break;
 
                 // mem

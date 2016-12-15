@@ -179,7 +179,7 @@ namespace Lomont.ClScript.CompilerLib
                     break;
 
                 // single int32 operand follows
-                case Opcode.AddStack:
+                case Opcode.PopStack:
                 case Opcode.Pick:
                 case Opcode.ClearStack:
                 case Opcode.Load:
