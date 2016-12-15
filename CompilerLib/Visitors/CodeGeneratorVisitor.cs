@@ -312,10 +312,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     EmitO(Opcode.Dup); // address already already there 
                     var symbol = (item as ExpressionAst).Symbol;
                     Emit2(Opcode.Read, OperandType.Global, symbol?.Name); // read it (note address already global here)
-                    EmitI(Opcode.Pick, items.Count+1);
+                    EmitI(Opcode.Pick, items.Count+1 - i);
                 }
                 else
-                    EmitI(Opcode.Pick, items.Count);
+                    EmitI(Opcode.Pick, items.Count - i);
 
                 // stack now (in push order): 
                 // Equals: addr, oldValue, newValue
