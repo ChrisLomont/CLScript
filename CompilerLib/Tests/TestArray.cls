@@ -8,9 +8,10 @@
 
 [Entry]
 (i32) testFor()
-   i32 a
-   for i in 1..10
-      a += i
+   i32 a = 0
+   for j in 1..4
+     for i in 1..6
+          a += i+j*2
    return a
       
       

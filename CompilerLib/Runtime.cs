@@ -231,7 +231,7 @@ namespace Lomont.ClScript.CompilerLib
             env.Info("Stackdump: ");
             DumpStack(StackPointer,10);
 
-            return error;
+            return !error;
         }
 
 
@@ -274,7 +274,7 @@ namespace Lomont.ClScript.CompilerLib
                     break;
                 case Opcode.Pick:
                     p1 = ReadCodeItem(OperandType.Int32);
-                    PushStack(ReadRam(StackPointer - p1,$"Pick {p1}"));
+                    PushStack(ReadRam(StackPointer - p1 - 1,$"Pick {p1}"));
                     break;
                 case Opcode.Dup:
                     p1 = PopStack();
@@ -291,6 +291,10 @@ namespace Lomont.ClScript.CompilerLib
                     p1 = ReadCodeItem(OperandType.Int32);
                     for (var i =0 ; i < p1; ++i)
                         PushStack(0);
+                    break;
+                case Opcode.AddStack:
+                    p1 = ReadCodeItem(OperandType.Int32);
+                    StackPointer += p1;
                     break;
 
                 // mem
@@ -313,11 +317,11 @@ namespace Lomont.ClScript.CompilerLib
                         throw new InternalFailure($"Read optype {opType} unsupported");
                     break;
                 case Opcode.Write:
-                    p1 = PopStack();
-                    p2 = PopStack();
+                    p1 = PopStack(); // value
+                    p2 = PopStack(); // address
                     // todo - store byte if byte sized
                     if (opType == OperandType.Float32 || opType == OperandType.Int32)
-                        WriteRam(p1, p2, "Write");
+                        WriteRam(p2, p1, "Write");
                     else throw new InternalFailure($"Write optype {opType} unsupported");
                     break;
                 case Opcode.Addr:
@@ -414,9 +418,9 @@ namespace Lomont.ClScript.CompilerLib
 
                 case Opcode.ForStart:
                 {
-                    var startIndex = PopStack(); // start
-                    var endIndex = PopStack(); // end
                     var deltaIndex = PopStack(); // delta
+                    var endIndex = PopStack();   // end
+                    var startIndex = PopStack(); // start
                     if (deltaIndex== 0) deltaIndex= (startIndex< endIndex) ? 1 : -1;
                     var forAddr = BasePointer + ReadCodeItem(OperandType.Int32); // address to for stack, local to base pointer
                     WriteRam(forAddr, startIndex, "FOR start"); // start address
@@ -433,23 +437,11 @@ namespace Lomont.ClScript.CompilerLib
                     var delta = ReadRam(forAddr+1, "For loop delta"); // delta
                     var endVal = PopStack(); // end value
                     var jumpAddr = ReadCodeItem(OperandType.Int32); // jump delta
-
-                        var done = true;
-                    if (delta < 0)
-                    {
-                        // decreasing
-                        done = index + delta >= endVal;
-                    }
-                    else
-                    {
-                        // increasing
-                        done = index + delta <= endVal;
-                    }
-
-                    if (done)
+                    if ((0 < delta && index + delta <= endVal) ||
+                        (delta < 0 && index + delta >= endVal))
                     {
                         WriteRam(forAddr, index+delta, "For loop update"); // write index back
-                        ProgramCounter += jumpAddr;
+                        ProgramCounter += jumpAddr-4; // todo - this -4 fixup should be cleaned at generation
                     }
                 }
                     break;
@@ -470,12 +462,12 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.RightShift:
                     p1 = PopStack();
                     p2 = PopStack();
-                    PushStack(p1 >> p2);
+                    PushStack(p2 >> p1);
                     break;
                 case Opcode.LeftShift:
                     p1 = PopStack();
                     p2 = PopStack();
-                    PushStack(p1 << p2);
+                    PushStack(p2 << p1);
                     break;
                 case Opcode.RightRotate:
                 case Opcode.LeftRotate:
@@ -518,13 +510,13 @@ namespace Lomont.ClScript.CompilerLib
                     {
                         p1 = PopStack();
                         p2 = PopStack();
-                        PushStack(p1 > p2 ? 1 : 0);
+                        PushStack(p2 > p1 ? 1 : 0);
                     }
                     else if (opType == OperandType.Float32)
                     {
                         f1 = PopStackF();
                         f2 = PopStackF();
-                        PushStack(f1 > f2 ? 1 : 0);
+                        PushStack(f2 > f1 ? 1 : 0);
                     }
                     else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
                     break;
@@ -533,13 +525,13 @@ namespace Lomont.ClScript.CompilerLib
                     {
                         p1 = PopStack();
                         p2 = PopStack();
-                        PushStack(p1 >= p2 ? 1 : 0);
+                        PushStack(p2 >= p1 ? 1 : 0);
                     }
                     else if (opType == OperandType.Float32)
                     {
                         f1 = PopStackF();
                         f2 = PopStackF();
-                        PushStack(f1 >= f2 ? 1 : 0);
+                        PushStack(f2 >= f1 ? 1 : 0);
                     }
                     else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
                     break;
@@ -548,13 +540,13 @@ namespace Lomont.ClScript.CompilerLib
                     {
                         p1 = PopStack();
                         p2 = PopStack();
-                        PushStack(p1 <= p2 ? 1 : 0);
+                        PushStack(p2 <= p1 ? 1 : 0);
                     }
                     else if (opType == OperandType.Float32)
                     {
                         f1 = PopStackF();
                         f2 = PopStackF();
-                        PushStack(f1 <= f2 ? 1 : 0);
+                        PushStack(f2 <= f1 ? 1 : 0);
                     }
                     else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
                     break;
@@ -563,13 +555,13 @@ namespace Lomont.ClScript.CompilerLib
                     {
                         p1 = PopStack();
                         p2 = PopStack();
-                        PushStack(p1 < p2 ? 1 : 0);
+                        PushStack(p2 < p1 ? 1 : 0);
                     }
                     else if (opType == OperandType.Float32)
                     {
                         f1 = PopStackF();
                         f2 = PopStackF();
-                        PushStack(f1 < f2 ? 1 : 0);
+                        PushStack(f2 < f1 ? 1 : 0);
                     }
                     else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
                     break;
@@ -594,13 +586,13 @@ namespace Lomont.ClScript.CompilerLib
                     {
                         p1 = PopStack();
                         p2 = PopStack();
-                        PushStack(p1 - p2);
+                        PushStack(p2 - p1);
                     }
                     else if (opType == OperandType.Float32)
                     {
                         f1 = PopStackF();
                         f2 = PopStackF();
-                        PushStackF(f1 - f2);
+                        PushStackF(f2 - f1);
                     }
                     else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
                     break;
@@ -616,15 +608,15 @@ namespace Lomont.ClScript.CompilerLib
                     {
                         p1 = PopStack();
                         p2 = PopStack();
-                        if (p2 == 0) throw new InternalFailure("Division by 0");
-                        PushStack(p1/p2);
+                        if (p1 == 0) throw new InternalFailure("Division by 0");
+                        PushStack(p2/p1);
                     }
                     else if (opType == OperandType.Float32)
                     {
                         f1 = PopStackF();
                         f2 = PopStackF();
-                        if (f2 == 0) throw new InternalFailure("Division by 0");
-                        PushStackF(f1/f2);
+                        if (f1 == 0) throw new InternalFailure("Division by 0");
+                        PushStackF(f2/f1);
                     }
                     else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
                     break;
@@ -633,8 +625,8 @@ namespace Lomont.ClScript.CompilerLib
                     {
                         p1 = PopStack();
                         p2 = PopStack();
-                        if (p2 == 0) throw new InternalFailure("Division by 0");
-                        PushStack(p1%p2);
+                        if (p1 == 0) throw new InternalFailure("Division by 0");
+                        PushStack(p2%p1);
                     }
                     else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
                     break;

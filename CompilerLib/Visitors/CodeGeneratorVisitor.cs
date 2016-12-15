@@ -119,7 +119,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 
         // for loop stores a counter and a delta
-        const int ForLoopStackSize = 2; // number of for loop stack entries (index,delta)
+        public const int ForLoopStackSize = 2; // number of for loop stack entries (index,delta)
 
         void EmitForStatement(ForStatementAst node)
         {
@@ -287,15 +287,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         void AssignHelper(List<Ast> items, List<Ast> expr, TokenType assignType)
         {
+            if (items.Count != expr.Count)
+                throw new InternalFailure("AssignHelper has non-equal sizes");
             // push expr on stack in order
             for (var i = 0; i < items.Count; ++i)
                 EmitExpression(expr[i] as ExpressionAst);
 
-            // store in variables in reverse order
+            // store in variables in order
             for (var i = 0; i < items.Count; ++i)
             {
                 // todo - these can be address expressions such as array, etc...
-                var item = items[items.Count - i - 1];
+                var item = items[i];
+
                 EmitExpression(item as ExpressionAst, true); // address of expression
 
                 var operandType = GetOperandType(item.Type.SymbolType);
@@ -306,10 +309,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 // todo - make much shorter, table driven
                 if (assignType != TokenType.Equals)
                 {
-                    EmitO(Opcode.Dup); // address alreay already there 
+                    EmitO(Opcode.Dup); // address already already there 
                     var symbol = (item as ExpressionAst).Symbol;
-                    Emit2(Opcode.Read, OperandType.Global, symbol?.Name); // read it
+                    Emit2(Opcode.Read, OperandType.Global, symbol?.Name); // read it (note address already global here)
+                    EmitI(Opcode.Pick, items.Count+1);
                 }
+                else
+                    EmitI(Opcode.Pick, items.Count);
+
+                // stack now (in push order): 
+                // Equals: addr, oldValue, newValue
+                // Else  : addr, newValue
+
                 switch (assignType)
                 {
                     case TokenType.Equals:
@@ -318,14 +329,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         EmitO(Opcode.Add);
                         break;
                     case TokenType.SubEq:
-                        EmitO(Opcode.Swap);
                         EmitT(Opcode.Sub, operandType);
                         break;
                     case TokenType.MulEq:
                         EmitT(Opcode.Mul, operandType);
                         break;
                     case TokenType.DivEq:
-                        EmitO(Opcode.Swap);
                         EmitT(Opcode.Div, operandType);
                         break;
                     case TokenType.XorEq:
@@ -338,36 +347,33 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         EmitO(Opcode.Or);
                         break;
                     case TokenType.ModEq:
-                        EmitO(Opcode.Swap);
                         EmitT(Opcode.Mod, operandType);
                         break;
                     case TokenType.RightShiftEq:
-                        EmitO(Opcode.Swap);
                         EmitT(Opcode.RightShift, operandType);
                         break;
                     case TokenType.LeftShiftEq:
-                        EmitO(Opcode.Swap);
                         EmitT(Opcode.LeftShift, operandType);
                         break;
                     case TokenType.RightRotateEq:
-                        EmitO(Opcode.Swap);
                         EmitT(Opcode.RightRotate, operandType);
                         break;
                     case TokenType.LeftRotateEq:
-                        EmitO(Opcode.Swap);
                         EmitT(Opcode.LeftRotate, operandType);
                         break;
                     default:
                         throw new InternalFailure($"Unknown operation {assignType} in AssignHelper");
                 }
+                // stack now (push order) addr, newValue
                 WriteValue(operandType);
             }
+            // clean values from stack
+            Emit2(Opcode.AddStack, OperandType.None, "clean assign stack", -items.Count);
         }
 
         #region Read/Write variable values and addresses
 
-        // write value on stack top into given symbol
-        // value, then address on stack, then write
+        // push address, then value, then writes value into address
         void WriteValue(OperandType operandType)
         {
             EmitT(Opcode.Write, operandType);

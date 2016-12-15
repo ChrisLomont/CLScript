@@ -6,6 +6,7 @@ using System.ServiceModel;
 using System.Text;
 using System.Threading.Tasks;
 using Lomont.ClScript.CompilerLib.AST;
+using Lomont.ClScript.CompilerLib.Visitors;
 
 namespace Lomont.ClScript.CompilerLib
 {
@@ -167,6 +168,11 @@ namespace Lomont.ClScript.CompilerLib
                         byteSize = 4;
                         stackSize = 1; // one entry
                         break;
+                }
+                if (e.VariableUse == VariableUse.ForLoop && byteSize>0)
+                {
+                    byteSize += 4*(CodeGeneratorVisitor.ForLoopStackSize - 1);
+                    stackSize += CodeGeneratorVisitor.ForLoopStackSize - 1;
                 }
                 if (e.ArrayDimensions != null)
                 {

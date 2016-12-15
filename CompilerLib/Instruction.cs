@@ -33,12 +33,15 @@ namespace Lomont.ClScript.CompilerLib
         Dup,                // [   ] copy top stack value
         Swap,               // [   ] swap top two stack values
         ClearStack,         // [   ] add n zeroes to stack (used for function stack frames)
+        AddStack,           // [   ] single int from code added to stack pointer
                             
         // mem   
         // todo - these will need sized to handle byte accesses later
         Load,               // [GLC] push value from memory location onto stack
         Read,               // [GLC] Push value onto stack whose address on stack top
-        Write,              // [BIF] address on stack top, value one underneath, store it. Note addr creates absolute addresses on stack
+                            // push address, then value, then writes value into address
+
+        Write,              // [BIF] push address, then value. Write stores value into addr. Note addr creates absolute addresses on stack
         Addr,               // [GLC] push physical address of variable. Global/const are absolute, local computed relative to base pointer
 
         // array
