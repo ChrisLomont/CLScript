@@ -410,9 +410,48 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.BrAlways:
                     ProgramCounter += ReadCodeItem(OperandType.Int32);
                     break;
+
+
                 case Opcode.ForStart:
+                {
+                    var startIndex = PopStack(); // start
+                    var endIndex = PopStack(); // end
+                    var deltaIndex = PopStack(); // delta
+                    if (deltaIndex== 0) deltaIndex= (startIndex< endIndex) ? 1 : -1;
+                    var forAddr = BasePointer + ReadCodeItem(OperandType.Int32); // address to for stack, local to base pointer
+                    WriteRam(forAddr, startIndex, "FOR start"); // start address
+                    WriteRam(forAddr + 1, deltaIndex, "FOR delta"); // delta
+                }
+                    break;
                 case Opcode.ForLoop:
-                    throw new NotImplementedException($"Opcode {opcode} not implemented");
+                {
+                    // [   ] update for stack frame, branch if more to do
+                    //       Stack has end value, code has local offset to for frame (counter, delta), then delta address to jump on loop
+                    //       pops end value after comparison
+                    var forAddr = BasePointer + ReadCodeItem(OperandType.Int32); // address to for stack, local to base pointer
+                    var index = ReadRam(forAddr, "For loop index"); // index
+                    var delta = ReadRam(forAddr+1, "For loop delta"); // delta
+                    var endVal = PopStack(); // end value
+                    var jumpAddr = ReadCodeItem(OperandType.Int32); // jump delta
+
+                        var done = true;
+                    if (delta < 0)
+                    {
+                        // decreasing
+                        done = index + delta >= endVal;
+                    }
+                    else
+                    {
+                        // increasing
+                        done = index + delta <= endVal;
+                    }
+
+                    if (done)
+                    {
+                        WriteRam(forAddr, index+delta, "For loop update"); // write index back
+                        ProgramCounter += jumpAddr;
+                    }
+                }
                     break;
 
                 //bitwise

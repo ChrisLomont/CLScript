@@ -1,35 +1,47 @@
 // test array and '.' in func locals and global and params
 // sizes in stack slots
 
+// todo - return values not cleaned from function call when called alone
 
 //i32 bb[10]
 //i32 b=7
 
 [Entry]
-(i32) func()
+(i32) testFor()
+   i32 a
+   for i in 1..10
+      a += i
+   return a
+      
+      
+/*
+(i32) func1()
    i32 a[3][4]
    a[1][1] = 45
    //a[2][3] = 1234
    //bb[1] = 4
    //func2(a,10)
    
-   //i32 b = 7
-   //for i in 1..10
-   //   b += a[i-1]
-
+   
    //a[b] = 1234 + a[1]//bb[1]
-   a[1][1] = -3
+   a[1][1] = -3+func4()
    func2(a, a[1][1], 5+2)
    func3(a[2])
+   
+   for i in 1..10
+      a[3][2] += i
       
-   return 100*a[1][2]+a[2][3]
+   return 1000*a[3][2] + 100*a[1][2] + a[2][3]
 
 () func2(i32 a[][], i32 b, i32 c)
     a[1][2] = 17 + b + c // 17+-2+5 = 20
 
 () func3(i32 a[])
    a[3] = 34
-
+   
+(i32) func4()
+   return 3
+*/
 //() func2(i32 a[], i32 n)
 //    a[0] = 123
     //for i in 0..n-1

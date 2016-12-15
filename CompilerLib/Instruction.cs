@@ -56,12 +56,12 @@ namespace Lomont.ClScript.CompilerLib
         BrFalse,            // [   ] pop stack. If 0, branch to relative address
         BrAlways,           // [   ] always branch to relative address
         ForStart,           // [   ] start, end, delta values on stack. If delta = 0, compute delta +1 or -1
-                            //       store start at memory location, delta at location +1
-                            //       pops 2 from stack.
+                            //       store start at local memory location in code, delta at location +1
+                            //       pops 3 from stack.
                             //       takes address as operand for frame
         ForLoop,            // [   ] update for stack frame, branch if more to do
-                            //       end address is counter, then increment, end is on stack top
-                            //       pop end value. If more, loop, else don't
+                            //       Stack has end value, code has local offset to for frame (counter, delta), then delta address to jump on loop
+                            //       pops end value after comparison
         //bitwise           
         Or,                 // [   ]
         And,                // [   ]

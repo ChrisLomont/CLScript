@@ -123,7 +123,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         void EmitForStatement(ForStatementAst node)
         {
-            // for statement: index var is on stack, then limit, then (if array) array address
             var exprs = node.Children[0];
 
             // put three integers on stack: 
@@ -140,7 +139,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             else if (exprs.Children.Count == 2)
             {
-                // a,b form, var from a to b by c, where c is determined here
+                // a,b form, var from a to b by c, where c is determined below
                 EmitExpression(exprs.Children[0] as ExpressionAst);
                 EmitExpression(exprs.Children[1] as ExpressionAst);
                 EmitI(Opcode.Push, 0);
@@ -158,7 +157,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 
             // compute for loop start into this spot
-            var forLoopVaribleAddress = node.VariableSymbol.ReferenceAddress + callStackSuffixSize;
+            var forLoopVaribleAddress = GetLoadAddress(node.VariableSymbol);
             var forLoopVariableName = node.VariableSymbol.Name;
 
             Emit2(Opcode.ForStart, OperandType.None, forLoopVariableName, forLoopVaribleAddress);
@@ -178,7 +177,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // if more to do, go to top
             if (arrayLoop)
                 throw new InternalFailure("Loop not implemented");
-            else
+            else // evaluate end expression again
                 EmitExpression(exprs.Children[1] as ExpressionAst);
 
             Emit2(Opcode.ForLoop, OperandType.None, forLoopVariableName, forLoopVaribleAddress, startLabel);
@@ -254,7 +253,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     var n = type.ArrayDimension;// # of dimensions
 
                     var operands = new List<object>();
-                    operands.Add(LoadAddressAddress(entry)); // address of array to create
+                    operands.Add(GetLoadAddress(entry)); // address of array to create
                     operands.Add(n);
 
                     operands.Add(entry.StackSize);
@@ -389,7 +388,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }
 
-        int LoadAddressAddress(SymbolEntry symbol)
+        int GetLoadAddress(SymbolEntry symbol)
         {
             if (symbol.VariableUse == VariableUse.Global)
                 return symbol.ReferenceAddress;
@@ -397,6 +396,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return symbol.ReferenceAddress + callStackSuffixSize;
             else if (symbol.VariableUse == VariableUse.Param)
                 return symbol.LayoutAddress.Value - callStackPrefixSize;
+            else if (symbol.VariableUse == VariableUse.ForLoop)
+                return symbol.ReferenceAddress + callStackSuffixSize;
             else if (symbol.VariableUse == VariableUse.Member)
                 return symbol.ReferenceAddress;
             else
@@ -407,7 +408,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // given a symbol, load it's address
         void LoadAddress(SymbolEntry symbol)
         {
-            var addr = LoadAddressAddress(symbol);
+            var addr = GetLoadAddress(symbol);
 
             if (symbol.VariableUse == VariableUse.Global)
                 Emit2(Opcode.Addr, OperandType.Global, symbol.Name, addr);
