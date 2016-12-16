@@ -174,27 +174,21 @@ namespace Lomont.ClScript.CompilerLib
                     byteSize += 4*(CodeGeneratorVisitor.ForLoopStackSize - 1);
                     stackSize += CodeGeneratorVisitor.ForLoopStackSize - 1;
                 }
-                if (e.ArrayDimensions != null)
-                {
-                    // these must be computed in reverse
-                    var dim1 = e.ArrayDimensions.Count;
-                    for (var i =0; i < dim1; ++i)
-                    {
-                        var dim = e.ArrayDimensions[dim1-1-i];
-                        stackSize = Runtime.ArrayHeaderSize + stackSize*dim;
-                        byteSize = Runtime.ArrayHeaderSize*4 + byteSize*dim;
-                    }
-                }
                 if (byteSize > 0)
                 {
+                    DoArraySizing(e, ref stackSize, ref byteSize);
                     e.ByteSize = byteSize;
                     e.StackSize = stackSize;
+                    done++;
                 }
             }
 
             // loop over unsized user types
-            foreach (var item in table.Entries.Where(e => e.Type.SymbolType == SymbolType.UserType1 && e.ByteSize < 0))
+            foreach (var item in table.Entries.Where(e => e.ByteSize < 0))
             {
+                if (item.Type.SymbolType != SymbolType.Typedef && item.Type.SymbolType != SymbolType.UserType1)
+                    continue;
+
                 // try to compute size
                 var tbl = GetTableWithScope(item.Type.UserTypeName);
                 if (tbl == null)
@@ -223,11 +217,7 @@ namespace Lomont.ClScript.CompilerLib
                 if (allFound)
                 {
                     done++;
-                    foreach (var dim in item.ArrayDimensions)
-                    {
-                        byteSize *= dim;
-                        stackSize *= dim;
-                    }
+                    DoArraySizing(item, ref stackSize, ref byteSize);
                     item.ByteSize = byteSize; // note this may set multiple types if same member structure
                     item.StackSize = stackSize;
                 }
@@ -240,6 +230,23 @@ namespace Lomont.ClScript.CompilerLib
             // recurse on children
             foreach (var child in table.Children)
                 ComputeTypeSizes(child, environment, ref done, ref undone, ref type);
+        }
+
+        // given a symbol, and base type size, compute any additional array sizing requirements
+        void DoArraySizing(SymbolEntry e, ref int stackSize, ref int byteSize)
+        {
+            if (e.ArrayDimensions != null)
+            {
+                // these must be computed in reverse
+                var dim1 = e.ArrayDimensions.Count;
+                for (var i = 0; i < dim1; ++i)
+                {
+                    var dim = e.ArrayDimensions[dim1 - 1 - i];
+                    stackSize = Runtime.ArrayHeaderSize + stackSize * dim;
+                    byteSize = Runtime.ArrayHeaderSize * 4 + byteSize * dim;
+                }
+            }
+
         }
 
 

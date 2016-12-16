@@ -149,13 +149,13 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
 
         void Run()
         {
+            TraceText.Text = "";
             Compile();
 
             if (env.ErrorCount == 0)
             {
                 env.Info("Testing bytecode in runtime environment....");
 
-                TraceText.Text = "";
                 var traceEnv = new Environment(new StringWriter());
                 var r = new Runtime(traceEnv);
 

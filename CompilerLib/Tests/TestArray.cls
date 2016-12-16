@@ -1,18 +1,45 @@
 // test array and '.' in func locals and global and params
 // sizes in stack slots
 
-// todo - return values not cleaned from function call when called alone
+
+type t1
+   i32 x,y,z
+   
+[Entry]   
+(i32) func()
+   t1 v[2]
+   v[0].x = 1
+   v[0].y = 2
+   v[0].z = 3
+   v[1].x = 4
+   v[1].y = 5
+   v[1].z = 6
+   return v[1].x
+
+/*
 [Entry]
-(i32) func1()
-   i32 a = 0
-   func2(10)
-   a += func2(3)
-   return func2(func2(a))
+(i32) fib(i32 n)
+   if n < 2 
+      return 1
+   return fib(n-1)+fib(n-2)
+*/
+/*
+[Entry1]
+(i32,i32) func1(i32 x, i32 y, i32 z)
+   i32 a,b = 2,3
+   //a = 1
+   //b = 2
+   a,b += b,a
+   z = 10
+   return a,x+y+z
+   //func2(10)
+   //a += func2(3)
+   //return func2(func2(a))
    
 
 (i32) func2(i32 a)
    return a+2
-
+*/
 //i32 bb[10]
 //i32 b=7
 /*

@@ -735,7 +735,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // 3. TypedItemAst has no children
         // 
         // How to evaluate: (goal, compute address of item)
-        // 1. DotAst has field name and type of field, DotAst.child has encloding type
+        // 1. DotAst has field name and type of field, DotAst.child has enclosing type
         // 2. TypedItemAst has a Name, a Type, and a Symbol (for addresses)
         // 
         // todo - optimization: for all that are const, pack the value into offset
@@ -837,8 +837,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else
                 throw new InternalFailure($"Node must be DotAst or ArrayAst {node}");
 
-            if(opType != OperandType.Local && opType != OperandType.Global && opType != OperandType.Const)
-                throw new InternalFailure($"Illegal OperandType {opType} in {node}");
+            //if(opType != OperandType.Local && opType != OperandType.Global && opType != OperandType.Const)
+            //    throw new InternalFailure($"Illegal OperandType {opType} in {node}");
 
             // todo - eval items if param, global, local, const?
             // if want value instead of simply address, now get the value from the address

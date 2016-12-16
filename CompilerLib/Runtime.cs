@@ -409,7 +409,7 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.BrFalse:
                     p1 = ReadCodeItem(OperandType.Int32);
                     if (PopStack() == 0)
-                        ProgramCounter += p1;
+                        ProgramCounter += p1-4;
                     break;
                 case Opcode.BrAlways:
                     ProgramCounter += ReadCodeItem(OperandType.Int32);
