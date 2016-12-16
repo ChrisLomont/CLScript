@@ -231,6 +231,12 @@ namespace Lomont.ClScript.CompilerLib
             env.Info("Stackdump: ");
             DumpStack(StackPointer,10);
 
+
+            // return values
+            var retCount = returnValues.Length;
+            for (var i = 0; i < retCount; ++i)
+                returnValues[i] = ReadRam(StackPointer - (retCount - i),"Stack dump");
+
             return !error;
         }
 
@@ -454,7 +460,7 @@ namespace Lomont.ClScript.CompilerLib
                     PushStack(PopStack() & PopStack());
                     break;
                 case Opcode.Xor:
-                    PushStack(PopStack()%PopStack());
+                    PushStack(PopStack()^PopStack());
                     break;
                 case Opcode.Not:
                     PushStack(~PopStack());
@@ -470,8 +476,14 @@ namespace Lomont.ClScript.CompilerLib
                     PushStack(p2 << p1);
                     break;
                 case Opcode.RightRotate:
+                    p1 = PopStack(); // right
+                    p2 = PopStack(); // left
+                    PushStack(RotateRight(p2, p1));
+                    break;
                 case Opcode.LeftRotate:
-                    throw new NotImplementedException($"Opcode {opcode} not implemented");
+                    p1 = PopStack(); // right
+                    p2 = PopStack(); // left
+                    PushStack(RotateRight(p2, -p1));
                     break;
 
                 // comparison
@@ -635,6 +647,24 @@ namespace Lomont.ClScript.CompilerLib
             }
             Trace(System.Environment.NewLine);
             return retval;
+        }
+
+        /// <summary>
+        /// Rotate the value right through (rotation) bits, where
+        /// rotation can be any integer. Negative rotates is essentially a left shift
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="rotation"></param>
+        /// <returns></returns>
+        int RotateRight(int value, int rotation)
+        {   // get rotation in 0-31
+            if (rotation >= 0)
+                rotation &= 31;
+            else
+                rotation = (32 - ((-rotation) & 31)) & 31;
+            if (rotation == 0) return value;
+            uint t = (uint) value;
+            return (int) ((t >> rotation) | (t << (32 - rotation)));
         }
 
         #endregion

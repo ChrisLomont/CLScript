@@ -28,6 +28,12 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * DONE 13. Zero stack creating on locals?
  * DONE 14. Trace capability for runtime
  * DONE 15. Runtime: standalone function call not clearing return values from stack on return
+ * 16. Get ++ and -- working
+ * 17. call imports of external functions
+ * 
+ * To get usable in production:
+ * 17, 
+ * 
  */
 
 namespace Lomont.ClScript.CompilerLib

@@ -1,20 +1,20 @@
 // test array and '.' in func locals and global and params
 // sizes in stack slots
 
-
+/*
 type t1
    i32 x,y,z
    
 [Entry]   
 (i32) func()
-   t1 v[2]
-   v[0].x = 1
-   v[0].y = 2
-   v[0].z = 3
-   v[1].x = 4
-   v[1].y = 5
-   v[1].z = 6
-   return v[1].x
+   t1 v[2][3]
+   for i in 0..1
+      for j in 0..2
+         v[i][j].x = 100*(i)+10*(j)+1
+         v[i][j].y = 100*(i)+10*(j)+2
+         v[i][j].z = 100*(i)+10*(j)+3
+   return v[1][0].y
+*/
 
 /*
 [Entry]
@@ -104,7 +104,7 @@ type t1
    return a[1]
 */
 
-/*
+
 type t1
    i32 x,y,z    // 3
 
@@ -136,6 +136,6 @@ i32 w = 3 + v + t13[1].z + v2[v+3] + v34[1][v+2] + t11.x + t22[1].tt[1].y // add
     m += c[1]
     m += d[1][2]
     return m
-*/
+
 
 // end of file

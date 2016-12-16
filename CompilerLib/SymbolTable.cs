@@ -186,7 +186,7 @@ namespace Lomont.ClScript.CompilerLib
             // loop over unsized user types
             foreach (var item in table.Entries.Where(e => e.ByteSize < 0))
             {
-                if (item.Type.SymbolType != SymbolType.Typedef && item.Type.SymbolType != SymbolType.UserType1)
+                if (/*item.Type.SymbolType != SymbolType.Typedef &&*/ item.Type.SymbolType != SymbolType.UserType1)
                     continue;
 
                 // try to compute size
@@ -217,6 +217,11 @@ namespace Lomont.ClScript.CompilerLib
                 if (allFound)
                 {
                     done++;
+                    // before adding any array items, set the base type
+                    var itemTypeSymbol = Lookup(RootTable, item.Type.UserTypeName);
+                    itemTypeSymbol.ByteSize = byteSize;
+                    itemTypeSymbol.StackSize = stackSize;
+
                     DoArraySizing(item, ref stackSize, ref byteSize);
                     item.ByteSize = byteSize; // note this may set multiple types if same member structure
                     item.StackSize = stackSize;

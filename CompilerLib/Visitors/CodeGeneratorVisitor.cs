@@ -456,7 +456,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 case SymbolType.Bool:
                 case SymbolType.Byte:
-                    return OperandType.Byte;
+                    return OperandType.Int32; // todo - would like byte packing someday
                 case SymbolType.Int32:
                     return OperandType.Int32;
                 case SymbolType.Float32:
@@ -604,17 +604,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             EmitS(Opcode.Call, node.Name);
 
             // if result ignored, pop them
-            if (FunctionResultUnused(node))
+            if (!FunctionResultIsUsed(node))
                 Emit2(Opcode.PopStack, OperandType.None, "clean unused return values", symbol.Type.ReturnType.Count);
         }
 
-        bool FunctionResultUnused(FunctionCallAst node)
+        // return true if the function return values need to removed from the stack
+        bool FunctionResultIsUsed(FunctionCallAst node)
         {
             var p = node.Parent;
             if (p is BlockAst)
-                return true;
-            else if (p is ExpressionAst || p is ExpressionListAst)
                 return false;
+            if (p is ExpressionAst || p is ExpressionListAst || p is IfStatementAst)
+                return true;
             throw new InternalFailure($"Function return use unknown via parent {p}");
         }
 

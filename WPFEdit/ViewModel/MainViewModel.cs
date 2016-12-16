@@ -9,6 +9,7 @@ using Lomont.ClScript.CompilerLib;
 using Microsoft.Win32;
 using Environment = Lomont.ClScript.CompilerLib.Environment;
 using System.ComponentModel;
+using System.Text;
 
 namespace Lomont.ClScript.WPFEdit.ViewModel
 {
@@ -177,6 +178,10 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 if (success)
                 {
                     env.Info(" .... runtime successful.");
+                    var sb = new StringBuilder();
+                    for (var i = 0; i < returnValues.Length; ++i)
+                        sb.Append($"{returnValues[i]} ");
+                    env.Info($"Return values: {sb}");
                 }
                 else
                 {
