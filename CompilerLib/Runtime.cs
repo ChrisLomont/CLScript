@@ -14,23 +14,50 @@ namespace Lomont.ClScript.CompilerLib
 
         /* Format for an assembly (values big endian):
          * 
-         * 4 byte Identifier: CLSx where x is a version byte, "CLS" UTF-8
-         * 4 byte length of assembly
-         * 4 byte offset (from start of bytecode) to start of code
-         * 
-         * 4 byte number of LinkEntries
-         * LinkEntries
-         * 
-         * Code
-         * 
-         * LinkEntry is:
-         *    2 byte length
-         *    4 byte address of item from start of bytecode
-         *    0 terminated UTF-8 strings
+         * RIFF format is composed of chunks:
+         *    each chunk is a 4 byte chunk name (RIFF requires ASCII, we relax it), 
+         *    then 4 byte big endian size of chunk (excluding chunk name and chunk size) (usual RIFF little endian here!)
+         *    then data, padded at end with 0 to make even sized
+         *    
+         * Skip any chunks not understood
+         *    
+         * Other than size fields, all values big endian   
+         *    
+         * Structure (chunk name and data, size field implied):  
+         *    Chunk "RIFF" (required by the format)
+         *        data is 4 byte: "CLS " "CLS" ASCII
+         *        then 2 byte version (major, then minor)
+         *        
+         *        Then chunks. "code" and "link" required. Others optional
+         *        
+         *        Chunk "code" : the code to execute
+         *            code binary blob
+         *        Chunk "link" : link entries have imports and exports to link with
+         *            4 byte number L1 of link imports
+         *            4 byte number L2 of link exports
+         *            L1 4 byte entries of offsets to import link entry from start of link section
+         *            L1 4 byte entries of offsets to export link entry from start of link section
+         *            
+         *            Link entries. Each is
+         *                4 byte unique id (start at 0, incremented for each link item, marks calling address from code)
+         *                4 byte address of item from start of code blob
+         *                4 byte # stack entries return values
+         *                4 byte # stack entries parameter values
+         *                4 byte # of attributes
+         *                0 terminated UTF-8 item name
+         *                Attributes: each 
+         *                     0 terminated UTF-8 attribute name
+         *                     4 byte byte # of parameters for attribute
+         *                     0 terminated UTF-8 parameter strings
+         *                     
+         *        Chunk "img0" : global vars for the assembly (todo)
+         *            one byte 0 (no chunk padding) or 1 (chunk padding)
+         *            initialization image (copied into RAM, stack pointer points past it to start
+         *            
+         *        Chunk "text" : string table (todo)
          * 
          * todo - types?, RAM/ROM distinction, item type (var or func)
-         * todo - initial memory values
-         * todo - enumerate attributes to allow finding multiple entry points
+         * 
          */
 
         public Runtime(Environment environment)
@@ -40,21 +67,99 @@ namespace Lomont.ClScript.CompilerLib
 
         /// <summary>
         /// Run an image, starting at the given attributed entry point
+        /// with the given parameters, and given space for return values
         /// </summary>
         /// <param name="image"></param>
         /// <param name="entryAttribute"></param>
+        /// <param name="parameters"></param>
+        /// <param name="returnValues"></param>
         /// <returns></returns>
         public bool Run(byte[] image, string entryAttribute, int [] parameters, int [] returnValues)
         {
             useTracing = true;
 
-            // todo - zero memory in C/C++ style environments
-            // todo - get return size to start with
-            return RunImage(image, entryAttribute, parameters, returnValues);
+            error = false;
+            romImage1 = image;
+
+            try
+            {
+                var index = 0;
+                string name;
+                int length;
+                if (!ReadChunkHeader(ref index, out name, out length) || name != "RIFF" || length != image.Length-8 ||
+                    !ReadImageString(ref index, out name, 4) || name != "CLS " || ReadImageInt(ref index, 2) != GenVersion || error)
+                {
+                    env.Error($"Invalid bytecode header");
+                    return false;
+                }
+
+                // walk chunks
+                while (index < image.Length)
+                {
+                    if (!ReadChunkHeader(ref index, out name, out length))
+                    {
+                        env.Error($"Invalid bytecode chunk {name}");
+                        return false;
+                    }
+                    if (name == "code")
+                    {
+                        CodeStartOffset = (int)index;
+                        index += length;
+                    }
+                    else if (name == "link")
+                    {
+                        LinkStartOffset = (int) index;
+                        index += length;
+                    }
+                    else
+                    {
+                        env.Warning($"Unknown bytecode chunk {name}");
+                        index += length;
+                    }
+                }
+
+
+                env.Info($"Code offset {CodeStartOffset}, link offset {LinkStartOffset}");
+
+                // find entry point
+                int address, retCount, paramCount, uniqueId;
+
+                if (!FindAttributeAddress(entryAttribute, out address, out retCount, out paramCount, out uniqueId))
+                {
+                    env.Error($"Cannot find entry point attribute {entryAttribute}. Ensure exported.");
+                    return false;
+                }
+
+                if (returnValues.Length != retCount)
+                {
+                    env.Error($"Entry function has wrong number of return values");
+                    return false;
+                }
+                if (parameters.Length != paramCount)
+                {
+                    env.Error($"Entry function has wrong number of parameters");
+                    return false;
+                }
+
+                return Process(address, parameters, returnValues);
+            }
+            catch (Exception ex)
+            {
+                env.Error("Exception: " + ex);
+                return false;
+            }
         }
 
+        bool ReadChunkHeader(ref int index, out string name, out int length)
+        {
+            length = 0;
+            if (!ReadImageString(ref index, out name, 4))
+                return false;
+            length = ReadImageInt(ref index, 4);
+            return !error;
+        }
 
-        public static int GenVersion = 1; // major.minor nibbles of code
+        public static ushort GenVersion   = 1; // major.minor bytes of code
         public static int ArrayHeaderSize = 2; // in stack entries, these are before array address
 
         // all locals - minimize memory
@@ -65,9 +170,8 @@ namespace Lomont.ClScript.CompilerLib
         int StackPointer;
         int BasePointer;
         int ProgramCounter;
-        int ImageLength;
-        int LinkCount;
         int CodeStartOffset;
+        int LinkStartOffset;
 
         // when true, all memory read/writes are blocked
         bool error;
@@ -124,69 +228,61 @@ namespace Lomont.ClScript.CompilerLib
 
         #region Setup
 
-        bool RunImage(byte[] image, string entryAttribute, int[] parameters, int[] returnValues)
-        {
-            error = false;
-            romImage1 = image;
-
-            try
-            {
-                // min size
-                if (image.Length < 12)
-                {
-                    env.Error("bytecode too short to be valid");
-                    return false;
-                }
-                // read header
-                if (image[0] != 'C' || image[1] != 'L' || image[2] != 'S' || image[3] != GenVersion)
-                {
-                    env.Error($"Invalid bytecode header");
-                    return false;
-                }
-
-                ImageLength = ReadImageInt4(4, 4); // assembly length
-                CodeStartOffset = ReadImageInt4(8, 4); // code offset
-                LinkCount = ReadImageInt4(12, 4); // number of link entries
-                env.Info($"Length {ImageLength}, offset {CodeStartOffset}, link count {LinkCount}");
-
-                // find entry point
-                var entryPoint = FindAttributeAddress(entryAttribute);
-                if (entryPoint < 0)
-                {
-                    env.Error($"Cannot find entry point attribute {entryAttribute}");
-                    return false;
-                }
-
-                return Process(entryPoint, parameters, returnValues);
-            }
-            catch (Exception ex)
-            {
-                env.Error("Exception: " + ex);
-                return false;
-            }
-        }
-
         // find the attribute with the given name
         // return the associated address
-        // return -1 if cannot be found
-        int FindAttributeAddress(string attributeName)
+        // return false if cannot be found
+        bool FindAttributeAddress(string attributeName, out int address, out int retCount, out int paramCount, out int uniqueId)
         {
-            var linkCount = ReadImageInt4(12, 4); // number of link entries
-            var index = 16; // start here
-            for (var i = 0; i < linkCount; ++i)
+            address = retCount = paramCount = uniqueId = -1;
+            var index = LinkStartOffset;
+            var importCount = ReadImageInt(ref index, 4);
+            var exportCount = ReadImageInt(ref index, 4);
+            if (error) return false;
+
+            for (var i = 0; i < importCount + exportCount; ++i)
             {
-                // LinkEntry is:
-                // 2 byte length
-                // 4 byte address of item from start of bytecode
-                // 0 terminated UTF-8 strings
-                var len = ReadImageInt4(index, 2);
-                var addr = ReadImageInt4(index + 2, 4);
-                var txt = ReadImageString(index + 6);
-                if (txt == attributeName)
-                    return addr;
-                index += len;
+                var offset = ReadImageInt(ref index, 4);
+                if (LinkCheckAttribute(offset, attributeName, out address, out retCount, out paramCount, out uniqueId) || error)
+                    return !error;
             }
-            return -1;
+            return false;
+        }
+
+        // given offset from LinkStartOffset, if has given attribute, return true, else false
+        // get address
+        bool LinkCheckAttribute(int offset, string attributeName, out int address, out int retCount, out int paramCount, out int id)
+        {
+            string name;
+
+            var index      =    4 + offset + LinkStartOffset;
+            id             = ReadImageInt(ref index, 4);
+            address        = ReadImageInt(ref index, 4);
+            retCount       = ReadImageInt(ref index, 4);
+            paramCount     = ReadImageInt(ref index, 4);
+            var attrCount  = ReadImageInt(ref index, 4);
+
+            if (attrCount == 0 || error) return false;
+
+            // entry name
+            if (!ReadImageString(ref index, out name))
+                return false;
+
+            // parse attributes
+            for (var i = 0; i < attrCount; ++i)
+            {
+                if (!ReadImageString(ref index, out name))
+                    return false;
+                if (name == attributeName)
+                    return true; // found it
+                
+                // param count, read them
+                var attrParamCount = ReadImageInt(ref index, 4);
+                for (var j = 0; j < attrParamCount; ++j)
+                    if (!ReadImageString(ref index, out name))
+                        return false;
+            }
+
+            return false;
         }
 
         #endregion
@@ -678,27 +774,43 @@ namespace Lomont.ClScript.CompilerLib
                 env.Output.Write(message);
         }
 
-        // Read 0 terminated UTF8 string
-        string ReadImageString(int offset)
+        // Read a UTF8 string from the rom image
+        // if numBytes > 0, get that many bytes, else it's 0 terminated
+        // return true on success
+        bool ReadImageString(ref int index, out string name, int numBytes = -1)
         {
             var sb = new StringBuilder();
             int b;
-            do
+            while (true)
             {
-                b = ReadRom(offset++, "ReadImageString");
-                if (b != 0)
-                    sb.Append((char) b);
-            } while (b != 0 && !error);
-            return sb.ToString();
+                b = ReadRom(index++, "ReadImageString");
+                if (error)
+                    break;
+                if (numBytes <= 0 && b == 0)
+                    break;
+                sb.Append((char) b);
+                if (numBytes > 0 && sb.Length >= numBytes)
+                    break;
+            }
+            name = sb.ToString();
+            return !error;
+        }
+
+        // read big endian bytes at given offset of given length
+        // sets error flag on failure
+        int ReadImageInt(ref int index, int count)
+        {
+            int value = 0, address = index;
+            while (count-- > 0 && !error)
+                value = (value << 8) + ReadRom(address++, "ReadImageInt out of bounds");
+            index = address;
+            return value;
         }
 
         // read big endian bytes at given offset
-        int ReadImageInt4(int offset, int count)
+        int ReadImageInt(int offset, int count)
         {
-            int value = 0, address = offset;
-            while (count-- > 0 && !error)
-                value = (value << 8) + ReadRom(address++, "ReadImage4 out of bounds");
-            return value;
+            return ReadImageInt(ref offset, count);
         }
 
         int ReadCodeItem(OperandType opType)
@@ -706,13 +818,13 @@ namespace Lomont.ClScript.CompilerLib
             int value = 0;
             if (opType == OperandType.Byte)
             {
-                value = ReadImageInt4(ProgramCounter + CodeStartOffset, 1);
+                value = ReadImageInt(ProgramCounter + CodeStartOffset, 1);
                 ProgramCounter += 1;
             }
             else if (opType == OperandType.Float32 || opType == OperandType.Int32)
             {
                 // note we can read a 32 bit float with an int, and pass it back as one
-                value = ReadImageInt4(ProgramCounter + CodeStartOffset, 4);
+                value = ReadImageInt(ProgramCounter + CodeStartOffset, 4);
                 ProgramCounter += 4;
             }
             else

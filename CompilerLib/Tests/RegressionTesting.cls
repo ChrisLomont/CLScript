@@ -3,7 +3,7 @@
 // Call with "Entry" as the entry point, no parameters, 3 return values
 [Entry]
 // return (success, # passed, # tested)
-(bool,i32,i32) RunTests()
+export (bool,i32,i32) RunTests()
      
    i32 passed = 0
    i32 tested = 0

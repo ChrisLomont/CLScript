@@ -1,3 +1,7 @@
+[Entry]
+export (i32) func(i32 a)
+   return a*a
+/*
 type t1
    i32 a
    i32 b
@@ -10,7 +14,7 @@ t1 ta // 3, length 2
 i32 e // 5, length 1
 
 i32 z = e + ta.a + ta.b + tb.c.a
-
+*/
 /*
 type t1
    i32 e[5]

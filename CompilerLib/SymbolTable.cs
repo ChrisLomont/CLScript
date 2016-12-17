@@ -92,6 +92,8 @@ namespace Lomont.ClScript.CompilerLib
 
             var symbol = SymbolTable.AddSymbol(node, Scope, symbolName, usage, iSymbol, arrayDimensions);
             symbol.Attrib = attrib;
+            if (attrib.HasFlag(SymbolAttribute.Import) || attrib.HasFlag(SymbolAttribute.Export))
+                symbol.UniqueId = GetUniqueId();
             var match = CheckDuplicate(SymbolTable, symbol);
             if (match != null)
             {
@@ -102,6 +104,12 @@ namespace Lomont.ClScript.CompilerLib
                     env.Error(msg);
             }
             return symbol;
+        }
+
+        int uniqueId = 0;
+        int GetUniqueId()
+        {
+            return uniqueId++;
         }
 
         public SymbolTable GetTableWithScope(string typeName)
@@ -568,6 +576,8 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public int StackSize { get; set; }
 
+        // unique id used for imports and exports
+        public int UniqueId { get; set; } = -1; 
 
         public SymbolEntry(Ast node, string name, VariableUse usage, InternalType symbolType, List<int> arrayDimensions)
         {

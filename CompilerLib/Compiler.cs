@@ -30,6 +30,10 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * DONE 15. Runtime: standalone function call not clearing return values from stack on return
  * 16. Get ++ and -- working
  * 17. call imports of external functions
+ * 18. string testing
+ * 19. string interpolation
+ * 20. string able to print to external function call
+ * 21. Import of files, ensure single import
  * 
  * To get usable in production:
  * 17, 

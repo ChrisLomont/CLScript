@@ -14,10 +14,10 @@ namespace Lomont.ClScript.CompilerLib
 
     /* Format for an assembly (values big endian):
      * 
-     * RIFF format: in chunks:
-     *    each with 4 byte identifier (RIFF requires ASCII, we relax it), 
-     *    then 4 byte little endian size of chunk (size except header and this size field)
-     *    data, padded at end with 0 to make even sized
+     * RIFF format is composed of chunks:
+     *    each chunk is a 4 byte chunk name (RIFF requires ASCII, we relax it), 
+     *    then 4 byte big endian size of chunk (excluding chunk name and chunk size) (usual RIFF little endian here!)
+     *    then data, padded at end with 0 to make even sized
      *    
      * Skip any chunks not understood
      *    
@@ -25,29 +25,38 @@ namespace Lomont.ClScript.CompilerLib
      *    
      * Structure (chunk name and data, size field implied):  
      *    Chunk "RIFF" (required by the format)
-     *        data is "CLSx" where x is a version byte, "CLS" ASCII
-     *        Chunk "head"
-     *            4 byte length of assembly
-     *        Chunk "code"
+     *        data is 4 byte: "CLS " "CLS" ASCII
+     *        then 2 byte version (major, then minor)
+     *        
+     *        Then chunks. "code" and "link" required. Others optional
+     *        
+     *        Chunk "code" : the code to execute
      *            code binary blob
-     *        Chunk "link"
-     *            4 byte number L of link entries
-     *            L 4 byte entries of offsets to each link entry from start of image
-     *            Link entries. Each is
-     *            todo;;;;
-     *                2 byte length
-     *                4 byte address of item from start of bytecode
-     *                0 terminated UTF-8 strings
+     *        Chunk "link" : link entries have imports and exports to link with
+     *            4 byte number L1 of link imports
+     *            4 byte number L2 of link exports
+     *            L1 4 byte entries of offsets to import link entry from start of link section
+     *            L1 4 byte entries of offsets to export link entry from start of link section
      *            
-     *       
-     *    
+     *            Link entries. Each is
+     *                4 byte unique id (start at 0, incremented for each link item, marks calling address from code)
+     *                4 byte address of item from start of code blob
+     *                4 byte # stack entries return values
+     *                4 byte # stack entries parameter values
+     *                4 byte # of attributes
+     *                0 terminated UTF-8 item name
+     *                Attributes: each 
+     *                     0 terminated UTF-8 attribute name
+     *                     4 byte byte # of parameters for attribute
+     *                     0 terminated UTF-8 parameter strings
+     *                     
+     *        Chunk "img0" : global vars for the assembly (todo)
+     *            one byte 0 (no chunk padding) or 1 (chunk padding)
+     *            initialization image (copied into RAM, stack pointer points past it to start
+     *            
+     *        Chunk "text" : string table (todo)
      * 
      * todo - types?, RAM/ROM distinction, item type (var or func)
-     * todo - initial memory values
-     * todo - string table/code table
-     * todo - imported calls
-     * 
-     * Link entry: types, name, attributes, address in code/global memory
      * 
      */
     public class BytecodeGen
@@ -55,7 +64,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// Generation version 0.1
         /// </summary>
-        public int GenVersion => 1; // major.minor stored as nibbles
+        public ushort GenVersion => 0x0001; // major.minor each stored as a byte
 
         // the final compiled assembly
         public byte[] CompiledAssembly { get; set; }
@@ -64,6 +73,7 @@ namespace Lomont.ClScript.CompilerLib
         SymbolTableManager table;
         Environment env;
         Dictionary<string, int> labelAddresses;
+        
         // where import/export/attribute items are stored
         List<LinkEntry> linkEntries = new List<LinkEntry>();
 
@@ -107,36 +117,82 @@ namespace Lomont.ClScript.CompilerLib
 
         void WriteAssembly()
         {
-            // 4 byte Identifier: CLSx where x is a version byte, "CLS" UTF - 8
-            // 4 byte length of assembly
-            // 4 byte offset (from start of bytecode) to start of code
-            // 
-            // 4 byte number of LinkEntries
-            // LinkEntries
-            // 
-            // Code
+            var assembly = new List<byte>();
+            WriteChunk(assembly,"RIFF");
+
+            ByteWriter.Write(assembly, "CLS ", false);
+            ByteWriter.Write(assembly,GenVersion>>8,1);
+            ByteWriter.Write(assembly, GenVersion&255, 1);
+
+            WriteChunk(assembly, "code", code);
 
             var linkData = new List<byte>();
-            ByteWriter.Write(linkData, linkEntries.Count, 4);
-            foreach (var l in linkEntries)
-                l.Write(linkData);
+            WriteLinkEntries(linkData);
 
-            var header = new List<byte>();
-            ByteWriter.Write(header, 'C', 1);
-            ByteWriter.Write(header, 'L', 1);
-            ByteWriter.Write(header, 'S', 1);
-            ByteWriter.Write(header, GenVersion, 1);
-            ByteWriter.Write(header, linkData.Count + header.Count + 8 + code.Count, 4); // total length
-            ByteWriter.Write(header, linkData.Count + header.Count+4, 4);                // code offset
+            WriteChunk(assembly, "link", linkData);
 
-            header.AddRange(linkData);
 
-            header.AddRange(code);
+            // write some testing nonsense chunks
+            var rand = new Random(1234);
+            for (var i = 0; i < rand.Next(1,5); ++i)
+            {
+                var data = new byte[rand.Next(7, 29)];
+                rand.NextBytes(data);
+                var name = $"abc" + i;
+                WriteChunk(assembly,name,data.ToList());
+                env.Warning($"Writing garbage chunk {name} for testing");
+            }
 
-            //for (var i =0; i < Math.Min(10,code.Count); ++i)
-            //    env.Info($"Code byte 0x{code[i]:X2}");
 
-            CompiledAssembly = header.ToArray();
+            var empty = new List<byte>();
+            WriteChunk(assembly, "img0", empty); // initial RAM image
+            WriteChunk(assembly, "text", empty); // string table & const data
+
+            // fill in size
+            ByteWriter.Write(assembly,assembly.Count-8,4,4);
+
+            CompiledAssembly = assembly.ToArray();
+        }
+
+        void WriteChunk(List<byte> destination, string chunkName, List<byte> chunkData = null)
+        {
+            for (var i =0; i < 4; ++i)
+                destination.Add((byte)chunkName[i]);
+            var len = chunkData?.Count ?? 0;
+            if ((len & 1) == 1)
+                ++len; // even
+            ByteWriter.Write(destination, len, 4);
+            if (chunkData != null)
+            {
+                destination.AddRange(chunkData);
+                if ((chunkData.Count & 1) == 1)
+                    destination.Add(0); // even padded
+            }
+        }
+
+        void WriteLinkEntries(List<byte> linkData)
+        {
+            var importCount = linkEntries.Count(v => v.Flags.HasFlag(SymbolAttribute.Import));
+            var exportCount = linkEntries.Count(v => v.Flags.HasFlag(SymbolAttribute.Export));
+            if (importCount + exportCount != linkEntries.Count)
+                throw new InternalFailure($"Import {importCount} and export {exportCount} link entries don't add up to {linkEntries.Count}");
+            ByteWriter.Write(linkData, importCount, 4);
+            ByteWriter.Write(linkData, exportCount, 4);
+
+            var temp = new List<byte>();
+            var start = linkData.Count; // byte offset from "link" chunk start, excluding 8 byte header
+            foreach (var entry in linkEntries.Where(v => v.Flags.HasFlag(SymbolAttribute.Import)))
+            {
+                ByteWriter.Write(linkData,temp.Count+start,4);
+                entry.Write(temp);
+            }
+            foreach (var entry in linkEntries.Where(v => v.Flags.HasFlag(SymbolAttribute.Export)))
+            {
+                ByteWriter.Write(linkData, temp.Count + start, 4);
+                entry.Write(temp);
+            }
+
+            linkData.AddRange(temp);
         }
 
         // write code address into target address. 
@@ -146,7 +202,6 @@ namespace Lomont.ClScript.CompilerLib
             var delta = (uint)(isRelative?codeAddress - targetAddress: codeAddress);
             WriteTo(delta,targetAddress);
         }
-
 
         void Encode(Instruction inst)
         {
@@ -266,43 +321,62 @@ namespace Lomont.ClScript.CompilerLib
 
         void ProcessSymbol(SymbolEntry symbol)
         {
+            var flags = symbol.Attrib;
             // create item to import/export/attribute, etc
-            if (symbol.Attributes.Any())
+            if (flags.HasFlag(SymbolAttribute.Export) || flags.HasFlag(SymbolAttribute.Import))
             {
-                // add a link entry
-                var e = new LinkEntry(address);
-                e.Attributes = symbol.Attributes;
-                linkEntries.Add(e);
+                
+                if (flags.HasFlag( SymbolAttribute.Import))
+                    env.Info($"Importing symbol {symbol.Name}");
+                if (flags.HasFlag(SymbolAttribute.Export))
+                    env.Info($"Exporting symbol {symbol.Name}");
+
+                var linkEntry = new LinkEntry(symbol.Name,flags,address, symbol.Type.ReturnType.Count, symbol.Type.ParamsType.Count,symbol.UniqueId);
+                if (symbol.Attributes.Any())
+                    linkEntry.Attributes = symbol.Attributes;
+                linkEntries.Add(linkEntry);
             }
-
         }
-
 
         class LinkEntry
         {
-            public LinkEntry(int address)
+            public LinkEntry(string name, SymbolAttribute flags, int address, int returnEntries, int paramEntries, int uniqueId)
             {
                 Address = address;
+                Name = name;
+                Flags = flags;
+                ReturnEntries = returnEntries;
+                ParameterEntries = paramEntries;
+                UniqueId = uniqueId;
             }
 
-            public int Address;
+            public int UniqueId { get; set; }
+
+            public int ReturnEntries { get; private set; }
+
+            public int ParameterEntries { get; private set; }
+
+            public SymbolAttribute Flags { get; private set; }
+
+            public int Address { get; private set;  }
+
+            public string Name { get; private set; }
+
             public List<Attribute> Attributes { get; set; }
 
             // write into a byte assembly
             public void Write(List<byte> bytes)
             {
-                // 2 byte length
-                // 4 byte address of item from start of bytecode
-                // 0 terminated UTF-8 strings
-                var length = 2 + 4 + 
-                    Attributes.Sum(s=>s.Name.Length+1 + s.Parameters.Sum(p=>p.Length+1));
-                if (length > 65535)
-                    throw new InternalFailure("Link entry too large");
-                ByteWriter.Write(bytes, length, 2);
+                ByteWriter.Write(bytes,UniqueId,4);
                 ByteWriter.Write(bytes, Address, 4);
+                ByteWriter.Write(bytes, ReturnEntries, 4);
+                ByteWriter.Write(bytes, ParameterEntries, 4);
+                ByteWriter.Write(bytes, Attributes.Count,4);
+                ByteWriter.Write(bytes, Name);
                 foreach (var a in Attributes)
                 {
                     ByteWriter.Write(bytes, a.Name);
+                    ByteWriter.Write(bytes, a.Parameters.Count, 4);
                     foreach (var p in a.Parameters)
                         ByteWriter.Write(bytes, p);
                 }
@@ -374,24 +448,26 @@ namespace Lomont.ClScript.CompilerLib
 
     static class ByteWriter
     {
-        public static void Write(List<byte> bytes, string text)
+        public static void Write(List<byte> bytes, string text, bool zeroTerminated = true)
         {
-            // todo - above spacing was based on 8 bit UTF-8 characters...
-            // either enforce this, or measure length correctly
-
             var txt = UTF8Encoding.UTF8.GetBytes(text);
             foreach (var b in txt)
                 bytes.Add(b);
-            bytes.Add(0); // 0 terminated
+            if (zeroTerminated)
+                bytes.Add(0); // 0 terminated
         }
 
         // MSB
-        public static void Write(List<byte> bytes, int value, int length)
+        public static void Write(List<byte> bytes, int value, int length, int address = -1)
         {
             var shift = length * 8 - 8;
             for (var i = 0; i < length; ++i)
             {
-                bytes.Add((byte)(value >> shift));
+                var b = (byte) (value >> shift);
+                if (address == -1)
+                    bytes.Add(b);
+                else
+                    bytes[address++] = b;
                 shift -= 8;
             }
         }
