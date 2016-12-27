@@ -50,6 +50,9 @@ namespace Lomont.ClScript.CompilerLib
          *                     4 byte byte # of parameters for attribute
          *                     0 terminated UTF-8 parameter strings
          *                     
+         *        Chunk "init" : If present, code to execute on load to set up globals. 
+         *            4 byte ending address, starts at 0
+         *            
          *        Chunk "img0" : global vars for the assembly (todo)
          *            one byte 0 (no chunk padding) or 1 (chunk padding)
          *            initialization image (copied into RAM, stack pointer points past it to start
@@ -80,6 +83,7 @@ namespace Lomont.ClScript.CompilerLib
 
             error = false;
             romImage1 = image;
+            InitializerStopAddress = -1; // marks unused
 
             try
             {
@@ -109,6 +113,12 @@ namespace Lomont.ClScript.CompilerLib
                     else if (name == "link")
                     {
                         LinkStartOffset = (int) index;
+                        index += length;
+                    }
+                    else if (name == "init")
+                    {
+                        InitializerStopAddress = ReadImageInt(index , 4);
+                        env.Info($"Initializer stops at 0x{InitializerStopAddress:X}");
                         index += length;
                     }
                     else
@@ -172,6 +182,7 @@ namespace Lomont.ClScript.CompilerLib
         int ProgramCounter;
         int CodeStartOffset;
         int LinkStartOffset;
+        int InitializerStopAddress;
 
         // when true, all memory read/writes are blocked
         bool error;
@@ -296,9 +307,23 @@ namespace Lomont.ClScript.CompilerLib
         {
             env.Info($"Processing code, offset {CodeStartOffset}, entry address {startAddress}");
 
-            ProgramCounter = startAddress;
             BasePointer = -1; // out of bounds
             StackPointer = 0; // todo - start past globals, load them as block
+
+            Trace("TRACE: Tracing" + System.Environment.NewLine);
+            Trace("TRACE: PC   Opcode   ?    Operands     SP  BP  reads (c=code,r=ram)" + System.Environment.NewLine);
+
+            if (InitializerStopAddress != -1)
+            {
+                ProgramCounter = 0;
+                while (!error)
+                {
+                    if (!Execute())
+                        break;
+                }
+            }
+
+            ProgramCounter = startAddress;
 
             // create call stack
             // 1. Push space for return values
@@ -313,10 +338,6 @@ namespace Lomont.ClScript.CompilerLib
             BasePointer = StackPointer; // frame start
 
             // now entry looks like a Call instruction to the code
-
-            Trace("TRACE: Tracing" + System.Environment.NewLine);
-            Trace("TRACE: PC   Opcode   ?    Operands     SP  BP  reads (c=code,r=ram)" + System.Environment.NewLine);
-
             while (!error)
             {
                 if (!Execute())
@@ -326,7 +347,6 @@ namespace Lomont.ClScript.CompilerLib
             env.Info("");
             env.Info("Stackdump: ");
             DumpStack(StackPointer,10);
-
 
             // return values
             var retCount = returnValues.Length;
@@ -341,6 +361,7 @@ namespace Lomont.ClScript.CompilerLib
 
         // execute the instruction at the current program counter
         // return true if not ending
+        // ends if error, if program counter is initializer stop address, or program counter is on exit address after a return
         bool Execute()
         {
             bool retval = true; // assume this not last instruction
@@ -749,7 +770,7 @@ namespace Lomont.ClScript.CompilerLib
                     throw new RuntimeException($"Unknown opcode {opcode}");
             }
             Trace(System.Environment.NewLine);
-            return retval;
+            return retval && !error && ProgramCounter != InitializerStopAddress;
         }
 
         // execute a return statement

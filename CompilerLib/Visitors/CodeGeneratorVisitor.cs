@@ -40,6 +40,51 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return instructions;
         }
 
+        bool globalStarted = false;
+        bool globalEnded = false;
+        int globalStartIndex = 0;
+        public static string GlobalStartSymbol = "<global_start>";
+        public static string GlobalEndSymbol = "<global_end>";
+        void EmitGlobalDelimiter(bool start)
+        {
+            if (start)
+            {
+                if (!globalStarted && !globalEnded)
+                {
+                    EmitS(Opcode.Label, GlobalStartSymbol);
+                    globalStartIndex = instructions.Count;
+                    Emit2(Opcode.ClearStack, OperandType.None, "globals stack space", GetGlobalsStackSize());
+                    MakeArrays(); // make any array structures
+                }
+                globalStarted = true;
+            }
+            else
+            {
+                if (!globalEnded && globalStarted)
+                {
+                    EmitS(Opcode.Label, GlobalEndSymbol);
+                    if (instructions.Count != globalStartIndex)
+                    {
+                        Emit2(Opcode.Return, OperandType.None, "",
+                            0, // parameter count
+                            0 // local stack entries
+                        );
+                    }
+                }
+                globalEnded = true;
+            }
+        }
+
+        // size in stack entries of global variables
+        int GetGlobalsStackSize()
+        {
+            var size = 0;
+            foreach (var e in mgr.RootTable.Entries)
+                if (e.StackSize > 0 && e.VariableUse == VariableUse.Global)
+                    size += e.StackSize;
+            return size; // mgr.RootTable.Entries.Sum(e => e.StackSize);
+        }
+
         void Recurse(Ast node)
         {
             if (node is ExpressionAst)
@@ -54,11 +99,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             else if (node is VariableDefinitionAst)
             {
+                EmitGlobalDelimiter(true); // possible start of globals
                 EmitVariableDef((VariableDefinitionAst) node);
                 return;
             }
             else if (node is FunctionDeclarationAst)
             {
+                if ((node as FunctionDeclarationAst).ImportToken == null)
+                    EmitGlobalDelimiter(false); // first non-import function declaration marks end of globals
                 EmitFunction((FunctionDeclarationAst) node);
                 return;
             }
@@ -1013,7 +1061,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // now layout this one
             var size = 0;
             var paramSize = 0;
-            foreach (var e in tbl.Entries.Where(e => e.StackSize > 0))
+            foreach (var e in tbl.Entries.Where(e => e.StackSize > 0 && e.VariableUse != VariableUse.None))
             {
                 if (e.VariableUse == VariableUse.Param)
                 {

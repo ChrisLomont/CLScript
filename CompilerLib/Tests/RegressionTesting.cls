@@ -21,11 +21,68 @@ export (bool,i32,i32) RunTests()
    if TestFlow()
       passed = passed + 1
 
+   tested = tested + 1
+   if TestArrays()
+      passed = passed + 1
+
+   tested = tested + 1
+   if TestCalling()
+      passed = passed + 1
+
    return tested==passed,passed,tested
+   
    
 /*****************basic language features testing **************/
 
+// testing function calls
+(bool) TestCalling()
+   i32 c = 0
+   if fib(11) == 89
+      c = c + 1
+      
+   i32 a
+   r32 r
+   a,r = ReturnSquares(2,2.0)
+   
+   if a == 4 && r == 4.0
+      c = c + 1
+      
+   return c == 2
+   
+// fibonacci   
+(i32) fib(i32 n)
+   if n < 3
+      return 1
+   return fib(n-1) + fib(n-2) 
+   
+(i32,r32) ReturnSquares(i32 a, r32 b)
+   return a*a,b*b
+   
 
+// some array value testing
+(bool) TestArrays()
+   i32 a[10]
+   i32 c = 0
+   for i in 0..9
+      a[i] = (i+1)*(i+1)
+   i32 b = 0
+   for i in 0..9
+      b += a[i]
+   
+   if b == 385
+      c = c + 1
+      
+   i32 d[3][4]
+   for i in 0..2
+      for j in 0..3
+         d[i][j] = (i+1)*(j+2)
+   if d[2][3] == (2+1)*(3+2) 
+      c = c + 1
+   if d[1][0] == (1+1)*(0+2) 
+      c = c + 1
+      
+   return c == 3
+   
 
 // test basic flow control structures
 (bool) TestFlow()
@@ -99,7 +156,28 @@ export (bool,i32,i32) RunTests()
    if b == 16 && a == d-b && a == 20
       c = c + 1   
       
-   return c == 8
+   a,b,d = 1,2,0
+   if a == 1
+      d += 10 // taken
+   else
+      d += 1
+   if a == 0
+      d += 5
+   else if b == 1
+      d += 1  
+   else 
+      d += 2 // taken
+   if a == 0
+      d += 5
+   else if b == 2
+      d += 1 // taken
+   else 
+      d += 7
+   
+   if d == 13
+      c = c + 1
+      
+   return c == 9
 
 // test basic boolean expressions
 (bool) TestBool()
@@ -200,5 +278,3 @@ export (bool,i32,i32) RunTests()
 
    return c == 23
    
-//TestAssign   
- 

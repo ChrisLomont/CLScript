@@ -1,3 +1,24 @@
+
+type RGB 
+   r32 r,g,b 
+   
+(i32) Check(RGB color)
+   color.r = 1.0
+   color.g = 0.0
+   color.b = 0.0
+   RGB c2
+   c2.r = 1.0
+   c2.g = 0.5
+   c2.b = 0.25
+   return 0
+   
+[Entry]
+export (r32) Runme()
+   RGB c1
+   Check(c1)
+   return 1.0
+
+/*
 import "Imports.cls"
 
 // call this, returns value on stack
@@ -10,7 +31,7 @@ export (r32) func(i32 a)
    a += TestImport(1)
    return ImportSquareRoot(99.0)
    // return ImportSquare(a)
-   
+*/   
    
    
 /*

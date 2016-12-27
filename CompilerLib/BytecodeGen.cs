@@ -50,6 +50,9 @@ namespace Lomont.ClScript.CompilerLib
      *                     4 byte byte # of parameters for attribute
      *                     0 terminated UTF-8 parameter strings
      *                     
+     *        Chunk "init" : If present, code to execute on load to set up globals. 
+     *            4 byte ending address, starts at 0
+     *            
      *        Chunk "img0" : global vars for the assembly (todo)
      *            one byte 0 (no chunk padding) or 1 (chunk padding)
      *            initialization image (copied into RAM, stack pointer points past it to start
@@ -136,6 +139,15 @@ namespace Lomont.ClScript.CompilerLib
             ByteWriter.Write(assembly, GenVersion&255, 1);
 
             WriteChunk(assembly, "code", code);
+
+            if (labelAddresses.ContainsKey(CodeGeneratorVisitor.GlobalStartSymbol))
+            {
+                var initLength = labelAddresses[CodeGeneratorVisitor.GlobalEndSymbol] -
+                                 labelAddresses[CodeGeneratorVisitor.GlobalStartSymbol];
+                var init = new List<byte>();
+                ByteWriter.Write(init, initLength, 4);
+                WriteChunk(assembly, "init", init);
+            }
 
             var linkData = new List<byte>();
             WriteLinkEntries(linkData);
