@@ -154,14 +154,15 @@ namespace Lomont.ClScript.CompilerLib
         {
             SyntaxTree = null;
 
-            var importFiles = new Queue<string>();
-            var seen = new HashSet<string>();
-            importFiles.Enqueue(startFilename);
+            var filesToImport = new Queue<string>();
+            var filesImported = new HashSet<string>();
+            filesToImport.Enqueue(startFilename);
 
-            while (importFiles.Any())
+            // keep replacing all import statements
+            while (filesToImport.Any())
             {
-                var filename = importFiles.Dequeue();
-                seen.Add(filename);
+                var filename = filesToImport.Dequeue();
+                filesImported.Add(filename);
 
                 var source = fileReader(filename);
                 if (source == null)
@@ -192,18 +193,61 @@ namespace Lomont.ClScript.CompilerLib
                         {
                             var name = (ch as ImportAst).Name;
                             name = name.Trim(new char[] {'"'}); // remove quotes
-                            if (!seen.Contains(name))
-                                importFiles.Enqueue(name);
+                            if (!filesImported.Contains(name))
+                                filesToImport.Enqueue(name);
                         }
                     }
                 }
             }
 
-            // keep replacing all import statements
-
-
+            // reorder tree to make later stages easier to perform
+            ReorderSyntaxTree(SyntaxTree);
 
             return SyntaxTree != null;
+        }
+
+        // reorder tree:
+        // remove import statements - they are fulfilled by now
+        // first is imported items, then types, then globals, then functions
+        // must track attributes
+        void ReorderSyntaxTree(Ast tree)
+        {
+            if (tree == null) return;
+
+            tree.Children.RemoveAll(n => n is ImportAst);
+
+            var imports = Extract(tree.Children, n=>n is FunctionDeclarationAst && (n as FunctionDeclarationAst).ImportToken != null);
+            var types = Extract(tree.Children,n => n is TypeDeclarationAst);
+            var globals = Extract(tree.Children,n => n is VariableDefinitionAst);
+            var functions = Extract(tree.Children,n => n is FunctionDeclarationAst && (n as FunctionDeclarationAst).ImportToken == null);
+
+            if (imports.Count + types.Count + globals.Count + functions.Count != tree.Children.Count)
+                env.Error($"Mismatch in ast node counts when reordering syntax tree");
+            else
+            {
+                tree.Children.Clear();
+                tree.Children.AddRange(imports);
+                tree.Children.AddRange(types);
+                tree.Children.AddRange(globals);
+                tree.Children.AddRange(functions);
+            }
+        }
+
+        static List<Ast> Extract(List<Ast> asts, Func<Ast,bool> predicate)
+        {
+            var list = new List<Ast>();
+            for (var i = 0; i < asts.Count; ++i)
+            {
+                if (predicate(asts[i]))
+                { // get preceeding attributes
+                    var j = 0;
+                    while (i-j-1>=0 && (asts[i-j-1] is AttributeAst))
+                        j++;
+                    for (var k = i-j; k <= i; ++k)
+                        list.Add(asts[k]);
+                }
+            }
+            return list;
         }
 
         // analyze tree, perform tree manipulations, build symbol table, etc.
