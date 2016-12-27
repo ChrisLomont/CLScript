@@ -254,7 +254,7 @@ namespace Lomont.ClScript.CompilerLib
         {
             string name;
 
-            var index      =    4 + offset + LinkStartOffset;
+            var index      = offset + LinkStartOffset;
             id             = ReadImageInt(ref index, 4);
             address        = ReadImageInt(ref index, 4);
             retCount       = ReadImageInt(ref index, 4);
@@ -335,7 +335,6 @@ namespace Lomont.ClScript.CompilerLib
 
             return !error;
         }
-
 
         // when a return jumps here, execution is done
         const int returnExitAddress = -1; 
@@ -487,24 +486,39 @@ namespace Lomont.ClScript.CompilerLib
                 }
                 // label/branch/call/ret
                 case Opcode.Call:
-                    p1 = ProgramCounter + ReadCodeItem(OperandType.Int32); // new program counter 
-                    PushStack(ProgramCounter); // return to here
-                    PushStack(BasePointer); // save this
-                    ProgramCounter = p1; // jump to here
-                    BasePointer = StackPointer; // base pointer now points here
+                    if (opType == OperandType.Local)
+                    {
+                        p1 = ProgramCounter + ReadCodeItem(OperandType.Int32); // new program counter 
+                        PushStack(ProgramCounter); // return to here
+                        PushStack(BasePointer); // save this
+                        ProgramCounter += p1; // jump to here
+                        BasePointer = StackPointer; // base pointer now points here
+                    }
+                    else if (opType == OperandType.Const)
+                    {
+                        p1 = ReadCodeItem(OperandType.Int32); // import index
+                        PushStack(ProgramCounter); // return to here
+                        PushStack(BasePointer); // save this
+                        BasePointer = StackPointer; // base pointer now points here
+
+                        var e = HandleImport;
+                        if (e == null)
+                            throw new InternalFailure("No imports attached to runtime");
+                        int returnCount;
+                        string name;
+                        GetImport(p1, out name, out p2, out returnCount);
+                        StartImportCall(p2);
+                        if (e(this, p1, name, p2, returnCount))
+                            EndImportCall();
+                        else
+                            throw new InternalFailure("Runtime import call failed");
+                    }
+                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.Return:
                     p1 = ReadCodeItem(OperandType.Int32); // number of parameters on stack
                     p2 = ReadCodeItem(OperandType.Int32); // number of locals on stack
-                    var returnEntryCount = StackPointer - (BasePointer + p2);
-                    var srcStackIndex = StackPointer - returnEntryCount;
-                    var dstStackIndex = BasePointer - 2 - p1 - returnEntryCount;
-                    CopyEntries(srcStackIndex, dstStackIndex, returnEntryCount);
-                    StackPointer = BasePointer;
-                    BasePointer = PopStack();
-                    var retAddress = PopStack();
-                    StackPointer -= p1; // pop this many parameter entries
-                    ProgramCounter = retAddress;
+                    ExecuteReturn(p1,p2);
                     if (ProgramCounter == returnExitAddress)
                         retval = false; // done executing entry function
                     break;
@@ -745,6 +759,20 @@ namespace Lomont.ClScript.CompilerLib
             return retval;
         }
 
+        // execute a return statement
+        void ExecuteReturn(int parameterCount, int localCount)
+        {
+            var returnEntryCount = StackPointer - (BasePointer + localCount);
+            var srcStackIndex = StackPointer - returnEntryCount;
+            var dstStackIndex = BasePointer - 2 - parameterCount - returnEntryCount;
+            CopyEntries(srcStackIndex, dstStackIndex, returnEntryCount);
+            StackPointer = BasePointer;
+            BasePointer = PopStack();
+            var retAddress = PopStack();
+            StackPointer -= parameterCount; // pop this many parameter entries
+            ProgramCounter = retAddress;
+        }
+
         /// <summary>
         /// Rotate the value right through (rotation) bits, where
         /// rotation can be any integer. Negative rotates is essentially a left shift
@@ -761,6 +789,71 @@ namespace Lomont.ClScript.CompilerLib
             if (rotation == 0) return value;
             uint t = (uint) value;
             return (int) ((t >> rotation) | (t << (32 - rotation)));
+        }
+
+        #endregion
+
+        #region Import
+
+        // call to handle imports, return true on success.
+        public delegate bool ImportHandler(
+            Runtime runtime, int importIndex, string name, int parameterCount, int returnCount);
+        public ImportHandler HandleImport { get; set; }
+
+
+        public void GetImport(int importIndex, out string name, out int parameterCount, out int returnCount)
+        {
+            var index = importIndex * 4 + LinkStartOffset + 8;
+            var itemStart = ReadImageInt(ref index, 4);
+            index = itemStart + LinkStartOffset+4;
+
+            var address = ReadImageInt(ref index, 4);
+            var retCount = ReadImageInt(ref index, 4);
+            var paramCount = ReadImageInt(ref index, 4);
+            var attrCount = ReadImageInt(ref index, 4);
+
+            // entry name
+            if (!ReadImageString(ref index, out name))
+                throw new InternalFailure($"Cannot find import call {importIndex}");
+            parameterCount = paramCount;
+            returnCount = retCount;
+        }
+
+        int importParameterCount = -1, importParameterIndex = -1;
+
+        // call right before calling external functions, resets counters, etc.
+        void StartImportCall(int parameterCount)
+        {
+            importParameterCount = parameterCount;
+            importParameterIndex = 0;
+        }
+
+        void EndImportCall()
+        {
+            ExecuteReturn(importParameterCount, 0);
+            importParameterCount = -1;
+        }
+
+        public Int32 GetInt32Parameter()
+        {
+            var index = BasePointer - 1 - 1 - importParameterCount + importParameterIndex;
+            importParameterIndex++;
+            return ReadRam(index, "Failed to read import Int32");
+        }
+
+        public void SetInt32Return(Int32 value)
+        {
+            PushStack(value);
+        }
+
+        public float GetFloat32Parameter()
+        {
+            return Int32ToFloat32(GetInt32Parameter());
+        }
+
+        public void SetFloat32Return(float value)
+        {
+            PushStackF(value);
         }
 
         #endregion
@@ -850,15 +943,13 @@ namespace Lomont.ClScript.CompilerLib
 
         void PushStackF(float value)
         {
-            // copy float bits into int and push onto stack
-            PushStack(BitConverter.ToInt32(BitConverter.GetBytes(value), 0));
+            // convert float bits into int bits and push onto stack
+            PushStack(Float32ToInt32(value));
         }
 
         float PopStackF()
         {
-            var i = PopStack();
-            // copy int bits into float 
-            return BitConverter.ToSingle(BitConverter.GetBytes(i), 0);
+            return Int32ToFloat32(PopStack());
         }
 
         #endregion
@@ -880,11 +971,25 @@ namespace Lomont.ClScript.CompilerLib
                 useTracing = false; // ignore for read
                 var val = ReadRam(i, "");
                 useTracing = oldTracing;
-                env.Info($"{i}: {val}");
+                var f = Int32ToFloat32(val);
+                env.Info($"{i}: {val}  ({f})");
             }
+        }
+
+        // convert a 32 bit float to equivalent 32 bit int (same bit pattern)
+        public static Int32 Float32ToInt32(float value)
+        {
+            return BitConverter.ToInt32(BitConverter.GetBytes(value), 0);
+        }
+
+        // convert a 32 bit int to equivalent 32 bit float (same bit pattern)
+        public static float Int32ToFloat32(int value)
+        {
+            return BitConverter.ToSingle(BitConverter.GetBytes(value), 0);
         }
 
 
         #endregion
+
     }
 }

@@ -431,6 +431,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // ensure function declarations that need one end with a return statement 
         void ProcessFunctionDeclaration(FunctionDeclarationAst node)
         {
+            if (node.ImportToken != null)
+                return;
             if (node.Children.Count != 3 || !(node.Children[2] is BlockAst))
                 throw new InternalFailure($"Function {node} has wrong structure");
 

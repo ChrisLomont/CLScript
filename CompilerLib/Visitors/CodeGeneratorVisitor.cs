@@ -601,11 +601,21 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 var addrOnly = child.Type.PassByRef;
                 EmitExpression((ExpressionAst) child,addrOnly);
             }
-            EmitS(Opcode.Call, node.Name);
+
+            if (symbol.Attrib.HasFlag(SymbolAttribute.Import))
+                Emit2(Opcode.Call, OperandType.Const, "", ImportName(node.Name));
+            else
+                Emit2(Opcode.Call, OperandType.Local, "", node.Name);
 
             // if result ignored, pop them
             if (!FunctionResultIsUsed(node))
                 Emit2(Opcode.PopStack, OperandType.None, "clean unused return values", symbol.Type.ReturnType.Count);
+        }
+
+        public static string ImportPrefix = "<import>";
+        string ImportName(string nodeName)
+        {
+            return ImportPrefix + nodeName;
         }
 
         // return true if the function return values need to removed from the stack
@@ -622,6 +632,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void EmitFunction(FunctionDeclarationAst node)
         {
             Emit2(Opcode.Symbol, OperandType.None, "", node.Symbol);
+            if (node.ImportToken != null)
+                return; 
             Emit2(Opcode.Label, OperandType.None, node.Symbol.Type.ToString(), node.Name);
 
             // reserve stack space

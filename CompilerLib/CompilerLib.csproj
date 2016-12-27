@@ -71,6 +71,7 @@
     <Compile Include="Environment.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="Imports.cs" />
     <Compile Include="Lexer\CharacterPosition.cs" />
     <Compile Include="Lexer\Indenter.cs" />
     <Compile Include="Lexer\Lexer.cs" />

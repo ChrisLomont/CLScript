@@ -9,6 +9,7 @@ using Lomont.ClScript.CompilerLib;
 using Microsoft.Win32;
 using Environment = Lomont.ClScript.CompilerLib.Environment;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Lomont.ClScript.WPFEdit.ViewModel
@@ -159,6 +160,8 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
 
                 var traceEnv = new Environment(new StringWriter());
                 var r = new Runtime(traceEnv);
+                var importHandler = new Imports();
+                r.HandleImport = importHandler.HandleImport;
 
                 // get parameters
                 var words = RunParameters.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);

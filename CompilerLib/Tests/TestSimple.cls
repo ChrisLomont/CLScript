@@ -1,6 +1,12 @@
+// call this, returns value on stack
+import (i32) ImportSquare(i32 value)
+
+import (r32) ImportSquareRoot(r32 value)
+
 [Entry]
-export (i32) func(i32 a)
-   return a*a
+export (r32) func(i32 a)
+   return ImportSquareRoot(99.0)
+   // return ImportSquare(a)
 /*
 type t1
    i32 a

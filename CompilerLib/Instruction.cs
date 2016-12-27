@@ -54,7 +54,7 @@ namespace Lomont.ClScript.CompilerLib
                             //       total size s is h + x1(h+x2(h+x3...(h+xn*t)..) where t is base type size
 
         // label/branch/call/ret
-        Call,               // [   ] relative call address
+        Call,               // [ LC] relative call address if local, else import # if const
         Return,             // [   ] two values (parameter entries, local stack entries) for cleaning stack after call
         BrFalse,            // [   ] pop stack. If 0, branch to relative address
         BrAlways,           // [   ] always branch to relative address
@@ -128,6 +128,8 @@ namespace Lomont.ClScript.CompilerLib
                 opcode += ".L";
             else if (OperandType == OperandType.Global)
                 opcode += ".G";
+            else if (OperandType == OperandType.Const)
+                opcode += ".C";
             else if (OperandType != OperandType.None)
                 throw new InternalFailure($"Unknown operand type {OperandType}");
 

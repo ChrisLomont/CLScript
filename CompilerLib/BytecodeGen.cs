@@ -97,13 +97,23 @@ namespace Lomont.ClScript.CompilerLib
             foreach (var inst in instructions)
                 Encode(inst);
 
+            var imports = linkEntries.Where(le => le.Flags.HasFlag(SymbolAttribute.Import)).ToList();
+
             foreach (var fix in fixups)
             {
                 var target = fix.Item1;     // where fixup is written to
                 var label  = fix.Item2;     // label to go to
                 var isRelative = fix.Item3; // is it relative? else absolute
 
-                if (labelAddresses.ContainsKey(label))
+                if (label.StartsWith(CodeGeneratorVisitor.ImportPrefix))
+                {
+                    var importName = label.Substring(CodeGeneratorVisitor.ImportPrefix.Length);
+                    var index = imports.FindIndex(le => le.Name == importName);
+                    if (index < 0)
+                        throw new InternalFailure($"Unknown import {importName}");
+                    Fixup(index,target,false);
+                }
+                else if (labelAddresses.ContainsKey(label))
                 {
                     var address = labelAddresses[label];
                     Fixup(address, target, isRelative);
@@ -111,6 +121,7 @@ namespace Lomont.ClScript.CompilerLib
                 else
                     throw new InternalFailure($"Label {label} not in labels addresses");
             }
+
             WriteAssembly();
             return env.ErrorCount == 0;
         }
@@ -172,21 +183,25 @@ namespace Lomont.ClScript.CompilerLib
 
         void WriteLinkEntries(List<byte> linkData)
         {
-            var importCount = linkEntries.Count(v => v.Flags.HasFlag(SymbolAttribute.Import));
-            var exportCount = linkEntries.Count(v => v.Flags.HasFlag(SymbolAttribute.Export));
+            var imports = linkEntries.Where(v => v.Flags.HasFlag(SymbolAttribute.Import)).ToList();
+            var exports = linkEntries.Where(v => v.Flags.HasFlag(SymbolAttribute.Export)).ToList();
+            var importCount = imports.Count;
+            var exportCount = exports.Count;
             if (importCount + exportCount != linkEntries.Count)
                 throw new InternalFailure($"Import {importCount} and export {exportCount} link entries don't add up to {linkEntries.Count}");
             ByteWriter.Write(linkData, importCount, 4);
             ByteWriter.Write(linkData, exportCount, 4);
 
+
+            var start = linkData.Count + 4 * (importCount+exportCount); // byte offset from "link" chunk start, excluding 8 byte header
+
             var temp = new List<byte>();
-            var start = linkData.Count; // byte offset from "link" chunk start, excluding 8 byte header
-            foreach (var entry in linkEntries.Where(v => v.Flags.HasFlag(SymbolAttribute.Import)))
+            foreach (var entry in imports)
             {
                 ByteWriter.Write(linkData,temp.Count+start,4);
                 entry.Write(temp);
             }
-            foreach (var entry in linkEntries.Where(v => v.Flags.HasFlag(SymbolAttribute.Export)))
+            foreach (var entry in exports)
             {
                 ByteWriter.Write(linkData, temp.Count + start, 4);
                 entry.Write(temp);
@@ -367,18 +382,21 @@ namespace Lomont.ClScript.CompilerLib
             // write into a byte assembly
             public void Write(List<byte> bytes)
             {
-                ByteWriter.Write(bytes,UniqueId,4);
+                ByteWriter.Write(bytes, UniqueId, 4);
                 ByteWriter.Write(bytes, Address, 4);
                 ByteWriter.Write(bytes, ReturnEntries, 4);
                 ByteWriter.Write(bytes, ParameterEntries, 4);
-                ByteWriter.Write(bytes, Attributes.Count,4);
+                ByteWriter.Write(bytes, Attributes?.Count ?? 0, 4);
                 ByteWriter.Write(bytes, Name);
-                foreach (var a in Attributes)
+                if (Attributes != null)
                 {
-                    ByteWriter.Write(bytes, a.Name);
-                    ByteWriter.Write(bytes, a.Parameters.Count, 4);
-                    foreach (var p in a.Parameters)
-                        ByteWriter.Write(bytes, p);
+                    foreach (var a in Attributes)
+                    {
+                        ByteWriter.Write(bytes, a.Name);
+                        ByteWriter.Write(bytes, a.Parameters.Count, 4);
+                        foreach (var p in a.Parameters)
+                            ByteWriter.Write(bytes, p);
+                    }
                 }
             }
         }
@@ -392,9 +410,8 @@ namespace Lomont.ClScript.CompilerLib
 
         void Write(float value)
         {
-            var bytes = BitConverter.GetBytes(value);
-            foreach (var b in bytes)
-                WriteCodeByte(b);
+            var i32 = Runtime.Float32ToInt32(value);
+            Write((uint)i32,4);
         }
 
         int address = 0;
