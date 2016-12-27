@@ -12,15 +12,17 @@ namespace Lomont.ClScript.CompilerLib
     /// </summary>
     public class Token
     {
-        public Token(TokenType type, string value = "????", CharacterPosition position = null)
+        public Token(TokenType type, string value = "????", CharacterPosition position = null, string filename = "")
         {
             TokenValue = value;
             Position = position == null ? new CharacterPosition() : new CharacterPosition(position);
             TokenType = type;
+            Filename = filename;
         }
         public TokenType TokenType;
         public string TokenValue;
         public CharacterPosition Position;
+        public string Filename;
 
         public string Format(bool showValue = true)
         {

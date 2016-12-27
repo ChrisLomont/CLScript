@@ -1,3 +1,5 @@
+import "Imports.cls"
+
 // call this, returns value on stack
 import (i32) ImportSquare(i32 value)
 
@@ -5,8 +7,12 @@ import (r32) ImportSquareRoot(r32 value)
 
 [Entry]
 export (r32) func(i32 a)
+   a += TestImport(1)
    return ImportSquareRoot(99.0)
    // return ImportSquare(a)
+   
+   
+   
 /*
 type t1
    i32 a

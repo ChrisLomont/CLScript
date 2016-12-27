@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,10 +9,11 @@ namespace Lomont.ClScript.CompilerLib.Lexer
 {
     public class Lexer
     {
-        public Lexer(Environment environment, string source)
+        public Lexer(Environment environment, string source, string filename)
         {
             CharStream = new CharacterStream(source);
             env = environment;
+            this.filename = filename;
         }
 
         /// <summary>
@@ -28,7 +30,10 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 // process any indent/unindent
                 var indentTokens = indenter.ProcessToken(current);
                 foreach (var token in indentTokens)
+                {
+                    token.Filename = filename;
                     yield return token;
+                }
 
                 // see if token should be skipped
                 var skipToken = false;
@@ -45,20 +50,23 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 }
 
                 if (!skipToken)
+                {
+                    current.Filename = filename;
                     yield return current;
+                }
                 current = Next();
             }
 
             // finish file by End of Line, then if needed, unindents and another End of Line
-            yield return new Token(TokenType.EndOfLine);
+            yield return new Token(TokenType.EndOfLine,filename: filename);
             if (indenter.Indented)
             {
                 while (indenter.Indented)
                 {
-                    yield return new Token(TokenType.Undent);
+                    yield return new Token(TokenType.Undent, filename: filename);
                     indenter.Unindent();
                 }
-                yield return new Token(TokenType.EndOfLine);
+                yield return new Token(TokenType.EndOfLine, filename: filename);
             }
 
         }
@@ -69,6 +77,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
         CharacterStream CharStream { get; set; }
         List<MatchBase> Matchers { get; set; }
         Environment env;
+        string filename;
 
         // is not an identifier character
         Func<char, bool> notId = c => !Char.IsLetterOrDigit(c) && c != '_';
@@ -203,7 +212,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             try
             {
                 if (CharStream.End)
-                    return new Token(TokenType.EndOfFile);
+                    return new Token(TokenType.EndOfFile, filename: filename);
                 var t =
                 (from match in Matchers
                     let token = match.IsMatch(CharStream)

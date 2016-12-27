@@ -125,8 +125,14 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 TreeText.Text = "";
                 CodegenText.Text = "";
                 SymbolText.Text = "";
-                var sourceCodeText = CodeEditor.Text;
-                compiler.Compile(sourceCodeText);
+                var path = Path.GetDirectoryName(filename);
+                compiler.Compile(filename, f =>
+                {
+                    var fn = Path.Combine(path, f);
+                    if (File.Exists(fn))
+                        return File.ReadAllText(fn);
+                    return null;
+                });
 
                 // output messages
                 var msgs = output.ToString().Split('\n');

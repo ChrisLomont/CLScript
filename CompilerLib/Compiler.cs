@@ -33,7 +33,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 18. string testing
  * 19. string interpolation
  * 20. string able to print to external function call
- * 21. Import of files, ensure single import
+ * DONE 21. Import of files, ensure single import
  * 22. Return complex types
  * 
  * To get usable in production:  
@@ -59,14 +59,22 @@ namespace Lomont.ClScript.CompilerLib
             env = environment;
         }
 
-        public bool Compile(string text)
+
+        /// <summary>
+        /// Provides a way for the compiler to get files. Return null on fail
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <returns></returns>
+        public delegate string GetFileText(string filename);
+
+        public bool Compile(string filename, GetFileText fileReader)
         {
             env.Info($"Compiling <todo> lines");
             var success = false;
             try
             {
                 success = 
-                    GenerateSyntaxTree(text) &&
+                    GenerateSyntaxTree(filename,fileReader) &&
                     AnalyzeSyntaxTree() && 
                     GenerateCode();
             }
@@ -124,9 +132,12 @@ namespace Lomont.ClScript.CompilerLib
                 return parser.GetTokens();
             return new List<Token>();
         }
+
         #endregion
 
         #region Implementation
+
+
         Lexer.Lexer lexer;
         Parser.Parser parser;
         readonly List<Instruction> generatedInstructions = new List<Instruction>();
@@ -134,14 +145,59 @@ namespace Lomont.ClScript.CompilerLib
         BytecodeGen bytecode;
         readonly Environment env;
 
+
         // Generate the syntax tree
         // return true on success
-        bool GenerateSyntaxTree(string text)
+        bool GenerateSyntaxTree(string startFilename, GetFileText fileReader)
         {
             SyntaxTree = null;
-            lexer      = new Lexer.Lexer(env, text);
-            parser     = new Parser.Parser(env, lexer);
-            SyntaxTree = parser.Parse();
+
+            var importFiles = new Queue<string>();
+            var seen = new HashSet<string>();
+            importFiles.Enqueue(startFilename);
+
+            while (importFiles.Any())
+            {
+                var filename = importFiles.Dequeue();
+                seen.Add(filename);
+
+                var source = fileReader(filename);
+                if (source == null)
+                {
+                    env.Error($"Cannot open file {filename}");
+                    return false;
+                }
+                lexer = new Lexer.Lexer(env, source, filename);
+                parser = new Parser.Parser(env, lexer);
+                var tree = parser.Parse();
+                if (SyntaxTree == null)
+                    SyntaxTree = tree;
+                else
+                {
+                    // merge all top level into given node
+                    SyntaxTree.Children.AddRange(tree.Children);
+                }
+
+                // enqueue all unseen import filenames from most recent file parsed
+                if (tree != null)
+                {
+                    foreach (var ch in SyntaxTree.Children)
+                    {
+                        if (ch is ImportAst)
+                        {
+                            var name = (ch as ImportAst).Name;
+                            name = name.Trim(new char[] {'"'}); // remove quotes
+                            if (!seen.Contains(name))
+                                importFiles.Enqueue(name);
+                        }
+                    }
+                }
+            }
+
+            // keep replacing all import statements
+
+
+
             return SyntaxTree != null;
         }
 
