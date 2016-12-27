@@ -453,7 +453,7 @@ namespace Lomont.ClScript.CompilerLib
         // format: 
         void Pack(uint value)
         {
-#if true
+#if false
             Write(value,4);
             //var v = (int) value;
             //if (-63 <= v && v <= 63)

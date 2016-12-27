@@ -367,7 +367,7 @@ namespace Lomont.ClScript.CompilerLib
 
                 // stack
                 case Opcode.Push:
-                    PushStack(ReadCodeItem(opType));
+                    PushStack(ReadCodeItem(opType,true));
                     break;
                 case Opcode.Pop:
                     PopStack();
@@ -901,7 +901,7 @@ namespace Lomont.ClScript.CompilerLib
 
         int Unpack()
         {
-#if true
+#if false
             return ReadCodeItem(OperandType.Int32);
 #else
             // simple encoding: -127 to 127 stored as byte in 0-254, else 255 stored then 4 byte int
@@ -912,7 +912,7 @@ namespace Lomont.ClScript.CompilerLib
 #endif
         }
 
-        int ReadCodeItem(OperandType opType)
+        int ReadCodeItem(OperandType opType, bool packed = false)
         {
             int value = 0;
             if (opType == OperandType.Byte)
@@ -920,6 +920,8 @@ namespace Lomont.ClScript.CompilerLib
                 value = ReadImageInt(ProgramCounter + CodeStartOffset, 1);
                 ProgramCounter += 1;
             }
+            else if (opType == OperandType.Int32 && packed)
+                value = Unpack();
             else if (opType == OperandType.Float32 || opType == OperandType.Int32)
             {
                 // note we can read a 32 bit float with an int, and pass it back as one
