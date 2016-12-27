@@ -579,6 +579,11 @@ namespace Lomont.ClScript.CompilerLib
         // unique id used for imports and exports
         public int UniqueId { get; set; } = -1; 
 
+        /// <summary>
+        /// Is this symbol referenced?
+        /// </summary>
+        public bool Used { get; set;  }
+
         public SymbolEntry(Ast node, string name, VariableUse usage, InternalType symbolType, List<int> arrayDimensions)
         {
             Node = node;

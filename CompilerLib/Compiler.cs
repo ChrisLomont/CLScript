@@ -24,7 +24,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * DONE  9. Expression eval right to left - reverse this!
  * DONE 10. Code must put array headers on stack
  * 11. Make globals section, binary blob simply loaded into startup memory/stack
- * 12. Need global init code to make stacks (or premake, load buffer)
+ * DONE 12. Need global init code to make stacks (or premake, load buffer)
  * DONE 13. Zero stack creating on locals?
  * DONE 14. Trace capability for runtime
  * DONE 15. Runtime: standalone function call not clearing return values from stack on return
@@ -37,7 +37,8 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 22. Return complex types
  * 23. Library functions: print, array size
  * 24. Type promotion (int=>float, byte=>int, etc, where appropriate?)
- * 25. Remove unused functions, variables, and symbols everywhere
+ * DONE 25. Locate unused functions, variables, and symbols everywhere
+ * 26. Remove unused functions, variables, and symbols everywhere (tricky - can remove functions)
  * 
  * To get usable in production:  
  * 
@@ -262,6 +263,11 @@ namespace Lomont.ClScript.CompilerLib
                 env.Info("Semantic Analysis...");
                 var analyzer = new SemanticAnalyzerVisitor(env);
                 analyzer.Check(symbolTable, SyntaxTree);
+                if (env.ErrorCount == 0)
+                {
+                    var usage = new SymbolUsageVisitor(env);
+                    usage.Check(symbolTable, SyntaxTree);
+                }
             }
             return env.ErrorCount == 0;
         }

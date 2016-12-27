@@ -25,7 +25,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
          * Also fills in values of enums, memory item sizes, etc
          * 
          * TODO 
-         * 1. check globals have valuesFuncti
+         * 1. check globals have values 
          * 2. array sizes must be constant
          * 
          */
@@ -388,6 +388,24 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 env.Error($"While expression is not boolean {node}");
         }
 
+        // gives 0 index of first parent type matched, else returns -1
+        int FirstParentIndex(Ast node, out Ast matched, params Type[] parentTypes)
+        {
+            matched = null;
+            // ensure return statements match return types
+            Ast p = node;
+            while (p != null)
+            {
+                p = p.Parent;
+                if (p != null && parentTypes.Contains(p.GetType()))
+                {
+                    matched = p;
+                    return Array.IndexOf(parentTypes, p.GetType());
+                }
+            }
+            return -1;
+        }
+
         void ProcessJumpStatement(JumpStatementAst node)
         {
             var tt = node.Token.TokenType;
@@ -395,10 +413,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (tt == TokenType.Return)
             {
                 // ensure return statements match return types
-                Ast p = node;
-                while (p != null && !(p is FunctionDeclarationAst))
-                    p = p.Parent;
-                if (p == null)
+                Ast p;
+                var index = FirstParentIndex(node, out p, typeof(FunctionDeclarationAst));
+                if (index == -1)
                     env.Error($"Return without enclosing function {node}");
                 else
                 {

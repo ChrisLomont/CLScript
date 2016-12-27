@@ -100,6 +100,7 @@
     <Compile Include="Visitors\CodeGeneratorVisitor.cs" />
     <Compile Include="Visitors\PrintVisitor.cs" />
     <Compile Include="Visitors\SemanticAnalyzerVisitor.cs" />
+    <Compile Include="Visitors\SymbolUsageVisitor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

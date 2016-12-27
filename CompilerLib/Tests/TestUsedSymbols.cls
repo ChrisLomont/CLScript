@@ -1,0 +1,39 @@
+// testing used symbol warnings
+
+type UsedType1 
+   i32 r1,g1,b1  
+
+type UsedType2 
+   i32 r2,g2,b2  
+   i32 a[10]
+
+[Entry]
+export (bool,UsedType1) UsedFunc1()
+   UsedType1 usedLocal0
+   i32 usedLocal1   = 1
+   i32 unusedlocal1 = 1
+   i32 unusedlocal2,usedLocal2 = usedLocal1,0
+   for usedLocal3 in 0..3
+      break
+   bool usedLocal4 = false
+   i32 usedLocal5 = 12
+   UsedFunc2(usedLocal0,usedLocal5+1)   
+   UsedFunc3()
+   return usedLocal4 && usedLocal2==UsedFunc4(),usedGlobal1
+
+(i32) UsedFunc2(UsedType1 usedParam1, i32 unusedParam1)
+   return usedParam1.r1
+   
+() UnusedFunc1()
+   return
+   
+(i32) UsedFunc4()
+   return -1
+
+import (UsedType2) UsedFunc3()
+
+UsedType1 usedGlobal1
+
+type UnusedType1
+   i32 unusedType1
+   
