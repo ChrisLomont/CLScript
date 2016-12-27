@@ -20,23 +20,23 @@ using Lomont.ClScript.CompilerLib.Visitors;
  *  5. Output C header for link entries
  *  6. Line continues if last non-whitespace is whitespace isolated '\' char
  *  7. Short circuited booleans
- *  8. Add RuntimeException for things that happen during runtime execution
- * DONE 9. Expression eval right to left - reverse this!
- * 10. Code must put array headers on stack
+ * DONE  8. Add RuntimeException for things that happen during runtime execution
+ * DONE  9. Expression eval right to left - reverse this!
+ * DONE 10. Code must put array headers on stack
  * 11. Make globals section, binary blob simply loaded into startup memory/stack
  * 12. Need global init code to make stacks (or premake, load buffer)
  * DONE 13. Zero stack creating on locals?
  * DONE 14. Trace capability for runtime
  * DONE 15. Runtime: standalone function call not clearing return values from stack on return
  * 16. Get ++ and -- working
- * 17. call imports of external functions
+ * DONE 17. call imports of external functions
  * 18. string testing
  * 19. string interpolation
  * 20. string able to print to external function call
  * 21. Import of files, ensure single import
+ * 22. Return complex types
  * 
- * To get usable in production:
- * 17, 
+ * To get usable in production:  
  * 
  */
 

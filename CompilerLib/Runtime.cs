@@ -406,7 +406,7 @@ namespace Lomont.ClScript.CompilerLib
                     else if (opType == OperandType.Local)
                         PushStack(ReadRam(p1 + BasePointer, "Load"));
                     else
-                        throw new InternalFailure($"Write optype {opType} unsupported");
+                        throw new RuntimeException($"Write optype {opType} unsupported");
                     break;
                 case Opcode.Read:
                     p1 = PopStack(); // address
@@ -415,7 +415,7 @@ namespace Lomont.ClScript.CompilerLib
                     else if (opType == OperandType.Local)
                         PushStack(ReadRam(p1 + BasePointer, "Read"));
                     else
-                        throw new InternalFailure($"Read optype {opType} unsupported");
+                        throw new RuntimeException($"Read optype {opType} unsupported");
                     break;
                 case Opcode.Write:
                     p1 = PopStack(); // value
@@ -423,7 +423,7 @@ namespace Lomont.ClScript.CompilerLib
                     // todo - store byte if byte sized
                     if (opType == OperandType.Float32 || opType == OperandType.Int32)
                         WriteRam(p2, p1, "Write");
-                    else throw new InternalFailure($"Write optype {opType} unsupported");
+                    else throw new RuntimeException($"Write optype {opType} unsupported");
                     break;
                 case Opcode.Addr:
                     p1 = ReadCodeItem(OperandType.Int32);
@@ -432,7 +432,7 @@ namespace Lomont.ClScript.CompilerLib
                     else if (opType == OperandType.Global)
                         PushStack(p1);
                     else
-                        throw new InternalFailure($"Illegal operand type {opType} in Addr");
+                        throw new RuntimeException($"Illegal operand type {opType} in Addr");
                     break;
                 case Opcode.MakeArr:
                 {
@@ -440,7 +440,7 @@ namespace Lomont.ClScript.CompilerLib
                     if (opType == OperandType.Local)
                         p += BasePointer;
                     else if (opType != OperandType.Global)
-                        throw new InternalFailure($"MakeArr optype {opType} unsupported");
+                        throw new RuntimeException($"MakeArr optype {opType} unsupported");
                     var n = ReadCodeItem(OperandType.Int32); // dimension, dims are x1,x2,...,xn
                     var si = ReadCodeItem(OperandType.Int32);
                     var m = 1;
@@ -448,7 +448,7 @@ namespace Lomont.ClScript.CompilerLib
                     {
                         var xi = ReadCodeItem(OperandType.Int32);
                         if (xi == 0 || ((si - ArrayHeaderSize)%xi) != 0)
-                            throw new InternalFailure($"Array sizes invalid, not divisible {si}/{xi}");
+                            throw new RuntimeException($"Array sizes invalid, not divisible {si}/{xi}");
                         var si2 = si;
                         si = (si - ArrayHeaderSize)/xi;
                         for (var j = 0; j < m; ++j)
@@ -468,13 +468,13 @@ namespace Lomont.ClScript.CompilerLib
                     var k = ReadCodeItem(OperandType.Int32); // number of levels to dereference
                     var n = ReadCodeItem(OperandType.Int32); // total dimension of array
                     if (k < 1 || n < k)
-                        throw new InternalFailure($"Array called with non-positive number of indices {k} or too small dimensionality {n}");
+                        throw new RuntimeException($"Array called with non-positive number of indices {k} or too small dimensionality {n}");
                     for (var i = 0; i < k; ++i)
                     {
                         var bi = PopStack(); // index entry
                         var maxSize = ReadRam(addr - 1, "Error accessing array size");
                         if (bi < 0 || maxSize <= bi)
-                            throw new InternalFailure(
+                            throw new RuntimeException(
                                 $"Array out of bounds {bi}, max {maxSize}, address {ProgramCounter}");
                         var nextSize = ReadRam(addr - 2, "Error accessing array stride");
                         addr += bi*nextSize;
@@ -503,7 +503,7 @@ namespace Lomont.ClScript.CompilerLib
 
                         var e = HandleImport;
                         if (e == null)
-                            throw new InternalFailure("No imports attached to runtime");
+                            throw new RuntimeException("No imports attached to runtime");
                         int returnCount;
                         string name;
                         GetImport(p1, out name, out p2, out returnCount);
@@ -511,9 +511,9 @@ namespace Lomont.ClScript.CompilerLib
                         if (e(this, p1, name, p2, returnCount))
                             EndImportCall();
                         else
-                            throw new InternalFailure("Runtime import call failed");
+                            throw new RuntimeException("Runtime import call failed");
                     }
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.Return:
                     p1 = ReadCodeItem(OperandType.Int32); // number of parameters on stack
@@ -610,7 +610,7 @@ namespace Lomont.ClScript.CompilerLib
                         f2 = PopStackF();
                         PushStack(f1 != f2 ? 1 : 0);
                     }
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.IsEqual:
                     if (opType == OperandType.Int32)
@@ -625,7 +625,7 @@ namespace Lomont.ClScript.CompilerLib
                         f2 = PopStackF();
                         PushStack(f1 == f2 ? 1 : 0);
                     }
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.GreaterThan:
                     if (opType == OperandType.Int32)
@@ -640,7 +640,7 @@ namespace Lomont.ClScript.CompilerLib
                         f2 = PopStackF();
                         PushStack(f2 > f1 ? 1 : 0);
                     }
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.GreaterThanOrEqual:
                     if (opType == OperandType.Int32)
@@ -655,7 +655,7 @@ namespace Lomont.ClScript.CompilerLib
                         f2 = PopStackF();
                         PushStack(f2 >= f1 ? 1 : 0);
                     }
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.LessThanOrEqual:
                     if (opType == OperandType.Int32)
@@ -670,7 +670,7 @@ namespace Lomont.ClScript.CompilerLib
                         f2 = PopStackF();
                         PushStack(f2 <= f1 ? 1 : 0);
                     }
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.LessThan:
                     if (opType == OperandType.Int32)
@@ -685,7 +685,7 @@ namespace Lomont.ClScript.CompilerLib
                         f2 = PopStackF();
                         PushStack(f2 < f1 ? 1 : 0);
                     }
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
 
                 //arithmetic
@@ -694,14 +694,14 @@ namespace Lomont.ClScript.CompilerLib
                         PushStack(-PopStack());
                     else if (opType == OperandType.Float32)
                         PushStackF(-PopStackF());
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.Add:
                     if (opType == OperandType.Int32)
                         PushStack(PopStack() + PopStack());
                     else if (opType == OperandType.Float32)
                         PushStackF(PopStackF() + PopStackF());
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.Sub:
                     if (opType == OperandType.Int32)
@@ -716,44 +716,44 @@ namespace Lomont.ClScript.CompilerLib
                         f2 = PopStackF();
                         PushStackF(f2 - f1);
                     }
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.Mul:
                     if (opType == OperandType.Int32)
                         PushStack(PopStack()*PopStack());
                     else if (opType == OperandType.Float32)
                         PushStackF(PopStackF()*PopStackF());
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.Div:
                     if (opType == OperandType.Int32)
                     {
                         p1 = PopStack();
                         p2 = PopStack();
-                        if (p1 == 0) throw new InternalFailure("Division by 0");
+                        if (p1 == 0) throw new RuntimeException("Division by 0");
                         PushStack(p2/p1);
                     }
                     else if (opType == OperandType.Float32)
                     {
                         f1 = PopStackF();
                         f2 = PopStackF();
-                        if (f1 == 0) throw new InternalFailure("Division by 0");
+                        if (f1 == 0) throw new RuntimeException("Division by 0");
                         PushStackF(f2/f1);
                     }
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.Mod:
                     if (opType == OperandType.Int32)
                     {
                         p1 = PopStack();
                         p2 = PopStack();
-                        if (p1 == 0) throw new InternalFailure("Division by 0");
+                        if (p1 == 0) throw new RuntimeException("Division by 0");
                         PushStack(p2%p1);
                     }
-                    else throw new InternalFailure($"Unknown op type {opType} in {opcode}");
+                    else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 default:
-                    throw new InternalFailure($"Unknown opcode {opcode}");
+                    throw new RuntimeException($"Unknown opcode {opcode}");
             }
             Trace(System.Environment.NewLine);
             return retval;
@@ -814,7 +814,7 @@ namespace Lomont.ClScript.CompilerLib
 
             // entry name
             if (!ReadImageString(ref index, out name))
-                throw new InternalFailure($"Cannot find import call {importIndex}");
+                throw new RuntimeException($"Cannot find import call {importIndex}");
             parameterCount = paramCount;
             returnCount = retCount;
         }
@@ -921,7 +921,7 @@ namespace Lomont.ClScript.CompilerLib
                 ProgramCounter += 4;
             }
             else
-                throw new InternalFailure("Unknown operand type in Runtime");
+                throw new RuntimeException("Unknown operand type in Runtime");
             Trace($" c:{value}");
             return value;
         }
