@@ -352,8 +352,10 @@ namespace Lomont.ClScript.CompilerLib
             // read instruction
             var oldTrace = useTracing;
             useTracing = false; // do not trace these reads
-            Opcode opcode = (Opcode) ReadCodeItem(OperandType.Byte);
-            OperandType opType = (OperandType)ReadCodeItem(OperandType.Byte);
+            var inst = ReadCodeItem(OperandType.Byte);
+
+            Opcode opcode = (Opcode) (inst/6); //  ReadCodeItem(OperandType.Byte);
+            OperandType opType = (OperandType) (inst%6);//ReadCodeItem(OperandType.Byte);
             useTracing = oldTrace; // restore tracing setting
 
             // trace address, instruction here
@@ -363,9 +365,6 @@ namespace Lomont.ClScript.CompilerLib
             switch (opcode)
             {
 
-                case Opcode.Nop:
-                    break; // do nothing
-
                 // stack
                 case Opcode.Push:
                     PushStack(ReadCodeItem(opType));
@@ -374,7 +373,7 @@ namespace Lomont.ClScript.CompilerLib
                     PopStack();
                     break;
                 case Opcode.Pick:
-                    p1 = ReadCodeItem(OperandType.Int32);
+                    p1 = Unpack();
                     PushStack(ReadRam(StackPointer - p1 - 1,$"Pick {p1}"));
                     break;
                 case Opcode.Dup:
@@ -382,25 +381,19 @@ namespace Lomont.ClScript.CompilerLib
                     PushStack(p1);
                     PushStack(p1);
                     break;
-                case Opcode.Swap:
-                    p1 = PopStack();
-                    p2 = PopStack();
-                    PushStack(p1);
-                    PushStack(p2);
-                    break;
                 case Opcode.ClearStack:
-                    p1 = ReadCodeItem(OperandType.Int32);
+                    p1 = Unpack();
                     for (var i =0 ; i < p1; ++i)
                         PushStack(0);
                     break;
                 case Opcode.PopStack:
-                    p1 = ReadCodeItem(OperandType.Int32);
+                    p1 = Unpack();
                     StackPointer -= p1;
                     break;
 
                 // mem
                 case Opcode.Load:
-                    p1 = ReadCodeItem(OperandType.Int32);
+                    p1 = Unpack();
                     if (opType == OperandType.Global)
                         PushStack(ReadRam(p1,"Load"));
                     else if (opType == OperandType.Local)
@@ -426,7 +419,7 @@ namespace Lomont.ClScript.CompilerLib
                     else throw new RuntimeException($"Write optype {opType} unsupported");
                     break;
                 case Opcode.Addr:
-                    p1 = ReadCodeItem(OperandType.Int32);
+                    p1 = Unpack();
                     if (opType == OperandType.Local)
                         PushStack(BasePointer + p1);
                     else if (opType == OperandType.Global)
@@ -436,17 +429,17 @@ namespace Lomont.ClScript.CompilerLib
                     break;
                 case Opcode.MakeArr:
                 {
-                    var p = ReadCodeItem(OperandType.Int32); // address
+                    var p = Unpack(); // address
                     if (opType == OperandType.Local)
                         p += BasePointer;
                     else if (opType != OperandType.Global)
                         throw new RuntimeException($"MakeArr optype {opType} unsupported");
-                    var n = ReadCodeItem(OperandType.Int32); // dimension, dims are x1,x2,...,xn
-                    var si = ReadCodeItem(OperandType.Int32);
+                    var n = Unpack(); // dimension, dims are x1,x2,...,xn
+                    var si = Unpack();
                     var m = 1;
                     for (var i = 0; i < n; ++i)
                     {
-                        var xi = ReadCodeItem(OperandType.Int32);
+                        var xi = Unpack();
                         if (xi == 0 || ((si - ArrayHeaderSize)%xi) != 0)
                             throw new RuntimeException($"Array sizes invalid, not divisible {si}/{xi}");
                         var si2 = si;
@@ -465,8 +458,8 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Array:
                 {
                     var addr = PopStack(); // current array address
-                    var k = ReadCodeItem(OperandType.Int32); // number of levels to dereference
-                    var n = ReadCodeItem(OperandType.Int32); // total dimension of array
+                    var k = Unpack(); // number of levels to dereference
+                    var n = Unpack(); // total dimension of array
                     if (k < 1 || n < k)
                         throw new RuntimeException($"Array called with non-positive number of indices {k} or too small dimensionality {n}");
                     for (var i = 0; i < k; ++i)
@@ -491,7 +484,7 @@ namespace Lomont.ClScript.CompilerLib
                         p1 = ProgramCounter + ReadCodeItem(OperandType.Int32); // new program counter 
                         PushStack(ProgramCounter); // return to here
                         PushStack(BasePointer); // save this
-                        ProgramCounter += p1; // jump to here
+                        ProgramCounter = p1; // jump to here
                         BasePointer = StackPointer; // base pointer now points here
                     }
                     else if (opType == OperandType.Const)
@@ -516,8 +509,8 @@ namespace Lomont.ClScript.CompilerLib
                     else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
                 case Opcode.Return:
-                    p1 = ReadCodeItem(OperandType.Int32); // number of parameters on stack
-                    p2 = ReadCodeItem(OperandType.Int32); // number of locals on stack
+                    p1 = Unpack(); // number of parameters on stack
+                    p2 = Unpack(); // number of locals on stack
                     ExecuteReturn(p1,p2);
                     if (ProgramCounter == returnExitAddress)
                         retval = false; // done executing entry function
@@ -538,7 +531,7 @@ namespace Lomont.ClScript.CompilerLib
                     var endIndex = PopStack();   // end
                     var startIndex = PopStack(); // start
                     if (deltaIndex== 0) deltaIndex= (startIndex< endIndex) ? 1 : -1;
-                    var forAddr = BasePointer + ReadCodeItem(OperandType.Int32); // address to for stack, local to base pointer
+                    var forAddr = BasePointer + Unpack(); // address to for stack, local to base pointer
                     WriteRam(forAddr, startIndex, "FOR start"); // start address
                     WriteRam(forAddr + 1, deltaIndex, "FOR delta"); // delta
                 }
@@ -548,7 +541,7 @@ namespace Lomont.ClScript.CompilerLib
                     // [   ] update for stack frame, branch if more to do
                     //       Stack has end value, code has local offset to for frame (counter, delta), then delta address to jump on loop
                     //       pops end value after comparison
-                    var forAddr = BasePointer + ReadCodeItem(OperandType.Int32); // address to for stack, local to base pointer
+                    var forAddr = BasePointer + Unpack(); // address to for stack, local to base pointer
                     var index = ReadRam(forAddr, "For loop index"); // index
                     var delta = ReadRam(forAddr+1, "For loop delta"); // delta
                     var endVal = PopStack(); // end value
@@ -906,6 +899,19 @@ namespace Lomont.ClScript.CompilerLib
             return ReadImageInt(ref offset, count);
         }
 
+        int Unpack()
+        {
+#if true
+            return ReadCodeItem(OperandType.Int32);
+#else
+            // simple encoding: -127 to 127 stored as byte in 0-254, else 255 stored then 4 byte int
+            var v = ReadCodeItem(OperandType.Byte);
+            if (v != 255)
+                return v - 127;
+            return ReadCodeItem(OperandType.Int32);
+#endif
+        }
+
         int ReadCodeItem(OperandType opType)
         {
             int value = 0;
@@ -928,7 +934,7 @@ namespace Lomont.ClScript.CompilerLib
 
 
 
-        #region Stack
+#region Stack
 
         void PushStack(int value)
         {
@@ -952,7 +958,7 @@ namespace Lomont.ClScript.CompilerLib
             return Int32ToFloat32(PopStack());
         }
 
-        #endregion
+#endregion
 
         void CopyEntries(int srcStackIndex, int dstStackIndex, int returnEntryCount)
         {
@@ -989,7 +995,7 @@ namespace Lomont.ClScript.CompilerLib
         }
 
 
-        #endregion
+#endregion
 
     }
 }

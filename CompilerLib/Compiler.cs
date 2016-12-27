@@ -35,6 +35,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 20. string able to print to external function call
  * DONE 21. Import of files, ensure single import
  * 22. Return complex types
+ * 23. Library functions: print, array size
  * 
  * To get usable in production:  
  * 
@@ -69,7 +70,6 @@ namespace Lomont.ClScript.CompilerLib
 
         public bool Compile(string filename, GetFileText fileReader)
         {
-            env.Info($"Compiling <todo> lines");
             var success = false;
             try
             {
@@ -167,6 +167,9 @@ namespace Lomont.ClScript.CompilerLib
                     env.Error($"Cannot open file {filename}");
                     return false;
                 }
+
+                env.Info($"Compiling file {filename}");
+
                 lexer = new Lexer.Lexer(env, source, filename);
                 parser = new Parser.Parser(env, lexer);
                 var tree = parser.Parse();

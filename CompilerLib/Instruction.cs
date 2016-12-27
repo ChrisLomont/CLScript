@@ -10,34 +10,33 @@ namespace Lomont.ClScript.CompilerLib
     public enum OperandType
     {
         // size/type of item/opcode
-        None,
-        Byte,
         Int32,
         Float32,
+        Byte,
 
         // where item exists
         Global, // absolute address
         Local,  // relative to base pointer address
-        Const   // in const memory (ROM/FLASH, etc)
+        Const,   // in const memory (ROM/FLASH, etc)
+        
+        None=Int32 // duplicate default
     }
 
     public enum Opcode
     {
                             // first letter of allowed operand types
-        Nop,                // [   ]
 
         // stack
         Push,               // [BIF] read bytes from code, expanded to stack entry size, pushed onto stack
         Pop,                // [   ] pop entry from stack
         Pick,               // [   ] push stack value from n back onto stack
         Dup,                // [   ] copy top stack value
-        Swap,               // [   ] swap top two stack values
         ClearStack,         // [   ] add n zeroes to stack (used for function stack frames)
         PopStack,           // [   ] single int from code pops this many from stack
                             
         // mem   
         // todo - these will need sized to handle byte accesses later
-        Load,               // [GLC] push value from memory location onto stack
+        Load,               // [GLC] push value from code memory location onto stack (same as PUSH+READ)
         Read,               // [GLC] Push value onto stack whose address on stack top
                             // push address, then value, then writes value into address
 
@@ -74,6 +73,7 @@ namespace Lomont.ClScript.CompilerLib
         LeftShift,          // [   ]
         RightRotate,        // [   ] 
         LeftRotate,         // [   ]
+        
         // comparison
         NotEqual,           // [BIF]
         IsEqual,            // [BIF]
@@ -81,6 +81,7 @@ namespace Lomont.ClScript.CompilerLib
         GreaterThanOrEqual, // [BIF]
         LessThanOrEqual,    // [BIF]
         LessThan,           // [BIF]
+        
         //arithmetic       
         Neg,                // [BIF]
         Add,                // [BIF]

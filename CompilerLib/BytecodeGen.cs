@@ -144,7 +144,7 @@ namespace Lomont.ClScript.CompilerLib
 
 
             // write some testing nonsense chunks
-            var rand = new Random(1234);
+/*            var rand = new Random(1234);
             for (var i = 0; i < rand.Next(1,5); ++i)
             {
                 var data = new byte[rand.Next(7, 29)];
@@ -152,12 +152,12 @@ namespace Lomont.ClScript.CompilerLib
                 var name = $"abc" + i;
                 WriteChunk(assembly,name,data.ToList());
                 env.Warning($"Writing garbage chunk {name} for testing");
-            }
+            } */
 
 
-            var empty = new List<byte>();
-            WriteChunk(assembly, "img0", empty); // initial RAM image
-            WriteChunk(assembly, "text", empty); // string table & const data
+            // var empty = new List<byte>();
+            // WriteChunk(assembly, "img0", empty); // initial RAM image
+            // WriteChunk(assembly, "text", empty); // string table & const data
 
             // fill in size
             ByteWriter.Write(assembly,assembly.Count-8,4,4);
@@ -245,7 +245,7 @@ namespace Lomont.ClScript.CompilerLib
                 // arbitrary int32 values
                 case Opcode.MakeArr:
                     foreach (var item in inst.Operands)
-                        Write((uint)((int)item), 4);
+                        Pack((uint)((int)item));
                     break;
 
                 // single int32 operand follows
@@ -255,19 +255,19 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Load:
                 case Opcode.Addr:
                 case Opcode.ForStart:
-                    Write((uint)((int)inst.Operands[0]), 4);
+                    Pack((uint)((int)inst.Operands[0]));
                     break;
 
                 // two int32 operand follows
                 case Opcode.Array:
                 case Opcode.Return:
-                    Write((uint)((int)inst.Operands[0]), 4);
-                    Write((uint)((int)inst.Operands[1]), 4);
+                    Pack((uint)((int)inst.Operands[0]));
+                    Pack((uint)((int)inst.Operands[1]));
                     break;
 
                 // address then label
                 case Opcode.ForLoop:
-                    Write((uint)((int)inst.Operands[0]), 4);
+                    Pack((uint)((int)inst.Operands[0]));
                     AddFixup((string)inst.Operands[1]);
                     break;
 
@@ -276,7 +276,7 @@ namespace Lomont.ClScript.CompilerLib
                     if (inst.OperandType == OperandType.Byte)
                         Write((uint)((int)inst.Operands[0]), 1);
                     else if (inst.OperandType == OperandType.Int32)
-                        Write((uint)((int)inst.Operands[0]),4);
+                        Pack((uint)((int)inst.Operands[0]));
                     else if (inst.OperandType == OperandType.Float32)
                         Write((float)(double)(inst.Operands[0]));
                     else
@@ -300,8 +300,6 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Read: 
                 case Opcode.Write: 
                 case Opcode.Pop:
-                case Opcode.Nop:
-                case Opcode.Swap:
                 case Opcode.Or:
                 case Opcode.And:
                 case Opcode.Xor:
@@ -437,8 +435,46 @@ namespace Lomont.ClScript.CompilerLib
 
             //var op = ((uint) (operandType) << 6) | (uint)opcode;
             //Write(op,1);
-            Write((uint)opcode,1);
-            Write((uint)operandType, 1);
+            //Write((uint)opcode,1);
+            //Write((uint)operandType, 1);
+
+            var v = 6*(uint) opcode + (uint) operandType;
+            Write(v, 1);
+
+            if ((int)operandType >= 7)
+                throw new InternalFailure($"Opcode {operandType} must be smaller than 7, is now {(int)operandType}");
+            if ((int)opcode*6+5 >= 255)
+                throw new InternalFailure($"Opcode {opcode} too large, is now {(int)opcode}.");
+
+        }
+
+        // int pack1 = 0, pack2 = 0, pack3 = 0;
+        // pack 32 bit value into as few bytes as possible
+        // format: 
+        void Pack(uint value)
+        {
+#if true
+            Write(value,4);
+            //var v = (int) value;
+            //if (-63 <= v && v <= 63)
+            //    pack1++;
+            //else
+            //{
+            //    pack2++;
+            //    env.Info($"Large {v}");
+            //}
+            //env.Info($"Pack1 {pack1} pack2 {pack2}");
+#else
+            // simple encoding: -127 to 127 stored as byte in 0-254, else 255 stored then 4 byte int
+            var v = (int)value;
+            if (-127 <= v && v <= 127)
+                Write((uint)(v + 127), 1);
+            else
+            {
+                Write(255, 1);
+                Write(value, 4);
+            }
+#endif
         }
 
         // write some bytes, MSB first
