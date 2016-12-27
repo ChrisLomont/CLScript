@@ -36,6 +36,8 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * DONE 21. Import of files, ensure single import
  * 22. Return complex types
  * 23. Library functions: print, array size
+ * 24. Type promotion (int=>float, byte=>int, etc, where appropriate?)
+ * 25. Remove unused functions, variables, and symbols everywhere
  * 
  * To get usable in production:  
  * 
@@ -232,6 +234,10 @@ namespace Lomont.ClScript.CompilerLib
 
             generatedInstructions.Clear();
             generatedInstructions.AddRange(code);
+
+            var peep = new PeepholeOptimizer(env);
+            peep.Optimize(generatedInstructions);
+
             bytecode = new BytecodeGen(env);
             env.Info("Bytecode Generation...");
             var retval = bytecode.Generate(symbolTable, generatedInstructions);
