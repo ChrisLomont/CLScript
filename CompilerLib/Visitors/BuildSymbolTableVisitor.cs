@@ -28,6 +28,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // todo - compute symbol table item sizes
             // todo - check all items checkable in symbol table
 
+            // ensure all types defined
+            foreach (var t in mgr.TypeManager.Types.Where(t => t.SymbolType == SymbolType.UserType1))
+            {
+                if (mgr.Lookup(t.UserTypeName) == null)
+                    env.Error($"Undefined type {t}");
+            }
+
+            // mark all type base types
+            foreach (var t in mgr.TypeManager.Types)
+                t.BaseType = mgr.TypeManager.GetBaseType(t);
+
             return mgr;
         }
 

@@ -7,10 +7,16 @@ using System.Threading.Tasks;
 namespace Lomont.ClScript.CompilerLib
 {
     /// <summary>
-    /// Tracks types, giving each a unique index, and performs formatting
+    /// Tracks types, giving each a unique index, perform formatting
     /// </summary>
     public class TypeManager
     {
+        Environment env;
+        public TypeManager(Environment environment)
+        {
+            env = environment;
+        }
+
         /// <summary>
         /// Used to add basic types like 'bool' and 'function' to the system
         /// </summary>
@@ -51,7 +57,13 @@ namespace Lomont.ClScript.CompilerLib
                     return e;
             }
 
-            var type = new InternalType(symbolType, userTypename, this, Types.Count, arrayDimension, returnType,
+            var type = new InternalType(
+                symbolType, 
+                userTypename, 
+                this, 
+                Types.Count, 
+                arrayDimension, 
+                returnType,
                 paramsType);
             Types.Add(type);
             return type;
@@ -76,6 +88,22 @@ namespace Lomont.ClScript.CompilerLib
         // store unique types here
         public List<InternalType> Types { get;  } = new List<InternalType>();
 
+        public InternalType GetBaseType(InternalType type)
+        {
+            if (type.ArrayDimension == 0)
+                return type;
+            else if (type.SymbolType != SymbolType.UserType1)
+                return GetType(type.SymbolType);
+            else
+            {
+                var userName = type.UserTypeName;
+                foreach (var t in Types)
+                {
+                }
+                env.Error($"Could not match base type for {type}");
+                return null;
+            }
+        }
     }
 
     /// <summary>
@@ -102,12 +130,37 @@ namespace Lomont.ClScript.CompilerLib
             ParamsType = paramsType;
         }
 
-        public int ArrayDimension { get; set; }
-        public SymbolType SymbolType { get; set; }
-        public string UserTypeName { get; set; }
-        public List<InternalType> ReturnType { get; set; }
-        public List<InternalType> ParamsType { get; set; }
+        /// <summary>
+        /// dimension of multidimensional arrays
+        /// 0 is no array
+        /// 1 is single array
+        /// etc.
+        /// </summary>
+        public int ArrayDimension { get; private set; }
+        /// <summary>
+        /// Underlying symbol type
+        /// </summary>
+        public SymbolType SymbolType { get; private set; }
+        /// <summary>
+        /// A user type name
+        /// </summary>
+        public string UserTypeName { get; private set; }
+        
+        /// <summary>
+        /// return types for function type
+        /// </summary>
+        public List<InternalType> ReturnType { get; private set; }
+        /// <summary>
+        /// parameter types for function type
+        /// </summary>
+        public List<InternalType> ParamsType { get; private set; }
 
+        /// <summary>
+        /// The type of the base item.
+        /// If not an array, the same as self
+        /// If an array, the type of the underlying item, all arrays removed
+        /// </summary>
+        public InternalType BaseType { get; set; }
 
         public bool PassByRef
         {

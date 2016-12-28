@@ -1,0 +1,44 @@
+// test initialization
+
+/*
+[Entry]
+export (bool) TestInit()
+   return Test1()// && Test2()
+
+(bool) Test1()
+   i32 a,b = 1,2
+   r32 c,d = 1.5,1.5
+   bool t1 = a+b==3 && c+d == 3.0
+   g,a,c = 1,2,2.5
+   bool t2 = a+b==4 && c+d == 4.0  
+   return t1 && t2
+   
+type RGB 
+   r32 r,g,b
+   
+i32 g   
+*/   
+(bool) Test2()
+   i32 a[3] = 1,2,3//ident(3)
+   //RGB color = 1.0,0.0,1.0
+   //bool b = false
+   //a,b,color = 3,6,9,true,0.1,0.0,0.0
+   //
+   //i32 aa[2][3] = 1,2,3,4,5,6
+   //
+   return a[2] == 3
+   //return color.r == 1.0
+/*   
+() Test3(i32 a [][])
+   return
+   
+(i32,bool,RGB) TestReturn()
+   RGB color = 1.0,2.0,3.0
+   return 1,true,color
+   
+(i32) ident(i32 v)
+   return v
+*/   
+   
+   
+   

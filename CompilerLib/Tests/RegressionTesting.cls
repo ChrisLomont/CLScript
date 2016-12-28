@@ -25,15 +25,16 @@ export (bool,i32,i32) RunTests()
    if TestArrays()
       passed = passed + 1
 
-   tested = tested + 1
-   if TestCalling()
-      passed = passed + 1
+//   tested = tested + 1
+//   if TestCalling()
+//      passed = passed + 1
 
    return tested==passed,passed,tested
    
    
 /*****************basic language features testing **************/
 
+/*
 // testing function calls
 (bool) TestCalling()
    i32 c = 0
@@ -57,7 +58,7 @@ export (bool,i32,i32) RunTests()
    
 (i32,r32) ReturnSquares(i32 a, r32 b)
    return a*a,b*b
-   
+*/   
 
 // some array value testing
 (bool) TestArrays()

@@ -3,7 +3,8 @@ type RGB
    r32 r,g,b 
    
 (i32) Check(RGB color)
-   color.r = 1.0
+   r32 aa = 0.0
+   color.r = 1.0 + aa
    color.g = 0.0
    color.b = 0.0
    RGB c2

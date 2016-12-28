@@ -424,9 +424,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     var funcReturnTypes = symbol.Type.ReturnType;
                     if (funcReturnTypes.Count == 0 && node.Children.Count == 0)
                         return; // nothing to do
-                    var returnStatementTypes = GetTypes(node.Children[0].Children);
-
-                    CheckAssignments(node,funcReturnTypes,returnStatementTypes);
+                    CheckAssignments(node,funcReturnTypes, GetTypes(node.Children[0].Children));
                 }
             }
             else if (tt == TokenType.Continue || tt == TokenType.Break)
@@ -440,9 +438,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        static List<InternalType> GetTypes(List<Ast> children)
+        static List<InternalType> GetTypes(List<Ast> nodes)
         {
-            return children.Select(c => c.Type).ToList();
+            return nodes.Select(c => c.Type).ToList();
         }
 
         // ensure function declarations that need one end with a return statement 
@@ -461,6 +459,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var block = (BlockAst) (node.Children[2]);
             if (!(block.Children.LastOrDefault() is JumpStatementAst))
                 env.Error($"Function {node} requires a return statement at end.");
+        }
+
+        void CheckAssignments(Ast node, List<Ast> left, List<Ast> right)
+        {
+            CheckAssignments(node, FlattenTypes(left), FlattenTypes(right));
         }
 
         // check assignment statements have same number of items and types match
@@ -483,6 +486,50 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         }
 
+        // given a list of nodes, return a list of ordered, flattened types
+        // where flattened means down to basic types // i32,bool, r32, string, byte
+        List<InternalType> FlattenTypes(List<Ast> nodes)
+        {
+            var flat = new List<InternalType>();
+            foreach (var n in nodes)
+            {
+                if (!(n is ExpressionAst))
+                {
+                    env.Error($"Node {n} is not an Expression");
+                    return null;
+                }
+                var e = n as ExpressionAst;
+                var s = e.Symbol;
+                var t = e.Type.BaseType;
+                RecurseFlatten(flat,s,t);
+            }
+            return flat;
+        }
+
+        void RecurseFlatten(List<InternalType> flat, SymbolEntry s, InternalType t)
+        {
+            var num = 1;
+            if (s?.ArrayDimensions != null)
+            { // is an array, take base type
+                num = s.ArrayDimensions.Aggregate(1, (cur, next) => cur * next);
+            }
+            for (var i = 0; i < num; ++i)
+            {
+                if (t.SymbolType != SymbolType.UserType1)
+                    flat.Add(t);
+                else
+                {
+                    var table = mgr.GetTableWithScope(t.UserTypeName);
+
+                    foreach (var s1 in table.Entries)
+                    {
+                        var t1 = s1.Type.BaseType;
+                        RecurseFlatten(flat, s1, t1);
+                    }
+                }
+            }
+        }
+
         // check var type exists
         // check variable type exists, counts and types match
         void ProcessAssignment(AssignStatementAst node)
@@ -496,7 +543,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var exprs = node.Children[1] as ExpressionListAst;
             if (items == null || exprs == null)
                 throw new InternalFailure($"Variable nodes incorrect {node}");
-            CheckAssignments(node, GetTypes(items.Children), GetTypes(exprs.Children));
+            CheckAssignments(node, items.Children, exprs.Children);
             // set symbols
             foreach (var item in items.Children)
             {
@@ -520,7 +567,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var exprs = node.Children[1] as ExpressionListAst;
             if (items == null || exprs == null)
                 throw new InternalFailure($"Variable nodes incorrect {node}");
-            CheckAssignments(node, GetTypes(items.Children),GetTypes(exprs.Children));
+            CheckAssignments(node, items.Children,exprs.Children);
         }
 
         static Int32 ParseInt(Ast node)

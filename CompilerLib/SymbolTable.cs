@@ -40,7 +40,7 @@ namespace Lomont.ClScript.CompilerLib
             tables.Push(RootTable);
             stack.Push(new Tuple<string, bool>(GlobalScope, true));
             onlyScan = false;
-            TypeManager = new TypeManager();
+            TypeManager = new TypeManager(environment);
             AddBasicTypes();
         }
 
