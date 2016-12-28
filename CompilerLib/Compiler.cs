@@ -210,7 +210,7 @@ namespace Lomont.ClScript.CompilerLib
 
         // reorder tree:
         // remove import statements - they are fulfilled by now
-        // first is imported items, then types, then globals, then functions
+        // first is imported items, then enums, then types, then globals, then functions
         // must track attributes
         void ReorderSyntaxTree(Ast tree)
         {
@@ -218,17 +218,19 @@ namespace Lomont.ClScript.CompilerLib
 
             tree.Children.RemoveAll(n => n is ImportAst);
 
-            var imports = Extract(tree.Children, n=>n is FunctionDeclarationAst && (n as FunctionDeclarationAst).ImportToken != null);
-            var types = Extract(tree.Children,n => n is TypeDeclarationAst);
-            var globals = Extract(tree.Children,n => n is VariableDefinitionAst);
+            var imports   = Extract(tree.Children, n=>n is FunctionDeclarationAst && (n as FunctionDeclarationAst).ImportToken != null);
+            var enums     = Extract(tree.Children, n => n is EnumAst);
+            var types     = Extract(tree.Children,n => n is TypeDeclarationAst);
+            var globals   = Extract(tree.Children,n => n is VariableDefinitionAst);
             var functions = Extract(tree.Children,n => n is FunctionDeclarationAst && (n as FunctionDeclarationAst).ImportToken == null);
 
-            if (imports.Count + types.Count + globals.Count + functions.Count != tree.Children.Count)
+            if (imports.Count + enums.Count + types.Count + globals.Count + functions.Count != tree.Children.Count)
                 env.Error($"Mismatch in ast node counts when reordering syntax tree");
             else
             {
                 tree.Children.Clear();
                 tree.Children.AddRange(imports);
+                tree.Children.AddRange(enums);
                 tree.Children.AddRange(types);
                 tree.Children.AddRange(globals);
                 tree.Children.AddRange(functions);
