@@ -508,7 +508,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 case SymbolType.Int32:
                     return OperandType.Int32;
                 case SymbolType.Float32:
-                    return OperandType.Int32;
+                    return OperandType.Float32;
                 default:
                     throw new InternalFailure($"Unsupported type in GetOperandType {type}");
             }
