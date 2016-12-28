@@ -116,8 +116,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is TypedItemAst)
             {
                 node.Symbol.Used = true;
-                if (node.Symbol.Type.SymbolType == SymbolType.UserType1)
-                    mgr.Lookup(node.Symbol.Type.UserTypeName).Used = true;
+                if (node.Symbol.Type is UserType)
+                    mgr.Lookup((node.Symbol.Type as UserType).Name).Used = true;
             }
             else if (node.Children.Count != 0)
                 throw new InternalFailure($"Expression must have 0 to 2 children! {node}");
@@ -131,12 +131,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (symbol.Used || node.ExportToken != null)
             {
                 symbol.Used = true;
-                var types = symbol.Type.ReturnType;
-                types.AddRange(symbol.Type.ParamsType);
+                var funcType = node.Type as FunctionType;
+                var types = funcType.ReturnType.Tuple;
+                types.AddRange(funcType.ParamsType.Tuple);
                 foreach (var t in types)
-                    if (t.SymbolType == SymbolType.UserType1)
+                    if (t is UserType)
                     {
-                        var typeSymbol = mgr.Lookup(t.UserTypeName);
+                        var typeSymbol = mgr.Lookup((t as UserType).Name);
                         typeSymbol.Used = true;
                     }
 

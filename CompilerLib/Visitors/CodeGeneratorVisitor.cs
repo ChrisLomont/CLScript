@@ -294,8 +294,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             foreach (var entry in mgr.SymbolTable.Entries)
             {
-                var type = entry.Type;
-                if (entry.VariableUse != VariableUse.Param && type.ArrayDimension>0)
+                var type = entry.Type as ArrayType;
+                if (type != null && entry.VariableUse != VariableUse.Param && type.ArrayDimension>0)
                 {
                     // make this array - do not make them for param
                     var n = type.ArrayDimension;// # of dimensions
@@ -307,14 +307,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     operands.Add(entry.StackSize);
 
 #if true // testing
-                    var size = 1; // assume basic type
-                    if (!String.IsNullOrEmpty(type.UserTypeName))
-                        size = mgr.Lookup(type.UserTypeName).StackSize;
-                    var s = size;
-                    for (var i = 0; i < type.ArrayDimension; ++i)
-                        s = entry.ArrayDimensions[n - i - 1]*s + Runtime.ArrayHeaderSize;
-                    if (s != entry.StackSize)
-                        throw new InternalFailure($"Mismatched sizes {s} {entry.StackSize}");
+//                    var size = 1; // assume basic type
+//                    if (!String.IsNullOrEmpty(type.UserTypeName))
+//                        size = mgr.Lookup(type.UserTypeName).StackSize;
+//                    var s = size;
+//                    for (var i = 0; i < type.ArrayDimension; ++i)
+//                        s = entry.ArrayDimensions[n - i - 1]*s + Runtime.ArrayHeaderSize;
+//                    if (s != entry.StackSize)
+//                        throw new InternalFailure($"Mismatched sizes {s} {entry.StackSize}");
 #endif
                     foreach (var d in entry.ArrayDimensions)
                         operands.Add(d);
@@ -349,9 +349,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
                 EmitExpression(item as ExpressionAst, true); // address of expression
 
-                var operandType = GetOperandType(item.Type.SymbolType);
-
-                //var operandType = GetOperandType(symbol);
+                var operandType = GetOperandType(GetSymbolType(item));
 
                 // for +=, etc. read var, perform, 
                 // todo - make much shorter, table driven
@@ -459,6 +457,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         }
 
+        bool PassByRef(InternalType type)
+        {
+            return !(type is SimpleType);
+        }
+
         // given a symbol, load it's address
         void LoadAddress(SymbolEntry symbol)
         {
@@ -470,7 +473,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 Emit2(Opcode.Addr, OperandType.Local, symbol.Name, addr);
             else if (symbol.VariableUse == VariableUse.Param)
             {
-                if (symbol.Type.PassByRef)
+                if (PassByRef(symbol.Type))
                 {
                     // address passed in param, copy it
                     Emit2(Opcode.Push, OperandType.Int32, symbol.Name, addr);
@@ -487,15 +490,15 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 throw new InternalFailure($"Unsupported address type {symbol}");
         }
 
-        OperandType GetOperandType(SymbolEntry symbol)
-        {
-            if (symbol == null)
-                throw new InternalFailure("Null symbol");
-            var t = symbol.Type;
-            if (t.ArrayDimension > 0)
-                throw new InternalFailure("Cannot put array type in simple operand");
-            return GetOperandType(t.SymbolType);
-        }
+//        OperandType GetOperandType(SymbolEntry symbol)
+//        {
+//            if (symbol == null)
+//                throw new InternalFailure("Null symbol");
+//            var t = symbol.Type;
+//            if (t.ArrayDimension > 0)
+//                throw new InternalFailure("Cannot put array type in simple operand");
+//            return GetOperandType(t.SymbolType);
+//        }
 
         OperandType GetOperandType(SymbolType type)
         {
@@ -637,7 +640,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // return space
 
             var symbol = node.Symbol;
-            var retSize = symbol.Type.ReturnType.Count;
+            var type = symbol.Type as FunctionType;
+            if (type == null) throw new InternalFailure($"Required function type, got {symbol.Type}");
+            var retSize = type.ReturnType.Tuple.Count;
             if (retSize < 0)
                 throw new InternalFailure($"Return size < 0 {symbol}");
             else if (retSize > 0)
@@ -646,7 +651,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // basic types passed by value, others by address
             foreach (var child in node.Children)
             {
-                var addrOnly = child.Type.PassByRef;
+                var addrOnly = PassByRef(child.Type);
                 EmitExpression((ExpressionAst) child,addrOnly);
             }
 
@@ -657,7 +662,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             // if result ignored, pop them
             if (!FunctionResultIsUsed(node))
-                Emit2(Opcode.PopStack, OperandType.None, "clean unused return values", symbol.Type.ReturnType.Count);
+                Emit2(Opcode.PopStack, OperandType.None, "clean unused return values", type.ReturnType.Tuple.Count);
         }
 
         public static string ImportPrefix = "<import>";
@@ -710,9 +715,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 decl = decl.Parent;
 
             var func = decl as FunctionDeclarationAst;
+            var funcType = func.Symbol.Type as FunctionType;
+            if (funcType == null) throw new InternalFailure($"Required function type, got {func.Symbol.Type}");
 
             Emit2(Opcode.Return, OperandType.None, "",
-                func.Symbol.Type.ParamsType.Count,
+                funcType.ParamsType.Tuple.Count,
                 func.SymbolTable.StackEntries
             );
         }
@@ -732,23 +739,29 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (leaveAddressOnly)
                     throw new InternalFailure("EmitExpression cannot emit address for const");
                 // emit known value, ignore children
-                switch (node.Type.SymbolType)
+                if (node.Type is SimpleType)
                 {
-                    case SymbolType.Bool:
-                        EmitI(Opcode.Push, node.BoolValue.Value ? 1 : 0);
-                        break;
-                    case SymbolType.Int32:
-                        EmitI(Opcode.Push, node.IntValue.Value);
-                        break;
-                    case SymbolType.Float32:
-                        Emit2(Opcode.Push, OperandType.Float32, "", node.FloatValue.Value);
-                        break;
-                    case SymbolType.Byte:
-                        EmitI(Opcode.Push, node.ByteValue.Value);
-                        break;
-                    default:
-                        throw new InternalFailure($"Unsupported type in expression {node}");
-
+                    switch ((node.Type as SimpleType).SymbolType)
+                    {
+                        case SymbolType.Bool:
+                            EmitI(Opcode.Push, node.BoolValue.Value ? 1 : 0);
+                            break;
+                        case SymbolType.Int32:
+                            EmitI(Opcode.Push, node.IntValue.Value);
+                            break;
+                        case SymbolType.Float32:
+                            Emit2(Opcode.Push, OperandType.Float32, "", node.FloatValue.Value);
+                            break;
+                        case SymbolType.Byte:
+                            EmitI(Opcode.Push, node.ByteValue.Value);
+                            break;
+                        default:
+                            throw new InternalFailure($"Unsupported type in expression {node}");
+                    }
+                }
+                else
+                {
+                    throw new InternalFailure($"Unsupported type in expression {node}");
                 }
             }
             else
@@ -819,9 +832,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 throw new InternalFailure($"Malformed dot ast {node}");
 
             // type from which to take '.' to get offset
-            var type = child.Type;
+            var type = child.Type as UserType;
+            if (type == null) throw new InternalFailure($"Required user type, got {child.Type}");
             var nameOfOffset = node.Name;
-            var offsetOfType = mgr.GetTypeOffset(type.UserTypeName, nameOfOffset);
+            var offsetOfType = mgr.GetTypeOffset(type.Name, nameOfOffset);
             if (offsetOfType != 0)
             {
                 // compute offset
@@ -931,7 +945,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     // do nothing
                     break;
                 case TokenType.Minus:
-                    var s = node.Type.SymbolType;
+                    var s = GetSymbolType(node);
                     if (s == SymbolType.Byte || s == SymbolType.Int32)
                         EmitO(Opcode.Neg);
                     else if (s == SymbolType.Float32)
@@ -1000,6 +1014,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             new BinOp(TokenType.Slash,Opcode.Div,SymbolType.Byte, SymbolType.Int32, SymbolType.Float32),
         };
 
+        // get symbol type, node must have SimpleType, else throw
+        public static SymbolType GetSymbolType(Ast node)
+        {
+            var type = node.Type as SimpleType;
+            if (type != null)
+                return type.SymbolType;
+            throw new InternalFailure($"Required simple type {node.Type}");
+        }
 
         // given two values on stack, emit the binary operation on them
         // leaves value on stack
@@ -1007,8 +1029,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             foreach (var entry in binTbl)
             {
-                var s = node.Children[0].Type.SymbolType;
-                if (s != node.Children[1].Type.SymbolType)
+                var s = GetSymbolType(node.Children[0]);
+                if (s != GetSymbolType(node.Children[1]))
                     throw new InternalFailure("Operand on different types not implemented");
                 if (node.Token.TokenType == entry.TokenType &&
                     entry.SymbolTypes.Contains(s))

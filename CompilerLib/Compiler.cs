@@ -40,6 +40,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * DONE 25. Locate unused functions, variables, and symbols everywhere
  * 26. Remove unused functions, variables, and symbols everywhere (tricky - can remove functions)
  * 27. assignment of "streams" to "streams" weakens typing - perhaps only allow array setting, setting complex types from same type of piece by piece...
+ * 28. Redo sizing so can put bytes on stack, elsewhere (stack node size then 4 bytes, not 1 "stack item")
  * 
  * To get usable in production:  
  * 

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
-    class FunctionDeclarationAst : Ast
+    public class FunctionDeclarationAst : Ast
     {
         public Token ImportToken { get; set; }
         public Token ExportToken { get; set; }

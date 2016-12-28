@@ -356,7 +356,11 @@ namespace Lomont.ClScript.CompilerLib
                 if (flags.HasFlag(SymbolAttribute.Export))
                     env.Info($"Exporting symbol {symbol.Name}");
 
-                var linkEntry = new LinkEntry(symbol.Name,flags,address, symbol.Type.ReturnType.Count, symbol.Type.ParamsType.Count,symbol.UniqueId);
+                var funcType = symbol.Type as FunctionType;
+                if (funcType == null)
+                    throw new InternalFailure($"Link entry only supports functions, was {symbol}");
+
+                var linkEntry = new LinkEntry(symbol.Name,flags,address, funcType.ReturnType.Tuple.Count, funcType.ParamsType.Tuple.Count,symbol.UniqueId);
                 if (symbol.Attributes.Any())
                     linkEntry.Attributes = symbol.Attributes;
                 linkEntries.Add(linkEntry);

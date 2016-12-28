@@ -1,5 +1,9 @@
 // testing mulitiple assignments, type assignments, type promotion
 
+enum e1
+   val1 = 1
+   val2 = 2
+
 type RGB 
    r32 r,g,b
 
@@ -15,7 +19,7 @@ type t3
 () func()
    // Array assignment
    r32 r1[3] = 1.0,1.0,1.0
-   i32 a2[3][2] =  1,2, 3,2+2, 5,6
+   i32 a2[3][2] =  1,2, 3,2+2, 5,6 // e1.val1
 
    // assign multiple things
    i32 a1[3],d,a3[2] = 1,2,3, 4, 5,6
@@ -26,7 +30,8 @@ type t3
    t3  vv = 2,3.0,false
      
    // complex struct assignment
-   t2  c3 = c1,0.0,0.0,0.1  
+   t2  c3 = c1,0.0,0.0,0.1
+   RGB cc[2] = c1,c2
 
    // swap
    c1,c2 = c2,c1
@@ -35,6 +40,7 @@ type t3
    c1,c2 = r1,1.0,0.0,1.0
    
    // function settings
+   i32 pair[2] = func2()
    // r1 = Zero()
    // vv = returnSome()
    // a1 = 1,func2()
@@ -55,6 +61,6 @@ type t3
 (r32,r32,r32) Zero()
    return 0.0,0.0,0.0
    
-(i32,r32,bool) returnSome()
+(i32,r32,bool) returnC()
    return 4,5.0,false
     

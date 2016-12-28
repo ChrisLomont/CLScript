@@ -22,6 +22,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // attach parents for easy tree walking
             AttachParentsVisitor.AttachParents(ast);
 
+            // walk global scope once, getting enums, modules, types, and function declarations
+            ResolveGlobals(ast);
+
             // attach symbol tables
             BuildSymbolTable(ast);
 
@@ -29,17 +32,27 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // todo - check all items checkable in symbol table
 
             // ensure all types defined
-            foreach (var t in mgr.TypeManager.Types.Where(t => t.SymbolType == SymbolType.UserType1))
+            foreach (var t in mgr.TypeManager.Types.Where(t1=>t1 is UserType).Select(t2=>(UserType)t2))
             {
-                if (mgr.Lookup(t.UserTypeName) == null)
+                if (mgr.Lookup(t.Name) == null)
                     env.Error($"Undefined type {t}");
             }
-
-            // mark all type base types
-            foreach (var t in mgr.TypeManager.Types)
-                t.BaseType = mgr.TypeManager.GetBaseType(t);
-
             return mgr;
+        }
+
+        void ResolveGlobals(Ast ast)
+        {
+            foreach (var node in ast.Children)
+            {
+                if (node is FunctionDeclarationAst)
+                    AddFunctionDeclSymbols((FunctionDeclarationAst)node);
+                else if (node is EnumAst)
+                    mgr.AddTypeSymbol(node, ((EnumAst) node).Name, SymbolType.Enum);
+                else if (node is TypeDeclarationAst)
+                    mgr.AddTypeSymbol(node, ((TypeDeclarationAst) node).Name, SymbolType.Typedef);
+                else if (node is ModuleAst)
+                    mgr.AddTypeSymbol(node, ((ModuleAst) node).Name, SymbolType.Module);
+            }
         }
 
         void BuildSymbolTable(Ast node)
@@ -47,20 +60,24 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             if (node is TypedItemAst)
                 AddTypedItem((TypedItemAst)node, NodeVariableType(node));
-            else if (node is FunctionDeclarationAst)
-                AddFunctionDeclSymbols((FunctionDeclarationAst)node);
+            //else if (node is FunctionDeclarationAst)
+            //    AddFunctionDeclSymbols((FunctionDeclarationAst)node);
             else if (node is ReturnValuesAst)
                 return; // these have no names, not added to symbol table
             else if (node is ParameterListAst)
                 return; // these added to symbol table during function block
-            else if (node is EnumAst)
-                mgr.AddSymbol(node, ((EnumAst)node).Name, SymbolType.Enum, VariableUse.None);
+            //else if (node is EnumAst)
+            //    mgr.AddSymbol(node, ((EnumAst)node).Name, SymbolType.Enum, VariableUse.None);
             else if (node is EnumValueAst)
-                (node as EnumValueAst).Symbol = mgr.AddSymbol(node, ((EnumValueAst) node).Name, SymbolType.EnumValue, VariableUse.Const);
-            else if (node is TypeDeclarationAst)
-                mgr.AddSymbol(node, ((TypeDeclarationAst) node).Name, SymbolType.Typedef, VariableUse.None);
-            else if (node is ModuleAst)
-                mgr.AddSymbol(node, ((ModuleAst) node).Name, SymbolType.Module, VariableUse.None);
+            {
+                var parentType = mgr.TypeManager.GetType(SymbolType.Enum);
+                (node as EnumValueAst).Symbol = mgr.AddVariableSymbol(node, ((EnumValueAst) node).Name, parentType, VariableUse.Const);
+            }
+
+            //else if (node is TypeDeclarationAst)
+            //    mgr.AddSymbol(node, ((TypeDeclarationAst) node).Name, SymbolType.Typedef, VariableUse.None);
+            //else if (node is ModuleAst)
+            //    mgr.AddSymbol(node, ((ModuleAst) node).Name, SymbolType.Module, VariableUse.None);
 
             // todo - handle: attributes?
 
@@ -103,7 +120,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 var forNode = node.Parent as ForStatementAst;
                 var varName = forNode.Name;
-                var symbol = mgr.AddSymbol(node.Parent, varName, SymbolType.ToBeResolved, VariableUse.ForLoop);
+                var symbol = mgr.AddVariableSymbol(node.Parent, varName, mgr.TypeManager.GetType(SymbolType.ToBeResolved), VariableUse.ForLoop);
                 forNode.VariableSymbol = symbol;
             }
             else if (node.Parent is FunctionDeclarationAst)
@@ -123,7 +140,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         List<InternalType> ParseTypelist(List<Ast> nodes)
         {
             var list = new List<InternalType>();
-            List<int> arrayDimensions; // results tossed
             for (var i = 0; i < nodes.Count; ++i)
             {
                 var node = nodes[i];
@@ -131,6 +147,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (tItem == null)
                     throw new InternalFailure("Id List internals mismatched");
 
+                List<int> arrayDimensions; // results tossed
                 list.Add(GetTypedItemType(tItem, out arrayDimensions));
             }
             return list;
@@ -150,7 +167,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node.ExportToken != null)
                 attrib |= SymbolAttribute.Export;
 
-            var symbol = mgr.AddSymbol(node, node.Name, SymbolType.Function, VariableUse.Param, null, attrib,"",returnType,paramsType);
+            var symbol = mgr.AddFunctionSymbol(node, attrib,returnType,paramsType);
             node.Symbol = symbol;
         }
 
@@ -183,19 +200,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 
         // helper function that gets needed items to create types based on a TypedItemAst
-        InternalType GetTypedItemType(TypedItemAst node, out List<int> arrayDimensions )
+        InternalType GetTypedItemType(TypedItemAst node, out List<int> arrayDimensions)
         {
-            arrayDimensions = null; 
+            arrayDimensions = null;
 
             // typed item has variable name and type name
-            var symbolType = GetSymbolType(node.BaseTypeToken.TokenType);
-            var userName = "";
-            if (symbolType == SymbolType.ToBeResolved)
-            {
-                // replace with type name
-                symbolType = SymbolType.UserType1;
-                userName = node.BaseTypeToken.TokenValue;
-            }
+            var baseType = mgr.TypeManager.GetType(GetSymbolType(node.BaseTypeToken.TokenType));
 
             if (node.Children.Any())
             {
@@ -235,22 +245,23 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
                     // get next array if present
                     if (count == 1 && arrayAst.Children[0] is ArrayAst)
-                        arrayAst = arrayAst.Children[0] as ArrayAst;
+                        arrayAst = (ArrayAst) arrayAst.Children[0];
                     else if (count == 2 && arrayAst.Children[1] is ArrayAst)
-                        arrayAst = arrayAst.Children[1] as ArrayAst;
+                        arrayAst = (ArrayAst) arrayAst.Children[1];
                     else
                         break; // done
                 }
             }
 
-            var arrayDimension = arrayDimensions?.Count ?? 0;
-            return mgr.TypeManager.GetType(symbolType, arrayDimension, userName);
+            if (arrayDimensions != null)
+                return mgr.TypeManager.GetType(arrayDimensions.Count, baseType);
+            return baseType;
         }
 
         void AddTypedItem(TypedItemAst node, VariableUse usage)
         {
             if (node.BaseTypeToken == null)
-                return; // type not defined here, must be elsewhere
+                return; // type not defined here, must be elsewhere in tree
 
             var attrib = SymbolAttribute.None;
             if (node.ConstToken != null)
@@ -261,18 +272,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 attrib |= SymbolAttribute.Export;
 
             List<int> arrayDimensions;
-            var itemType = GetTypedItemType(node, out arrayDimensions);
-            var s  = mgr.AddSymbol(node, 
+            var totalType = GetTypedItemType(node, out arrayDimensions);
+
+            var baseType = mgr.Lookup(node.BaseTypeToken.TokenValue).Type;
+            var s  = mgr.AddVariableSymbol(node, 
                 node.Name,
-                itemType.SymbolType,
+                baseType,
                 usage,
                 arrayDimensions,
-                attrib, 
-                itemType.UserTypeName, 
-                null, null);
+                attrib);
 
             node.Symbol = s;
-            node.Type = itemType;
+            node.Type = totalType;
         }
     }
 }

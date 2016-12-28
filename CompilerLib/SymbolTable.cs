@@ -56,6 +56,128 @@ namespace Lomont.ClScript.CompilerLib
 
         }
 
+        public SymbolEntry AddTypeSymbol(
+            Ast node,
+            string typeName,
+            SymbolType symbolType
+            )
+        {
+            var type = TypeManager.GetType(typeName);
+            var symbol = SymbolTable.AddSymbol(node, Scope, typeName, VariableUse.None, type, null);
+            symbol.Attrib = SymbolAttribute.None;
+            var match = CheckDuplicate(SymbolTable, symbol);
+            if (match != null)
+            {
+                var msg = $"Symbol {typeName} already defined, {symbol.Node} and {match.Item1.Node}";
+                if (!ReferenceEquals(match.Item2, SymbolTable))
+                    env.Warning(msg);
+                else
+                    env.Error(msg);
+            }
+            return symbol;
+        }
+
+
+        public SymbolEntry AddVariableSymbol(
+            Ast node,
+            string symbolName,
+            InternalType symbolType,
+            VariableUse usage,
+            List<int> dimensions = null,
+            SymbolAttribute attribute = SymbolAttribute.None
+            )
+        {
+            var symbol = SymbolTable.AddSymbol(node, Scope, symbolName, usage, symbolType, dimensions);
+            symbol.Attrib = attribute;
+            var match = CheckDuplicate(SymbolTable, symbol);
+            if (match != null)
+            {
+                var msg = $"Symbol {symbolName} already defined, {symbol.Node} and {match.Item1.Node}";
+                if (!ReferenceEquals(match.Item2, SymbolTable))
+                    env.Warning(msg);
+                else
+                    env.Error(msg);
+            }
+            return symbol;
+        }
+
+        public SymbolEntry AddFunctionSymbol(
+            FunctionDeclarationAst node,
+            SymbolAttribute attrib,
+            List<InternalType> returnType,
+            List<InternalType> paramsType
+        )
+        {
+            // var symbol = mgr.AddSymbol(node, node.Name, SymbolType.Function, VariableUse.None, null, attrib, "", returnType, paramsType);
+            string symbolName = node.Name;
+
+            var rType = TypeManager.GetType(returnType);
+            var pType = TypeManager.GetType(paramsType);
+            var iSymbol = TypeManager.GetType(
+                symbolName,
+                rType,
+                pType
+                );
+
+            var symbol = SymbolTable.AddSymbol(node, Scope, symbolName, VariableUse.None, iSymbol, null);
+            symbol.Attrib = attrib;
+            if (attrib.HasFlag(SymbolAttribute.Import) || attrib.HasFlag(SymbolAttribute.Export))
+                symbol.UniqueId = GetUniqueId();
+            var match = CheckDuplicate(SymbolTable, symbol);
+            if (match != null)
+            {
+                var msg = $"Symbol {symbolName} already defined, {symbol.Node} and {match.Item1.Node}";
+                if (!ReferenceEquals(match.Item2, SymbolTable))
+                    env.Warning(msg);
+                else
+                    env.Error(msg);
+            }
+            return symbol;
+        }
+
+/*        public SymbolEntry AddSymbol(
+            Ast node,
+            string symbolName,
+            InternalType baseType,
+            VariableUse usage,
+            List<int> arrayDimensions,
+            SymbolAttribute attrib
+        )
+        {
+            //            var s = mgr.AddSymbol(node,
+            //                node.Name,
+            //                itemType.SymbolType,
+            //                usage,
+            //                arrayDimensions,
+            //                attrib,
+            //                itemType.UserTypeName,
+            //                null, null);
+
+            var arrayDimension = arrayDimensions?.Count ?? 0;
+            var iSymbol = TypeManager.GetType(
+                symbolType,
+                arrayDimension,
+                typeName,
+                );
+
+            var symbol = SymbolTable.AddSymbol(node, Scope, symbolName, usage, iSymbol, arrayDimensions);
+            symbol.Attrib = attrib;
+            if (attrib.HasFlag(SymbolAttribute.Import) || attrib.HasFlag(SymbolAttribute.Export))
+                symbol.UniqueId = GetUniqueId();
+            var match = CheckDuplicate(SymbolTable, symbol);
+            if (match != null)
+            {
+                var msg = $"Symbol {symbolName} already defined, {symbol.Node} and {match.Item1.Node}";
+                if (!ReferenceEquals(match.Item2, SymbolTable))
+                    env.Warning(msg);
+                else
+                    env.Error(msg);
+            }
+            return symbol;
+        }
+        */
+
+/* todo - remove
         /// <summary>
         /// Add a symbol
         /// </summary>
@@ -69,7 +191,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <param name="returnType">List of function return types</param>
         /// <param name="paramsType">List of function parameter types</param>
         /// <returns></returns>
-        public SymbolEntry AddSymbol(
+        public SymbolEntry AddSymbolOLD(
             Ast node, 
             string symbolName, 
             SymbolType symbolType,
@@ -105,6 +227,7 @@ namespace Lomont.ClScript.CompilerLib
             }
             return symbol;
         }
+*/
 
         int uniqueId = 0;
         int GetUniqueId()
@@ -162,20 +285,23 @@ namespace Lomont.ClScript.CompilerLib
             {
                 var byteSize = 0; // size in packed bytes
                 var stackSize = 0; // size on stack
-                switch (e.Type.SymbolType)
+                if (e.Type is SimpleType)
                 {
-                    case SymbolType.Byte:
-                    case SymbolType.Bool:
-                        byteSize = 1;
-                        stackSize = 1; // one entry
-                        break;
-                    case SymbolType.String:
-                    case SymbolType.EnumValue:
-                    case SymbolType.Float32:
-                    case SymbolType.Int32:
-                        byteSize = 4;
-                        stackSize = 1; // one entry
-                        break;
+                    switch ((e.Type as SimpleType).SymbolType)
+                    {
+                        case SymbolType.Byte:
+                        case SymbolType.Bool:
+                            byteSize = 1;
+                            stackSize = 1; // one entry
+                            break;
+                        case SymbolType.String:
+                        case SymbolType.EnumValue:
+                        case SymbolType.Float32:
+                        case SymbolType.Int32:
+                            byteSize = 4;
+                            stackSize = 1; // one entry
+                            break;
+                    }
                 }
                 if (e.VariableUse == VariableUse.ForLoop && byteSize>0)
                 {
@@ -192,13 +318,11 @@ namespace Lomont.ClScript.CompilerLib
             }
 
             // loop over unsized user types
-            foreach (var item in table.Entries.Where(e => e.ByteSize < 0))
+            foreach (var item in table.Entries.Where(e => e.ByteSize < 0 && e.Type is UserType))
             {
-                if (/*item.Type.SymbolType != SymbolType.Typedef &&*/ item.Type.SymbolType != SymbolType.UserType1)
-                    continue;
-
                 // try to compute size
-                var tbl = GetTableWithScope(item.Type.UserTypeName);
+                var itemType = item.Type as UserType;
+                var tbl = GetTableWithScope(itemType.Name);
                 if (tbl == null)
                 {
                     undone++;
@@ -226,7 +350,7 @@ namespace Lomont.ClScript.CompilerLib
                 {
                     done++;
                     // before adding any array items, set the base type
-                    var itemTypeSymbol = Lookup(RootTable, item.Type.UserTypeName);
+                    var itemTypeSymbol = Lookup(RootTable, itemType.Name);
                     itemTypeSymbol.ByteSize = byteSize;
                     itemTypeSymbol.StackSize = stackSize;
 
@@ -411,17 +535,17 @@ namespace Lomont.ClScript.CompilerLib
 
         void AddBasicTypes()
         {
-            TypeManager.AddBasicType(SymbolType.Bool,"bool");
-            TypeManager.AddBasicType(SymbolType.Int32, "i32");
-            TypeManager.AddBasicType(SymbolType.Float32, "r32");
-            TypeManager.AddBasicType(SymbolType.String, "string");
-            TypeManager.AddBasicType(SymbolType.Enum, "enum");
-            TypeManager.AddBasicType(SymbolType.EnumValue, "enum value");
-            TypeManager.AddBasicType(SymbolType.Module, "module");
-            TypeManager.AddBasicType(SymbolType.Typedef, "Type");
+            TypeManager.GetType(SymbolType.Bool);
+            TypeManager.GetType(SymbolType.Int32);
+            TypeManager.GetType(SymbolType.Float32);
+            TypeManager.GetType(SymbolType.String);
+            //TypeManager.GetType(SymbolType.Enum, "enum");
+            TypeManager.GetType(SymbolType.EnumValue);
+            //TypeManager.GetType(SymbolType.Module, "module");
+            //TypeManager.GetType(SymbolType.Typedef, "Type");
 
-            TypeManager.AddBasicType(SymbolType.ToBeResolved, "UNKNOWN");
-            // TypeManager.AddBasicType(SymbolType.UserType1, "UserType");
+            //TypeManager.GetType(SymbolType.ToBeResolved, "UNKNOWN");
+            // TypeManager.GetType(SymbolType.UserType, "UserType");
         }
 
         // set to true for walking existing table, else creates table 
@@ -497,6 +621,7 @@ namespace Lomont.ClScript.CompilerLib
         }
     }
 
+    // todo - split entries into types?
     public class SymbolEntry
     {
         /// <summary>
@@ -640,17 +765,21 @@ namespace Lomont.ClScript.CompilerLib
 
     public enum SymbolType
     {
+        // basic types
         Bool,
         Int32,
         Float32,
         String,
         Byte,
-        Enum,
         EnumValue,
-        Module,
-        UserType1,  // use of a user type, with a name
-        Typedef,    // type definition
+
+        UserType,  // use of a user type, type has a name
+
         Function,
+        Module,
+        Enum,
+        Typedef,    // type definition
+
 
         ToBeResolved, // cannot yet be matched, like for loop variables
         MatchAny      // used for searches

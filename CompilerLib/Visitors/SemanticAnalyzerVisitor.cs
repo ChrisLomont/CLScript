@@ -42,8 +42,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         public void Check(SymbolTableManager symbolTable, Ast ast)
         {
-            symbolTable.Start();
             mgr = symbolTable;
+            mgr.Start();
             Recurse(ast);
             FillAttributes();
         }
@@ -168,23 +168,23 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return null;
             }
             // get type of child
-            var type = node.Children[0].Type;
+            var type = node.Children[0].Type as UserType;
             if (type == null)
             {
-                env.Error($"Dot ast missing child type {node}");
+                env.Error($"Dot ast missing child type or wrong type {node}");
                 return null;
             }
-            if (String.IsNullOrEmpty(type.UserTypeName))
+            if (String.IsNullOrEmpty(type.Name))
             {
                 env.Error($"Dot ast missing child type {node}");
                 return null;
             }
             var symbolName = node.Name;
-            var typeTable = mgr.GetTableWithScope(type.UserTypeName);
+            var typeTable = mgr.GetTableWithScope(type.Name);
             var symbol = mgr.Lookup(typeTable, symbolName);
             if (symbol == null)
             {
-                env.Error($"Dot ast cannot locate symbol {symbolName} in type {type.UserTypeName}");
+                env.Error($"Dot ast cannot locate symbol {symbolName} in type {type.Name}");
                 return null;
             }
             node.Symbol = symbol;
@@ -205,7 +205,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var indexNode = node.Children[0];
             var indexType = indexNode.Type;
             var itemNode = node.Children[1];
-            var itemType = itemNode.Type;
+            var itemType = itemNode.Type as ArrayType;
+            if (itemType == null)
+            {
+                env.Error($"Expected array type {itemNode.Type}");
+                return null;
+            }
 
             // item must be array type, right must be type Int32 or byte
             if (itemType.ArrayDimension == 0)
@@ -225,11 +230,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
 
             // one less array dimension
-            return mgr.TypeManager.GetType(
-                itemType.SymbolType,
-                itemType.ArrayDimension - 1,
-                itemType.UserTypeName
-            );
+            if (itemType.ArrayDimension > 2)
+                return mgr.TypeManager.GetType(
+                    itemType.ArrayDimension - 1,
+                    itemType.BaseType);
+            return itemType.BaseType;
         }
 
 
@@ -309,11 +314,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return null;
             }
             node.Symbol = symbol;
+            var type = node.Type as FunctionType;
+            if (type == null)
+                throw new InternalFailure($"Expected function type {node.Type}");
 
-            var retVals = symbol.Type.ReturnType;
-            var parms   = symbol.Type.ParamsType;
+            var retVals = type.ReturnType.Tuple;
+            var parms   = type.ParamsType.Tuple;
 
-            // a fuction call has expressions as children
+            // a function call has expressions as children
             if (parms.Count != node.Children.Count)
             {
                 env.Error($"Function requires {parms.Count} parameters but has {node.Children.Count}, at {node}");
@@ -420,11 +428,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 else
                 {
                     var func = p as FunctionDeclarationAst;
-                    var symbol   = mgr.Lookup(func.Name);
-                    var funcReturnTypes = symbol.Type.ReturnType;
-                    if (funcReturnTypes.Count == 0 && node.Children.Count == 0)
+                    var funcType = func?.Symbol.Type as FunctionType;
+                    if (funcType == null)
+                        throw new InternalFailure($"Expected function type {funcType}");
+                    if (funcType.ReturnType.Tuple.Count == 0 && node.Children.Count == 0)
                         return; // nothing to do
-                    CheckAssignments(node,funcReturnTypes, GetTypes(node.Children[0].Children));
+                    CheckAssignments(node,funcType.ReturnType.Tuple, GetTypes(node.Children[0].Children));
                 }
             }
             else if (tt == TokenType.Continue || tt == TokenType.Break)
@@ -451,8 +460,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node.Children.Count != 3 || !(node.Children[2] is BlockAst))
                 throw new InternalFailure($"Function {node} has wrong structure");
 
-            var symbol = mgr.Lookup(node.Name);
-            var funcReturnTypes = symbol.Type.ReturnType;
+            var funcType = node.Symbol.Type as FunctionType;
+            if (funcType == null)
+                throw new InternalFailure($"Expected function type {funcType}");
+
+            var funcReturnTypes = funcType.ReturnType.Tuple;
             if (funcReturnTypes.Count == 0)
                 return; // nothing to do here - any actual return statements checked elsewhere
 
@@ -486,22 +498,29 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         }
 
+        InternalType BaseType(InternalType type)
+        {
+            if (type is ArrayType)
+                return ((ArrayType) type).BaseType;
+            return type;
+        }
+
         // given a list of nodes, return a list of ordered, flattened types
         // where flattened means down to basic types // i32,bool, r32, string, byte
         List<InternalType> FlattenTypes(List<Ast> nodes)
         {
             var flat = new List<InternalType>();
-            foreach (var n in nodes)
+            foreach (var node in nodes)
             {
-                if (!(n is ExpressionAst))
+                if (!(node is ExpressionAst))
                 {
-                    env.Error($"Node {n} is not an Expression");
+                    env.Error($"Node {node} is not an Expression");
                     return null;
                 }
-                var e = n as ExpressionAst;
-                var s = e.Symbol;
-                var t = e.Type.BaseType;
-                RecurseFlatten(flat,s,t);
+                var expr = node as ExpressionAst;
+                var symbol = expr.Symbol;
+                var baseType = BaseType(expr.Type);
+                RecurseFlatten(flat,symbol,baseType);
             }
             return flat;
         }
@@ -513,17 +532,19 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             { // is an array, take base type
                 num = s.ArrayDimensions.Aggregate(1, (cur, next) => cur * next);
             }
+            var simple = t is SimpleType;
+            SymbolTable table = null;
+            if (!simple)
+                table = mgr.GetTableWithScope((t as UserType).Name);
             for (var i = 0; i < num; ++i)
             {
-                if (t.SymbolType != SymbolType.UserType1)
+                if (simple)
                     flat.Add(t);
                 else
                 {
-                    var table = mgr.GetTableWithScope(t.UserTypeName);
-
                     foreach (var s1 in table.Entries)
                     {
-                        var t1 = s1.Type.BaseType;
+                        var t1 = BaseType(s1.Type);
                         RecurseFlatten(flat, s1, t1);
                     }
                 }
@@ -758,23 +779,27 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         InternalType ProcessUnaryExpression(ExpressionAst node)
         {
-                var child = node.Children[0] as ExpressionAst;
+            var child = node.Children[0] as ExpressionAst;
+            var childType = child.Type as SimpleType;
+            
+            if (childType == null)
+                throw new InternalFailure($"Expected simple type, got {child.Type}");
 
-                foreach (var entry in unaryActionTable)
+            foreach (var entry in unaryActionTable)
+            {
+                if (entry.actionType == node.Token.TokenType &&
+                    entry.valueType == childType.SymbolType)
                 {
-                    if (entry.actionType == node.Token.TokenType &&
-                        entry.valueType == child.Type.SymbolType)
-                    {
-                        // matches, do action if child has a value
-                        if (child.HasValue)
-                            entry.action(node, child);
-                        node.Type = child.Type;
-                        return node.Type;
-                    }
+                    // matches, do action if child has a value
+                    if (child.HasValue)
+                        entry.action(node, child);
+                    node.Type = child.Type;
+                    return node.Type;
                 }
-                env.Error(
-                    $"Unary operator {node.Name} cannot be applied to type {child.Type.SymbolType}");
-                return null;
+            }
+            env.Error(
+                $"Unary operator {node.Name} cannot be applied to type {childType.SymbolType}");
+            return null;
         }
 
         #endregion
@@ -1161,8 +1186,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             foreach (var entry in binaryActionTable)
             {
                 if (entry.actionType == node.Token.TokenType &&
-                    entry.leftValueType  == left.Type.SymbolType &&
-                    entry.rightValueType == right.Type.SymbolType
+                    entry.leftValueType  == CodeGeneratorVisitor.GetSymbolType(left) &&
+                    entry.rightValueType == CodeGeneratorVisitor.GetSymbolType(right)
                     )
                 {
                     // it matches, do action if children have values
