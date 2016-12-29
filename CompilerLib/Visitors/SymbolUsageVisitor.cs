@@ -84,6 +84,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     TagExpression((ExpressionAst)child);
                 recurseChildren = false;
             }
+            else if (node is ExpressionAst)
+            {
+                TagExpression((ExpressionAst)node);
+                recurseChildren = false;
+            }
 
             if (recurseChildren)
             {
@@ -115,9 +120,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             else if (node is TypedItemAst)
             {
-                node.Symbol.Used = true;
-                if (node.Symbol.Type is UserType)
-                    mgr.Lookup((node.Symbol.Type as UserType).Name).Used = true;
+                if (node.Symbol != null)
+                { 
+                    node.Symbol.Used = true;
+                    if (node.Symbol.Type is UserType)
+                        mgr.Lookup((node.Symbol.Type as UserType).Name).Used = true;
+                }
+                else if (!(node.Parent is ReturnValuesAst))
+                    throw new InternalFailure($"Expected return statement {node}");
             }
             else if (node.Children.Count != 0)
                 throw new InternalFailure($"Expression must have 0 to 2 children! {node}");
@@ -133,8 +143,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 symbol.Used = true;
                 var funcType = symbol.Type as FunctionType;
                 var types = funcType.ReturnType.Tuple;
-                types.AddRange(funcType.ParamsType.Tuple);
-                foreach (var t in types)
+                foreach (var t in types.Concat(funcType.ParamsType.Tuple))
                     if (t is UserType)
                     {
                         var typeSymbol = mgr.Lookup((t as UserType).Name);

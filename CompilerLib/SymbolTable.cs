@@ -633,7 +633,7 @@ namespace Lomont.ClScript.CompilerLib
         public override string ToString()
         {
             var sizeText = ByteSize >= 0 ?
-                $",{ByteSize}b,{StackSize}s"
+                $"{ByteSize}b,{StackSize}s"
                 : "";
 
             var name = Name;
