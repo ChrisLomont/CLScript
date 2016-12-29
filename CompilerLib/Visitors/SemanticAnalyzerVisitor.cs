@@ -230,7 +230,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
 
             // one less array dimension
-            if (itemType.ArrayDimension > 2)
+            if (itemType.ArrayDimension > 1)
                 return mgr.TypeManager.GetType(
                     itemType.ArrayDimension - 1,
                     itemType.BaseType);
@@ -334,7 +334,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     return null;
                 }
             }
-            node.Type = type.ReturnType;
+            if (type.ReturnType.Tuple.Count == 1)
+                node.Type = type.ReturnType.Tuple[0];
+            else
+                node.Type = type.ReturnType; // function has multiple returns
             return null;
         }
 
@@ -522,7 +525,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return num;
         }
 
-        void RecurseFlatten(List<InternalType> flat, int num /*SymbolEntry s*/, InternalType t)
+        void RecurseFlatten(List<InternalType> flat, int num, InternalType t)
         {
             // t is simple, user, or tuple
 

@@ -184,6 +184,8 @@ namespace Lomont.ClScript.CompilerLib
             // fill in unfilled symbol sizes. 
             foreach (var entry in table.Entries.Where(e => e.ByteSize < 0))
             {
+                if (entry.Type is FunctionType)
+                    continue;
                 var byteSize = 0; // size in packed bytes
                 var stackSize = 0; // size on stack
                 var name = "";

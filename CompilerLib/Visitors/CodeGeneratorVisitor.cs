@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Visitors
@@ -32,10 +31,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // layout variables in memory
             symbolTable.Start();
             LayoutMemory(ast);
+            if (env.ErrorCount > 0)
+                return null;
 
             // generate code
             symbolTable.Start();
             Recurse(ast);
+            if (env.ErrorCount > 0)
+                return null;
 
             return instructions;
         }
@@ -262,7 +265,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void EmitIfStatement(IfStatementAst node)
         {
             if (node == null)
-                throw new InternalFailure($"Node must be a if statement {node}");
+                throw new InternalFailure("Node must be an if statement");
             var finalLabel = "endif_" + GetLabel();
             for (var i = 0; i < node.Children.Count - 1; i += 2)
             {
@@ -329,17 +332,19 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void EmitBlock(BlockAst node)
         {
             if (node == null)
-                throw new InternalFailure($"Node must be a block {node}");
+                throw new InternalFailure("Node must be a block");
             Recurse(node);
         }
 
-        void AssignHelper(List<Ast> items, List<Ast> expr, TokenType assignType)
+        void AssignHelper(List<Ast> items, List<Ast> exprs, TokenType assignType)
         {
-            if (items.Count != expr.Count)
+            // this was checked in SemanticAnalysis, is expensive to do, so error here removed
+            if (items.Count != exprs.Count)
                 throw new InternalFailure("AssignHelper has non-equal sizes");
+
             // push expr on stack in order
-            for (var i = 0; i < items.Count; ++i)
-                EmitExpression(expr[i] as ExpressionAst);
+            foreach (var expr in exprs)
+                EmitExpression(expr as ExpressionAst);
 
             // store in variables in order
             for (var i = 0; i < items.Count; ++i)
@@ -711,7 +716,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             // find function declaration
             Ast decl = node;
-            while (!(decl is FunctionDeclarationAst))
+            while (decl != null && !(decl is FunctionDeclarationAst))
                 decl = decl.Parent;
 
             var func = decl as FunctionDeclarationAst;
@@ -776,12 +781,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 {
                     EmitExpression((ExpressionAst) node.Children[0]); // get left value
                     EmitExpression((ExpressionAst) node.Children[1]); // get right value
-                    EmitBinaryOp((ExpressionAst) node); // do operation
+                    EmitBinaryOp(node); // do operation
                 }
                 else if (node.Children.Count == 1)
                 {
                     EmitExpression((ExpressionAst) node.Children[0]); // get value
-                    EmitUnaryOp((ExpressionAst) node); // do operation
+                    EmitUnaryOp(node); // do operation
                 }
                 else if (node.Children.Count == 0)
                 {
@@ -827,7 +832,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 operandType = GetLocality(child.Symbol);
             }
             else if (child is ArrayAst)
-                EmitArrayAddress(child as ArrayAst, operandType, true);
+                EmitArrayAddress(child as ArrayAst, operandType);
             else
                 throw new InternalFailure($"Malformed dot ast {node}");
 
@@ -858,7 +863,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             throw new InternalFailure($"Unsupported variable use {use} in GetLocality");
         }
 
-        OperandType EmitArrayAddress(ArrayAst node, OperandType operandType, bool leaveAddressOnly)
+        OperandType EmitArrayAddress(ArrayAst node, OperandType operandType)
         {
             // walk down array dimensions, putting index values on stack
             var k = 0; // number of items
@@ -908,7 +913,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (node is DotAst)
                 opType = EmitDotAddress((DotAst) node, opType);
             else if (node is ArrayAst)
-                opType = EmitArrayAddress((ArrayAst) node, opType, leaveAddressOnly);
+                opType = EmitArrayAddress((ArrayAst) node, opType);
             else
                 throw new InternalFailure($"Node must be DotAst or ArrayAst {node}");
 
@@ -1049,6 +1054,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             // size each symbol
             mgr.ComputeSizes();
+            if (env.ErrorCount > 0)
+                return;
 
             // size all blocks
             SizeBlocks(mgr.SymbolTable);
