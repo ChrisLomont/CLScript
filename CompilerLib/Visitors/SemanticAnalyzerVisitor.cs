@@ -816,7 +816,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 TokenType actionType, 
                 SymbolType leftValueType, SymbolType rightValueType,
                 BinaryAction action, 
-                SymbolType resultType = SymbolType.MatchAny
+                SymbolType resultType
                 )
             {
                 this.actionType = actionType;
@@ -966,174 +966,204 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             new BinaryTableEntry(
                 TokenType.LogicalOr,
                 SymbolType.Bool,SymbolType.Bool,
-                (n, l, r) => n.BoolValue = l.BoolValue.Value || r.BoolValue.Value
+                (n, l, r) => n.BoolValue = l.BoolValue.Value || r.BoolValue.Value,
+                SymbolType.Bool
                 ),
             new BinaryTableEntry(
                 TokenType.LogicalAnd,
                 SymbolType.Bool,SymbolType.Bool,
-                (n, l, r) => n.BoolValue = l.BoolValue.Value && r.BoolValue.Value
+                (n, l, r) => n.BoolValue = l.BoolValue.Value && r.BoolValue.Value,
+                SymbolType.Bool
                 ),
 
             // byte,i32     : >>
             new BinaryTableEntry(
                 TokenType.RightShift,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)(l.ByteValue >> r.ByteValue)
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue >> r.ByteValue),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.RightShift,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = l.IntValue >> r.IntValue
+                (n, l, r) => n.IntValue = l.IntValue >> r.IntValue,
+                SymbolType.Int32
                 ),
 
             // byte,i32     : <<
             new BinaryTableEntry(
                 TokenType.LeftShift,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)(l.ByteValue << r.ByteValue)
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue << r.ByteValue),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.LeftShift,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = l.IntValue << r.IntValue
+                (n, l, r) => n.IntValue = l.IntValue << r.IntValue,
+                SymbolType.Int32
                 ),
 
             // byte,i32     : >>>
             new BinaryTableEntry(
                 TokenType.RightRotate,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)RotateRight(l.ByteValue.Value,r.ByteValue.Value,8)
+                (n, l, r) => n.ByteValue = (byte)RotateRight(l.ByteValue.Value,r.ByteValue.Value,8),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.RightRotate,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = RotateRight(l.IntValue.Value,r.IntValue.Value,32)
+                (n, l, r) => n.IntValue = RotateRight(l.IntValue.Value,r.IntValue.Value,32),
+                SymbolType.Int32
                 ),
 
             // byte,i32     : <<<
             new BinaryTableEntry(
                 TokenType.LeftRotate,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)RotateRight(l.ByteValue.Value,-r.ByteValue.Value,8)
+                (n, l, r) => n.ByteValue = (byte)RotateRight(l.ByteValue.Value,-r.ByteValue.Value,8),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.LeftRotate,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = RotateRight(l.IntValue.Value,-r.IntValue.Value,32)
+                (n, l, r) => n.IntValue = RotateRight(l.IntValue.Value,-r.IntValue.Value,32),
+                SymbolType.Int32
                 ),
 
             // byte,i32     : &
             new BinaryTableEntry(
                 TokenType.Ampersand,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)(l.ByteValue & r.ByteValue)
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue & r.ByteValue),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.Ampersand,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = l.IntValue & r.IntValue
+                (n, l, r) => n.IntValue = l.IntValue & r.IntValue,
+                SymbolType.Int32
                 ),
 
             // byte,i32     : |
             new BinaryTableEntry(
                 TokenType.Pipe,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)(l.ByteValue | r.ByteValue)
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue | r.ByteValue),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.Pipe,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = l.IntValue | r.IntValue
+                (n, l, r) => n.IntValue = l.IntValue | r.IntValue,
+                SymbolType.Int32
                 ),
 
             // byte,i32     : ^
             new BinaryTableEntry(
                 TokenType.Caret,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)(l.ByteValue ^ r.ByteValue)
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue ^ r.ByteValue),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.Caret,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = l.IntValue ^ r.IntValue
+                (n, l, r) => n.IntValue = l.IntValue ^ r.IntValue,
+                SymbolType.Int32
                 ),
 
             // byte,i32     : %
             new BinaryTableEntry(
                 TokenType.Percent,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)(l.ByteValue % r.ByteValue)
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue % r.ByteValue),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.Percent,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = l.IntValue % r.IntValue
+                (n, l, r) => n.IntValue = l.IntValue % r.IntValue,
+                SymbolType.Int32
                 ),
 
             // byte,i32,r32 : +
             new BinaryTableEntry(
                 TokenType.Plus,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)(l.ByteValue+ r.ByteValue)
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue+ r.ByteValue),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.Plus,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = l.IntValue + r.IntValue
+                (n, l, r) => n.IntValue = l.IntValue + r.IntValue,
+                SymbolType.Int32
                 ),
             new BinaryTableEntry(
                 TokenType.Plus,
                 SymbolType.Float32,SymbolType.Float32,
-                (n, l, r) => n.FloatValue = l.FloatValue + r.FloatValue
+                (n, l, r) => n.FloatValue = l.FloatValue + r.FloatValue,
+                SymbolType.Float32
                 ),
             // byte,i32,r32 : -
             new BinaryTableEntry(
                 TokenType.Minus,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)(l.ByteValue - r.ByteValue)
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue - r.ByteValue),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.Minus,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = l.IntValue - r.IntValue
+                (n, l, r) => n.IntValue = l.IntValue - r.IntValue,
+                SymbolType.Int32
                 ),
             new BinaryTableEntry(
                 TokenType.Minus,
                 SymbolType.Float32,SymbolType.Float32,
-                (n, l, r) => n.FloatValue = l.FloatValue - r.FloatValue
+                (n, l, r) => n.FloatValue = l.FloatValue - r.FloatValue,
+                SymbolType.Float32
                 ),
             // byte,i32,r32 : *
             new BinaryTableEntry(
                 TokenType.Asterix,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)(l.ByteValue * r.ByteValue)
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue * r.ByteValue),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.Asterix,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = l.IntValue * r.IntValue
+                (n, l, r) => n.IntValue = l.IntValue * r.IntValue,
+                SymbolType.Int32
                 ),
             new BinaryTableEntry(
                 TokenType.Asterix,
                 SymbolType.Float32,SymbolType.Float32,
-                (n, l, r) => n.FloatValue = l.FloatValue * r.FloatValue
+                (n, l, r) => n.FloatValue = l.FloatValue * r.FloatValue,
+                SymbolType.Float32
                 ),
             // byte,i32,r32 : /
             // todo - check div 0 - will throw exception now
             new BinaryTableEntry(
                 TokenType.Slash,
                 SymbolType.Byte,SymbolType.Byte,
-                (n, l, r) => n.ByteValue = (byte)(l.ByteValue / r.ByteValue)
+                (n, l, r) => n.ByteValue = (byte)(l.ByteValue / r.ByteValue),
+                SymbolType.Byte
                 ),
             new BinaryTableEntry(
                 TokenType.Slash,
                 SymbolType.Int32,SymbolType.Int32,
-                (n, l, r) => n.IntValue = l.IntValue / r.IntValue
+                (n, l, r) => n.IntValue = l.IntValue / r.IntValue,
+                SymbolType.Int32
                 ),
             new BinaryTableEntry(
                 TokenType.Slash,
                 SymbolType.Float32,SymbolType.Float32,
-                (n, l, r) => n.FloatValue = l.FloatValue / r.FloatValue
+                (n, l, r) => n.FloatValue = l.FloatValue / r.FloatValue,
+                SymbolType.Float32
                 ),
         };
 
@@ -1191,10 +1221,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     // it matches, do action if children have values
                     if (left.HasValue && right.HasValue)
                         entry.action(node, left, right);
-                    if (entry.result != SymbolType.MatchAny)
-                        node.Type = mgr.TypeManager.GetType(entry.result);
-                    else
-                        node.Type = left.Type; // left and right same here
+                    node.Type = mgr.TypeManager.GetType(entry.result);
                     return node.Type;
                 }
             }

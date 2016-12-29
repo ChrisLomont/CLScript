@@ -2,9 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.ServiceModel;
-using System.Text;
-using System.Threading.Tasks;
 using Lomont.ClScript.CompilerLib.AST;
 using Lomont.ClScript.CompilerLib.Visitors;
 
@@ -58,8 +55,7 @@ namespace Lomont.ClScript.CompilerLib
 
         public SymbolEntry AddTypeSymbol(
             Ast node,
-            string typeName,
-            SymbolType symbolType
+            string typeName
             )
         {
             var type = TypeManager.GetType(typeName);
@@ -258,7 +254,6 @@ namespace Lomont.ClScript.CompilerLib
                 byteSize += 4 * (CodeGeneratorVisitor.ForLoopStackSize - 1);
                 stackSize += CodeGeneratorVisitor.ForLoopStackSize - 1;
             }
-            string name = "";
         }
 
         void ComputeUserSize(SymbolEntry entry, UserType baseType, ref int byteSize, ref int stackSize)
@@ -338,6 +333,7 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         /// <param name="table"></param>
         /// <param name="symbol"></param>
+        /// <param name="noParents"></param>
         /// <returns></returns>
         public SymbolEntry Lookup(SymbolTable table, string symbol, bool noParents = false)
         {
@@ -442,7 +438,7 @@ namespace Lomont.ClScript.CompilerLib
             var item = stack.Pop();
             if (item.Item2)
             {
-                var tbl = tables.Pop();
+                /*var tbl = */tables.Pop();
                 // remove empty tables - cannot do this since walked later in tree walking
                 //if (!tbl.Entries.Any() && !tbl.Children.Any())
                 //    tbl.Parent.Children.Remove(tbl);
@@ -459,18 +455,11 @@ namespace Lomont.ClScript.CompilerLib
             TypeManager.GetType(SymbolType.Int32);
             TypeManager.GetType(SymbolType.Float32);
             TypeManager.GetType(SymbolType.String);
-            //TypeManager.GetType(SymbolType.Enum, "enum");
             TypeManager.GetType(SymbolType.EnumValue);
-            //TypeManager.GetType(SymbolType.Module, "module");
-            //TypeManager.GetType(SymbolType.Typedef, "Type");
-
-            //TypeManager.GetType(SymbolType.ToBeResolved, "UNKNOWN");
-            // TypeManager.GetType(SymbolType.UserType, "UserType");
         }
 
         // set to true for walking existing table, else creates table 
         bool onlyScan = false;
-
 
         // given the name of a type, and the name of a member, get the offset
         // returns ReferenceAddress, not LayoutAddress
@@ -692,16 +681,8 @@ namespace Lomont.ClScript.CompilerLib
         String,
         Byte,
         EnumValue,
-
         UserType,  // use of a user type, type has a name
 
-        Function,
-        Module,
-        Enum,
-        Typedef,    // type definition
-
-
         ToBeResolved, // cannot yet be matched, like for loop variables
-        MatchAny      // used for searches
     }
 }

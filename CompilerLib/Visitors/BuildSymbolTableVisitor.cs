@@ -8,8 +8,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
     // attaches types when possible to nodes
     class BuildSymbolTableVisitor
     {
-        public Environment env;
-        public SymbolTableManager mgr;
+        Environment env;
+        SymbolTableManager mgr;
 
         public BuildSymbolTableVisitor(Environment environment)
         {
@@ -47,11 +47,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (node is FunctionDeclarationAst)
                     AddFunctionDeclSymbols((FunctionDeclarationAst)node);
                 else if (node is EnumAst)
-                    mgr.AddTypeSymbol(node, ((EnumAst) node).Name, SymbolType.Enum);
+                    mgr.AddTypeSymbol(node, ((EnumAst) node).Name);
                 else if (node is TypeDeclarationAst)
-                    mgr.AddTypeSymbol(node, ((TypeDeclarationAst) node).Name, SymbolType.Typedef);
+                    mgr.AddTypeSymbol(node, ((TypeDeclarationAst) node).Name);
                 else if (node is ModuleAst)
-                    mgr.AddTypeSymbol(node, ((ModuleAst) node).Name, SymbolType.Module);
+                    mgr.AddTypeSymbol(node, ((ModuleAst) node).Name);
             }
         }
 

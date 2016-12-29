@@ -23,7 +23,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <returns></returns>
         public SimpleType GetType(SymbolType symbolType)
         {
-            foreach (var t in Types.Where(t1 => t1 is SimpleType).Select(t2 => (SimpleType)t2))
+            foreach (var t in Types.OfType<SimpleType>())
             {
                 if (t.SymbolType == symbolType)
                     return t;
@@ -38,7 +38,7 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public TupleType GetType(List<InternalType> tupleType)
         {
-            foreach (var t in Types.Where(t1 => t1 is TupleType).Select(t2 => (TupleType)t2))
+            foreach (var t in Types.OfType<TupleType>())
             {
                 if (ListMatches(tupleType, t.Tuple))
                     return t;
@@ -53,7 +53,7 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public FunctionType GetType(string name, TupleType returnType, TupleType paramsType)
         {
-            foreach (var t in Types.Where(t1 => t1 is FunctionType).Select(t2 => (FunctionType)t2))
+            foreach (var t in Types.OfType<FunctionType>())
             {
                 if (t.Name == name && t.ReturnType == returnType && t.ParamsType == paramsType)
                     return t;
@@ -70,7 +70,7 @@ namespace Lomont.ClScript.CompilerLib
         {
             if (arrayDimension <= 0)
                 throw new InternalFailure($"Array dimension {arrayDimension} must be positive");
-            foreach (var t in Types.Where(t1 => t1 is ArrayType).Select(t2 => (ArrayType)t2))
+            foreach (var t in Types.OfType<ArrayType>())
             {
                 if (t.ArrayDimension == arrayDimension && t.BaseType == baseType)
                     return t;
@@ -85,7 +85,7 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public InternalType GetType(string typeName)
         {
-            foreach (var t in Types.Where(t1 => t1 is UserType).Select(t2 => (UserType)t2))
+            foreach (var t in Types.OfType<UserType>())
             {
                 if (t.Name == typeName)
                     return t;
@@ -95,51 +95,6 @@ namespace Lomont.ClScript.CompilerLib
             return type;
         }
 
-        /*
-
-                /// <summary>
-                /// Lookup type, if not created, do so
-                /// </summary>
-                /// <param name="symbolType"></param>
-                /// <param name="arrayDimension"></param>
-                /// <param name="userTypename"></param>
-                /// <param name="returnType"></param>
-                /// <param name="paramsType"></param>
-                /// <returns></returns>
-                public InternalType GetTypeOLD(
-                    SymbolType symbolType,
-                    int arrayDimension = 0,
-                    string userTypename = "",
-                    List<InternalType> returnType = null,
-                    List<InternalType> paramsType = null)
-                {
-
-
-                    foreach (var e in Types)
-                    {
-                        var symbolMatches = e.SymbolType == symbolType || symbolType == SymbolType.MatchAny;
-                        var userMatches = String.IsNullOrEmpty(userTypename) || userTypename == e.UserTypeName;
-                        if (symbolMatches &&
-                            arrayDimension == e.ArrayDimension && 
-                            userMatches &&
-                            ListMatches(e.ReturnType, returnType) &&
-                            ListMatches(e.ParamsType, paramsType)
-                        )
-                            return e;
-                    }
-
-                    var type = new InternalType(
-                        symbolType, 
-                        userTypename, 
-                        this, 
-                        Types.Count, 
-                        arrayDimension, 
-                        returnType,
-                        paramsType);
-                    Types.Add(type);
-                    return type;
-                }
-        */
 
         bool ListMatches(List<InternalType> list1, List<InternalType> list2)
         {
@@ -159,24 +114,6 @@ namespace Lomont.ClScript.CompilerLib
 
         // store unique types here
         public List<InternalType> Types { get;  } = new List<InternalType>();
-
-/*        public InternalType GetBaseType(InternalType type)
-        {
-            if (type.ArrayDimension == 0)
-                return type;
-            else if (type.SymbolType != SymbolType.UserType)
-                return GetType(type.SymbolType);
-            else
-            {
-                var userName = type.UserTypeName;
-                throw new NotImplementedException("Type feature not yet implemented");
-                foreach (var t in Types)
-                {
-                }
-                env.Error($"Could not match base type for {type}");
-                return null;
-            }
-        } */
     }
 
     #region Type classes
