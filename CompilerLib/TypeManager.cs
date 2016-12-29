@@ -364,6 +364,8 @@ namespace Lomont.ClScript.CompilerLib
                 if (i != Tuple.Count - 1)
                     sb.Append("*");
             }
+            if (Tuple.Count == 0)
+                sb.Append("()");
             return sb.ToString();
         }
     }

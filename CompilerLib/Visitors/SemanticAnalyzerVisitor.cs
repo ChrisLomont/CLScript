@@ -314,38 +314,27 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return null;
             }
             node.Symbol = symbol;
-            var type = node.Type as FunctionType;
+            var type = symbol.Type as FunctionType;
             if (type == null)
                 throw new InternalFailure($"Expected function type {node.Type}");
 
-            var retVals = type.ReturnType.Tuple;
-            var parms   = type.ParamsType.Tuple;
+            var parameterTypes   = type.ParamsType.Tuple;
 
             // a function call has expressions as children
-            if (parms.Count != node.Children.Count)
+            if (parameterTypes.Count != node.Children.Count)
             {
-                env.Error($"Function requires {parms.Count} parameters but has {node.Children.Count}, at {node}");
+                env.Error($"Function requires {parameterTypes.Count} parameters but has {node.Children.Count}, at {node}");
                 return null;
             }
-            for (var i = 0; i < parms.Count; ++i)
+            for (var i = 0; i < parameterTypes.Count; ++i)
             {
-                if (node.Children[i].Type != parms[i])
+                if (node.Children[i].Type != parameterTypes[i])
                 {
-                    env.Error($"Function required type {parms[i]} in position {i+1}");
+                    env.Error($"Function required type {parameterTypes[i]} in position {i+1}");
                     return null;
                 }
             }
-
-            if (retVals.Count > 1)
-            {
-                env.Error($"Function returns with more than one parameter not yet supported {node}");
-                return null;
-            }
-            if (retVals.Count == 1)
-            {
-                node.Type = retVals[0];
-                return retVals[0];
-            }
+            node.Type = type.ReturnType;
             return null;
         }
 
@@ -520,35 +509,44 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 var expr = node as ExpressionAst;
                 var symbol = expr.Symbol;
                 var baseType = BaseType(expr.Type);
-                RecurseFlatten(flat,symbol,baseType);
+                RecurseFlatten(flat,NumItems(symbol),baseType);
             }
             return flat;
         }
 
-        void RecurseFlatten(List<InternalType> flat, SymbolEntry s, InternalType t)
+        int NumItems(SymbolEntry s)
         {
             var num = 1;
             if (s?.ArrayDimensions != null)
-            { // is an array, take base type
-                num = s.ArrayDimensions.Aggregate(1, (cur, next) => cur * next);
-            }
-            var simple = t is SimpleType;
-            SymbolTable table = null;
-            if (!simple)
-                table = mgr.GetTableWithScope((t as UserType).Name);
-            for (var i = 0; i < num; ++i)
+                num = s.ArrayDimensions.Aggregate(1, (cur, next) => cur*next);
+            return num;
+        }
+
+        void RecurseFlatten(List<InternalType> flat, int num /*SymbolEntry s*/, InternalType t)
+        {
+            // t is simple, user, or tuple
+
+            if (t is SimpleType)
             {
-                if (simple)
+                for (var i = 0; i < num; ++i)
                     flat.Add(t);
-                else
-                {
-                    foreach (var s1 in table.Entries)
-                    {
-                        var t1 = BaseType(s1.Type);
-                        RecurseFlatten(flat, s1, t1);
-                    }
-                }
             }
+            else if (t is UserType)
+            {
+                var table = mgr.GetTableWithScope(((UserType) t).Name);
+                for (var i = 0; i < num; ++i)
+                    foreach (var s1 in table.Entries)
+                        RecurseFlatten(flat, NumItems(s1), BaseType(s1.Type));
+            }
+            else if (t is TupleType)
+            {
+                var tuple = ((TupleType) t).Tuple;
+                for (var i = 0; i < num; ++i)
+                    foreach (var tt in tuple)
+                        RecurseFlatten(flat, 1, tt);
+            }
+            else
+                throw new InternalFailure($"Unsupported type to flatten {t}");
         }
 
         // check var type exists

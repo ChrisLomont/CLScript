@@ -70,8 +70,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             //    mgr.AddSymbol(node, ((EnumAst)node).Name, SymbolType.Enum, VariableUse.None);
             else if (node is EnumValueAst)
             {
-                var parentType = mgr.TypeManager.GetType(SymbolType.Enum);
-                (node as EnumValueAst).Symbol = mgr.AddVariableSymbol(node, ((EnumValueAst) node).Name, parentType, VariableUse.Const);
+                var type = mgr.TypeManager.GetType(SymbolType.EnumValue);
+                (node as EnumValueAst).Symbol = mgr.AddVariableSymbol(node, ((EnumValueAst) node).Name, type, VariableUse.Const);
             }
 
             //else if (node is TypeDeclarationAst)
@@ -140,9 +140,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         List<InternalType> ParseTypelist(List<Ast> nodes)
         {
             var list = new List<InternalType>();
-            for (var i = 0; i < nodes.Count; ++i)
+            foreach (var node in nodes)
             {
-                var node = nodes[i];
                 var tItem = node as TypedItemAst;
                 if (tItem == null)
                     throw new InternalFailure("Id List internals mismatched");
@@ -205,7 +204,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             arrayDimensions = null;
 
             // typed item has variable name and type name
-            var baseType = mgr.TypeManager.GetType(GetSymbolType(node.BaseTypeToken.TokenType));
+            var symbolType = GetSymbolType(node.BaseTypeToken.TokenType);
+            InternalType baseType;
+            if (symbolType != SymbolType.ToBeResolved)
+                baseType = mgr.TypeManager.GetType(symbolType);
+            else
+                baseType = mgr.Lookup(node.BaseTypeToken.TokenValue).Type;
 
             if (node.Children.Any())
             {
@@ -274,10 +278,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             List<int> arrayDimensions;
             var totalType = GetTypedItemType(node, out arrayDimensions);
 
-            var baseType = mgr.Lookup(node.BaseTypeToken.TokenValue).Type;
             var s  = mgr.AddVariableSymbol(node, 
                 node.Name,
-                baseType,
+                totalType,
                 usage,
                 arrayDimensions,
                 attrib);

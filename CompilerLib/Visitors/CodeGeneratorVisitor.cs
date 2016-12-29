@@ -1048,7 +1048,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void LayoutMemory(Ast node)
         {
             // size each symbol
-            mgr.ComputeSizes(env);
+            mgr.ComputeSizes();
 
             // size all blocks
             SizeBlocks(mgr.SymbolTable);

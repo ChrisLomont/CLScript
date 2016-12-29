@@ -131,7 +131,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (symbol.Used || node.ExportToken != null)
             {
                 symbol.Used = true;
-                var funcType = node.Type as FunctionType;
+                var funcType = symbol.Type as FunctionType;
                 var types = funcType.ReturnType.Tuple;
                 types.AddRange(funcType.ParamsType.Tuple);
                 foreach (var t in types)
