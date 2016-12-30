@@ -1,8 +1,15 @@
+/*
+export (i32) f()
+   i32 a = 1
+   if a == 1
+      return 0
+   return 1
+*/
 
 type RGB 
    r32 r,g,b 
    
-(i32) Check(RGB color)
+() Check(RGB color)
    r32 aa = 0.0
    color.r = 1.0 + aa
    color.g = 0.0
@@ -11,13 +18,14 @@ type RGB
    c2.r = 1.0
    c2.g = 0.5
    c2.b = 0.25
-   return 0
+   // return 0
    
 [Entry]
-export (r32) Runme()
+export (i32,i32) Runme()
    RGB c1
    Check(c1)
-   return 1.0
+   return 78,13
+
 
 /*
 import "Imports.cls"

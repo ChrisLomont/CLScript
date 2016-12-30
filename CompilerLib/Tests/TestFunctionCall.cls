@@ -1,12 +1,13 @@
-/*
-[Entry]
-export (i32) func()
-   i32 a = f()
-   return a
-   
-(i32) f ()
-   return 6
-*/
+// test comments can be misaligned
+() err1()         
+  /* comment */ 
+   return
+() err2()         
+     /* comment */ 
+   return
+() err3()         
+/* comment */ 
+   return
 
 i32 G = 123
 
@@ -19,6 +20,11 @@ i32 G = 123
       return 1
    return fib(n-1) + fib(n-2)
 
+(i32,i32) f2()
+   return 4,7
+
+(r32,bool,i32) f3()
+   return 5.0,false,9
 
 [Entry]
 export (bool,i32,i32) func()
@@ -32,6 +38,25 @@ export (bool,i32,i32) func()
    b &= fib(6) == 8 
    b &= fib(7) == 13 
    b &= fib(8) == 21 
-   b &= fib(9) == 34  
+   b &= fib(9) == 34
+  
+   // discard - ensures stack cleaned correctly
+   f2()
+   f3()
+   fib(5)
+  
+   i32 c,d = f2()
+  
+   b &= c == 4 && d == 7
+   
+   r32 r
+   bool b2
+   r,b2,c = f3()
+   
+   b &= r==5.0&&b2==false&&c==9
+   
+   a = 1 + 2*fib(2)
+   b &= a==3
+   
    
    return b,1,1

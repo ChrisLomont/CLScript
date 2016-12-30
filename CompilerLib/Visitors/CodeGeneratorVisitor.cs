@@ -339,8 +339,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void AssignHelper(List<Ast> items, List<Ast> exprs, TokenType assignType)
         {
             // this was checked in SemanticAnalysis, is expensive to do, so error here removed
-            if (items.Count != exprs.Count)
-                throw new InternalFailure("AssignHelper has non-equal sizes");
+            //if (items.Count != exprs.Count)
+            //    throw new InternalFailure("AssignHelper has non-equal sizes");
 
             // push expr on stack in order
             foreach (var expr in exprs)

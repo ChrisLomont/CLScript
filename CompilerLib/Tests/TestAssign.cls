@@ -1,5 +1,33 @@
 // testing mulitiple assignments, type assignments, type promotion
 
+(i32,i32) Make2()
+   return 3,5
+   
+[Entry]
+export (i32) func()
+   i32 a,b
+   a,b = Make2()
+   
+//   tri t
+//   t = make3()
+//   a += t.a
+//   i32 x,y,z = make3()
+//   b += z
+   
+   return a+b
+   
+//type tri
+//   i32 a,b,c
+//   
+//(tri) make3()
+//   tri t
+//   t.a,t.b,t.c = 1,2,3
+//   return t
+   
+   
+   
+
+/*
 enum e1
    val1 = 1
    val2 = 2
@@ -28,6 +56,9 @@ type t3
    RGB c1 = 1.0,0.0,0.0
    RGB c2 = c1
    t3  vv = 2,3.0,false
+   
+   for k in 0..12
+      break
      
    // complex struct assignment
    t2  c3 = c1,0.0,0.0,0.1
@@ -63,4 +94,4 @@ type t3
    
 (i32,r32,bool) returnC()
    return 4,5.0,false
-    
+*/    
