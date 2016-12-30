@@ -27,13 +27,6 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             var current = Next();
             while (current != null && current.TokenType != TokenType.EndOfFile)
             {
-                // process any indent/unindent
-                var indentTokens = indenter.ProcessToken(current);
-                foreach (var token in indentTokens)
-                {
-                    token.Filename = filename;
-                    yield return token;
-                }
 
                 // see if token should be skipped
                 var skipToken = false;
@@ -47,10 +40,20 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                         skipToken = true;
                     if (current.TokenType == TokenType.Comment)
                         skipToken = true;
+
+
                 }
 
                 if (!skipToken)
                 {
+                    // process any indent/unindent
+                    var indentTokens = indenter.ProcessToken(current);
+                    foreach (var token in indentTokens)
+                    {
+                        token.Filename = filename;
+                        yield return token;
+                    }
+
                     current.Filename = filename;
                     yield return current;
                 }

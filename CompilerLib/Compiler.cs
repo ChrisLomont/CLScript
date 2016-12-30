@@ -41,7 +41,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 26. Remove unused functions, variables, and symbols everywhere (tricky - can remove functions)
  * 27. assignment of "streams" to "streams" weakens typing - perhaps only allow array setting, setting complex types from same type of piece by piece...
  * 28. Redo sizing so can put bytes on stack, elsewhere (stack node size then 4 bytes, not 1 "stack item")
- * 29. If first item on a line is comment, do not change Indent - indented comments break parser
+ * DONE 29. If first item on a line is comment, do not change Indent - indented comments break parser
  * To get usable in production:  
  * 
  */
@@ -206,7 +206,7 @@ namespace Lomont.ClScript.CompilerLib
             // reorder tree to make later stages easier to perform
             ReorderSyntaxTree(SyntaxTree);
 
-            return SyntaxTree != null;
+            return SyntaxTree != null && env.ErrorCount == 0;
         }
 
         // reorder tree:

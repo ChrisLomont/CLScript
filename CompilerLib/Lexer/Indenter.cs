@@ -56,12 +56,12 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             {
                 var pos = History(0).Position.LinePosition;
                 if (pos > indentPosition.Peek())
-                {
+                {   // add an indention
                     indentPosition.Push(pos);
-                    tokens.Add(new Token(TokenType.Indent)); // indent
+                    tokens.Add(new Token(TokenType.Indent));
                 }
                 while (pos < indentPosition.Peek())
-                {
+                {   // undent as many as needed
                     indentPosition.Pop();
                     tokens.Add(new Token(TokenType.Undent));
                 }
