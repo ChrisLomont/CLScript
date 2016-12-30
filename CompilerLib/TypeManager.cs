@@ -214,6 +214,11 @@ namespace Lomont.ClScript.CompilerLib
         public string Name { get; private set; }
 
         /// <summary>
+        /// number of stack entries this function leaves on the call stack
+        /// </summary>
+        public int CallStackReturnSize { get; set; } = -1;
+
+        /// <summary>
         /// return types for function type
         /// </summary>
         public TupleType ReturnType { get; private set; }

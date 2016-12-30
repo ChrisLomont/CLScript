@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Resources;
-using System.Text;
-using System.Threading.Tasks;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Visitors
@@ -445,16 +441,21 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         // ensure function declarations that need one end with a return statement 
+        // 
         void ProcessFunctionDeclaration(FunctionDeclarationAst node)
         {
+
+            var funcType = node.Symbol.Type as FunctionType;
+            if (funcType == null)
+                throw new InternalFailure($"Expected function type {node}");
+
+            funcType.CallStackReturnSize = FlattenTypes(funcType.ReturnType.Tuple).Count;
+
             if (node.ImportToken != null)
                 return;
             if (node.Children.Count != 3 || !(node.Children[2] is BlockAst))
                 throw new InternalFailure($"Function {node} has wrong structure");
 
-            var funcType = node.Symbol.Type as FunctionType;
-            if (funcType == null)
-                throw new InternalFailure($"Expected function type {funcType}");
 
             var funcReturnTypes = funcType.ReturnType.Tuple;
             if (funcReturnTypes.Count == 0)
@@ -497,6 +498,23 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return type;
         }
 
+        // given a list of types, flatten to simple types
+        // cannot have unsized arrays
+        List<InternalType> FlattenTypes(List<InternalType> types)
+        {
+            var flat = new List<InternalType>();
+            foreach (var type in types)
+            {
+                if (type is ArrayType)
+                {
+                    env.Error($"Cannot flatten unsized array {type}");
+                    return null;
+                }
+                RecurseFlatten(flat, 1, type);
+            }
+            return flat;
+        }
+
         // given a list of nodes, return a list of ordered, flattened types
         // where flattened means down to basic types // i32,bool, r32, string, byte
         List<InternalType> FlattenTypes(List<Ast> nodes)
@@ -525,31 +543,31 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             return num;
         }
 
-        void RecurseFlatten(List<InternalType> flat, int num, InternalType t)
+        void RecurseFlatten(List<InternalType> flat, int num, InternalType type)
         {
             // t is simple, user, or tuple
 
-            if (t is SimpleType)
+            if (type is SimpleType)
             {
                 for (var i = 0; i < num; ++i)
-                    flat.Add(t);
+                    flat.Add(type);
             }
-            else if (t is UserType)
+            else if (type is UserType)
             {
-                var table = mgr.GetTableWithScope(((UserType) t).Name);
+                var table = mgr.GetTableWithScope(((UserType) type).Name);
                 for (var i = 0; i < num; ++i)
                     foreach (var s1 in table.Entries)
                         RecurseFlatten(flat, NumItems(s1), BaseType(s1.Type));
             }
-            else if (t is TupleType)
+            else if (type is TupleType)
             {
-                var tuple = ((TupleType) t).Tuple;
+                var tuple = ((TupleType) type).Tuple;
                 for (var i = 0; i < num; ++i)
                     foreach (var tt in tuple)
                         RecurseFlatten(flat, 1, tt);
             }
             else
-                throw new InternalFailure($"Unsupported type to flatten {t}");
+                throw new InternalFailure($"Unsupported type to flatten {type}");
         }
 
         // check var type exists
@@ -640,29 +658,29 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // compute value and return
             var t = node.Token.TokenType;
             if (t == TokenType.DecimalLiteral)
-                ((LiteralAst)node).IntValue = ParseInt(node);
+                node.IntValue = ParseInt(node);
             else if (t == TokenType.HexadecimalLiteral)
-                ((LiteralAst)node).IntValue = ParseInt(node);
+                node.IntValue = ParseInt(node);
             else if (t == TokenType.BinaryLiteral)
-                ((LiteralAst)node).IntValue = ParseInt(node);
+                node.IntValue = ParseInt(node);
             else if (t == TokenType.FloatLiteral)
             {
                 double v;
                 if (!Double.TryParse(node.Name, out v))
                     env.Error($"Invalid floating point value {node}");
                 else
-                    ((LiteralAst)node).FloatValue = v;
+                    node.FloatValue = v;
             }
             else if (t == TokenType.True)
-                ((LiteralAst)node).BoolValue = true;
+                node.BoolValue = true;
             else if (t == TokenType.False)
-                ((LiteralAst)node).BoolValue = false;
+                node.BoolValue = false;
             else if (t == TokenType.ByteLiteral)
             {
                 var v = ParseInt(node);
                 if (v < 0 || 255 < v)
                     env.Warning($"Value {node} truncated to byte");
-                ((LiteralAst) node).ByteValue = (byte)v;
+                node.ByteValue = (byte)v;
             }
 
             return LiteralType(node.Token.TokenType);
@@ -781,10 +799,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         InternalType ProcessUnaryExpression(ExpressionAst node)
         {
             var child = node.Children[0] as ExpressionAst;
-            var childType = child.Type as SimpleType;
+            var childType = child?.Type as SimpleType;
             
             if (childType == null)
-                throw new InternalFailure($"Expected simple type, got {child.Type}");
+                throw new InternalFailure($"Expected simple type, got {child?.Type}");
 
             foreach (var entry in unaryActionTable)
             {

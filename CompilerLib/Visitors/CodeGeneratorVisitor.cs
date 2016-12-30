@@ -650,11 +650,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var symbol = node.Symbol;
             var type = symbol.Type as FunctionType;
             if (type == null) throw new InternalFailure($"Required function type, got {symbol.Type}");
-//            var retSize = type.ReturnType.Tuple.Count;
-//            if (retSize < 0)
-//                throw new InternalFailure($"Return size < 0 {symbol}");
-//            else if (retSize > 0)
-//                Emit2(Opcode.ClearStack, OperandType.None, "function return value space", retSize);
+            if (type.CallStackReturnSize < 0)
+                throw new InternalFailure($"Function return stack size not set {node}");
+
+            //            var retSize = type.ReturnType.Tuple.Count;
+            //            if (retSize < 0)
+            //                throw new InternalFailure($"Return size < 0 {symbol}");
+            //            else if (retSize > 0)
+            //                Emit2(Opcode.ClearStack, OperandType.None, "function return value space", retSize);
 
             // basic types passed by value, others by address
             foreach (var child in node.Children)
@@ -670,7 +673,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             // if result ignored, pop them
             if (!FunctionResultIsUsed(node))
-                Emit2(Opcode.PopStack, OperandType.None, "clean unused return values", type.ReturnType.Tuple.Count);
+                Emit2(Opcode.PopStack, OperandType.None, "clean unused return values", type.CallStackReturnSize);
         }
 
         public static string ImportPrefix = "<import>";
