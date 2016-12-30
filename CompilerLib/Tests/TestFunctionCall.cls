@@ -1,10 +1,13 @@
 
 [Entry]
 export (bool,i32,i32) Test()
+//   i32 a,b,c,d = 3,4,7,-3
+//   return b== 4 && a == 3 && c == 7 && d == -3,a,b
+   r32 r = 3.0
    i32 a = 1
    a += 4
    i32 b,c=7,11
-   bool bb = a==5 && c == 11 && b == 7 
+   bool bb = a==5 && c == 11 && b == 7 && r == 3.0 
    return bb,1,1
 
 /*

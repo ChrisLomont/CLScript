@@ -369,13 +369,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        void AssignHelper(List<Ast> items, List<Ast> exprs, TokenType assignType)
+        void AssignHelper(int stackSlots, List<Ast> items, List<Ast> exprs, TokenType assignType)
         {
+            if (stackSlots < 1)
+                throw new InternalFailure($"Assign requires positive stack slots, got {stackSlots}");
             // todo.... some items put multiple on stack....
 
             // push expr on stack in order. This expands complex types
             foreach (var expr in exprs)
                 EmitExpression(expr as ExpressionAst);
+
+            if (stackSlots > 1)
+                EmitI(Opcode.Reverse,stackSlots);
 
             // store in variables in order
             var simpleItemsRead = 0;
@@ -390,12 +395,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 {
                     var operandType = itemData.OperandType;
 
+                    // stack has (push order) new value, then addr on top
                     var depth = 0; // extra added for tuple
                     if (itemData.More)
-                    {
-                        EmitO(Opcode.Dup); // save address - more of them needed
+                    { 
+                        // EmitO(Opcode.Dup); // save address - more of them needed
+                        throw new InternalFailure("Needs special write that leaves address....");
                         depth = 1;
                     }
+
+                    // todo - reversed - no pick
 
                     // for +=, etc. read var, perform, 
                     // todo - make much shorter, table driven
@@ -404,11 +413,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         EmitO(Opcode.Dup); // address already already there 
                         // read it (note address already global here)
                         Emit2(Opcode.Read, OperandType.Global, itemData.SymbolName);
+                        // stack now new val,addr,old val
                         // get value from back on stack
-                        EmitI(Opcode.Pick, items.Count + -i + depth + 1);
+                        EmitO(Opcode.Rot3);
                     }
-                    else
-                        EmitI(Opcode.Pick, items.Count - i + depth);
 
                     // stack now (in push order): 
                     // Equals : addr, newValue
@@ -457,7 +465,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         default:
                             throw new InternalFailure($"Unknown operation {assignType} in AssignHelper");
                     }
-                    // stack now (push order) addr, newValue
+
+                    if (assignType != TokenType.Equals)
+                        EmitO(Opcode.Swap);
+
+                    // stack now (push order) newValue, addr
                     WriteValue(operandType);
                     simpleItemsRead++;
 
@@ -466,17 +478,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         // next address
                         EmitI(Opcode.Push, itemData.Skip);
                         EmitT(Opcode.Add, OperandType.Int32);
+                        throw new InternalFailure("Needs special write that leaves address....");
                     }
 
                 }
             }
-            // clean values from stack
-            Emit2(Opcode.PopStack, OperandType.None, "clean assign stack", simpleItemsRead);
         }
 
 #region Read/Write variable values and addresses
 
-        // push address, then value, then writes value into address
+        // push value, then address, then writes value into address
         void WriteValue(OperandType operandType)
         {
             EmitT(Opcode.Write, operandType);
@@ -580,7 +591,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             var items = node.Children[0].Children;
             var expr = node.Children[1].Children;
-            AssignHelper(items, expr, node.Token.TokenType);
+            AssignHelper(node.StackCount,items, expr, node.Token.TokenType);
         }
 
         void EmitVariableDef(VariableDefinitionAst node)
@@ -590,7 +601,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 // process assignments
                 var items = node.Children[0].Children;
                 var expr = node.Children[1].Children;
-                AssignHelper(items, expr, TokenType.Equals);
+                AssignHelper(node.StackCount,items, expr, TokenType.Equals);
             }
         }
 

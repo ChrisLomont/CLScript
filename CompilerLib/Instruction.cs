@@ -31,16 +31,19 @@ namespace Lomont.ClScript.CompilerLib
         Pop,                // [   ] pop entry from stack
         Pick,               // [   ] push stack value from n back onto stack
         Dup,                // [   ] copy top stack value
+        Swap,               // [   ] swap top two stack values
+        Rot3,               // [   ] rotate top 3 stack items, bottom becomes top
         ClearStack,         // [   ] add n zeroes to stack (used for function stack frames)
         PopStack,           // [   ] single int from code pops this many from stack
-                            
+        Reverse,            // [   ] n = single int from code, reverse this many on stack
+
         // mem   
         // todo - these will need sized to handle byte accesses later
         Load,               // [GLC] push value from code memory location onto stack (same as PUSH+READ)
         Read,               // [GLC] Push value onto stack whose address on stack top
                             // push address, then value, then writes value into address
 
-        Write,              // [BIF] push address, then value. Write stores value into addr. Note addr creates absolute addresses on stack
+        Write,              // [BIF] push value, then address. Write stores value into addr. Note addr creates absolute addresses on stack
         Addr,               // [GLC] push physical address of variable. Global/const are absolute, local computed relative to base pointer
 
         // array
@@ -89,6 +92,7 @@ namespace Lomont.ClScript.CompilerLib
         Mul,                // [BIF]
         Div,                // [BIF]
         Mod,                // [BI ]
+        // todo - add inc, dec that take an address for ++ and -- ops, and versions leaving value on stack
         // end
 
         // pseudo-ops - take no space, merely placeholders

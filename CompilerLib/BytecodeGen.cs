@@ -262,6 +262,7 @@ namespace Lomont.ClScript.CompilerLib
 
                 // single int32 operand follows
                 case Opcode.PopStack:
+                case Opcode.Reverse:
                 case Opcode.Pick:
                 case Opcode.ClearStack:
                 case Opcode.Load:
@@ -309,6 +310,8 @@ namespace Lomont.ClScript.CompilerLib
 
                 // nothing to do for these
                 case Opcode.Dup:
+                case Opcode.Swap:
+                case Opcode.Rot3:
                 case Opcode.Read: 
                 case Opcode.Write: 
                 case Opcode.Pop:

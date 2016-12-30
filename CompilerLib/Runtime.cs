@@ -1,8 +1,4 @@
 ﻿using System;
-using System.ComponentModel.DataAnnotations;
-using System.IO;
-using System.IO.Compression;
-using System.Net.Http.Headers;
 using System.Text;
 
 namespace Lomont.ClScript.CompilerLib
@@ -362,7 +358,7 @@ namespace Lomont.ClScript.CompilerLib
         bool Execute()
         {
             bool retval = true; // assume this not last instruction
-            int p1, p2;
+            int p1, p2, p3;
             float f1, f2;
 
             p1 = ProgramCounter; // save before reading
@@ -399,6 +395,20 @@ namespace Lomont.ClScript.CompilerLib
                     PushStack(p1);
                     PushStack(p1);
                     break;
+                case Opcode.Swap:
+                    p1 = PopStack();
+                    p2 = PopStack();
+                    PushStack(p1);
+                    PushStack(p2);
+                    break;
+                case Opcode.Rot3:
+                    p1 = PopStack();
+                    p2 = PopStack();
+                    p3 = PopStack();
+                    PushStack(p2);
+                    PushStack(p1);
+                    PushStack(p3);
+                    break;
                 case Opcode.ClearStack:
                     p1 = Unpack();
                     for (var i =0 ; i < p1; ++i)
@@ -407,6 +417,19 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.PopStack:
                     p1 = Unpack();
                     StackPointer -= p1;
+                    break;
+                case Opcode.Reverse:
+                    p1 = Unpack();
+                    // reverse top p1 on stack (stack points past last)
+                    for (var k = 1; k <= p1/2; ++k)
+                    {
+                        var off1 = StackPointer - k;
+                        var off2 = StackPointer - p1 + k - 1;
+                        p2 = ReadRam(off1, "Illegal read in Reverse");
+                        p3 = ReadRam(off2, "Illegal read in Reverse");
+                        WriteRam(off1, p3, "Illegal write in Reverse");
+                        WriteRam(off2, p2, "Illegal write in Reverse");
+                    }
                     break;
 
                 // mem
@@ -429,11 +452,11 @@ namespace Lomont.ClScript.CompilerLib
                         throw new RuntimeException($"Read optype {opType} unsupported");
                     break;
                 case Opcode.Write:
-                    p1 = PopStack(); // value
-                    p2 = PopStack(); // address
+                    p1 = PopStack(); // address
+                    p2 = PopStack(); // value
                     // todo - store byte if byte sized
                     if (opType == OperandType.Float32 || opType == OperandType.Int32)
-                        WriteRam(p2, p1, "Write");
+                        WriteRam(p1, p2, "Write");
                     else throw new RuntimeException($"Write optype {opType} unsupported");
                     break;
                 case Opcode.Addr:

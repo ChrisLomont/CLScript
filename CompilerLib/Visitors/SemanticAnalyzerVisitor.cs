@@ -466,13 +466,15 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 env.Error($"Function {node} requires a return statement at end.");
         }
 
-        void CheckAssignments(Ast node, List<Ast> left, List<Ast> right)
+        // return number of simple types in expanded left and right if equal, else -1
+        int CheckAssignments(Ast node, List<Ast> left, List<Ast> right)
         {
-            CheckAssignments(node, FlattenTypes(left), FlattenTypes(right));
+            return CheckAssignments(node, FlattenTypes(left), FlattenTypes(right));
         }
 
         // check assignment statements have same number of items and types match
-        void CheckAssignments(Ast node, List<InternalType> left, List<InternalType> right)
+        // return number of simple types in expanded left and right if equal, else -1
+        int CheckAssignments(Ast node, List<InternalType> left, List<InternalType> right)
         {
             // todo - check type symbols exist for user defined
             // todo - allow assigning list of items to structures...
@@ -480,7 +482,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (left.Count != right.Count)
             {
                 env.Error($"Mismatched number of expressions to assignments {node}");
-                return;
+                return -1;
             }
             for (var i = 0; i < left.Count; ++i)
             {
@@ -488,7 +490,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (left[i] != right[i])
                     env.Error($"Types at position {i + 1} mismatched in assignment {node}");
             }
-
+            return left.Count;
         }
 
         InternalType BaseType(InternalType type)
@@ -583,7 +585,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var exprs = node.Children[1] as ExpressionListAst;
             if (items == null || exprs == null)
                 throw new InternalFailure($"Variable nodes incorrect {node}");
-            CheckAssignments(node, items.Children, exprs.Children);
+            node.StackCount = CheckAssignments(node, items.Children, exprs.Children);
             // set symbols
             foreach (var item in items.Children)
             {
@@ -607,7 +609,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var exprs = node.Children[1] as ExpressionListAst;
             if (items == null || exprs == null)
                 throw new InternalFailure($"Variable nodes incorrect {node}");
-            CheckAssignments(node, items.Children,exprs.Children);
+            node.StackCount = CheckAssignments(node, items.Children,exprs.Children);
         }
 
         static Int32 ParseInt(Ast node)
