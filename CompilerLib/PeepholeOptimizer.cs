@@ -19,18 +19,27 @@ namespace Lomont.ClScript.CompilerLib
         {
             var countRemoved = 0;
             var length = instructions.Count;
-            for (var i = 0; i < instructions.Count-1; ++i)
+            for (var i = 0; i < instructions.Count; ++i)
             {
-                if (instructions[i].Opcode == Opcode.Not && instructions[i + 1].Opcode == Opcode.Not)
+                var cur = instructions[i];
+                var dual = i < instructions.Count - 1;
+                var nxt = dual?instructions[i + 1]:null;
+                if (dual && cur.Opcode == Opcode.Not && nxt.Opcode == Opcode.Not)
                 {
                     instructions.RemoveAt(i);
                     instructions.RemoveAt(i);
                     i-=2;
                     countRemoved+=2;
                 }
-                if (instructions[i].Opcode == Opcode.BrAlways && instructions[i + 1].Opcode == Opcode.BrAlways)
+                if (dual & cur.Opcode == Opcode.BrAlways && nxt.Opcode == Opcode.BrAlways)
                 {
                     instructions.RemoveAt(i + 1);
+                    i--;
+                    countRemoved++;
+                }
+                if (cur.Opcode == Opcode.ClearStack && (int)cur.Operands[0] == 0)
+                {
+                    instructions.RemoveAt(i);
                     i--;
                     countRemoved++;
                 }
