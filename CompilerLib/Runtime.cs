@@ -326,13 +326,10 @@ namespace Lomont.ClScript.CompilerLib
             ProgramCounter = startAddress;
 
             // create call stack
-            // 1. Push space for return values
-            for (var i = 0; i < returnValues.Length; ++i)
-                PushStack(0);
-            // 2. push parameters
+            // 1. push parameters
             foreach (var v in parameters)
                 PushStack(v);
-            // 3. push ret code (special code to exit), and base pointer, set bp
+            // 2. push ret code (special code to exit), and base pointer, set bp
             PushStack(returnExitAddress);
             PushStack(BasePointer);
             BasePointer = StackPointer; // frame start
@@ -778,12 +775,12 @@ namespace Lomont.ClScript.CompilerLib
         {
             var returnEntryCount = StackPointer - (BasePointer + localCount);
             var srcStackIndex = StackPointer - returnEntryCount;
-            var dstStackIndex = BasePointer - 2 - parameterCount - returnEntryCount;
-            CopyEntries(srcStackIndex, dstStackIndex, returnEntryCount);
+            var dstStackIndex = BasePointer - 2 - parameterCount;
             StackPointer = BasePointer;
             BasePointer = PopStack();
             var retAddress = PopStack();
-            StackPointer -= parameterCount; // pop this many parameter entries
+            CopyEntries(srcStackIndex, dstStackIndex, returnEntryCount);
+            StackPointer = dstStackIndex + returnEntryCount;
             ProgramCounter = retAddress;
         }
 

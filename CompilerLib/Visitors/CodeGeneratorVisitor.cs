@@ -578,59 +578,62 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         #region Function/Return
 
-/* Functions and call stacks
-                                 * 
-                                 * Variables passed to and from function in call/return order, i32/byte/float/bool on stack, else address
-                                 * 
-                                 * 
-                                 *    -----------
-                                 *    |ret val 1|  \
-                                 *    -----------   \
-                                 *    |   ...   |    |  space made by caller for return values/addresses
-                                 *    -----------   /
-                                 *    |ret val n|  / 
-                                 *    -----------    
-                                 *    
-                                 *    -----------
-                                 *    | param 1 |  \
-                                 *    -----------   \
-                                 *    |   ...   |    | done by caller before call
-                                 *    -----------   /  
-                                 *    | param N |  /
-                                 *    -----------   
-                                 * 
-                                 *    -----------  
-                                 *    | ret addr|  \
-                                 *    -----------   | done by call instruction, cleaned by ret function
-                                 *    | base ptr|  /
-                                 *    -----------    <--- base pointer points here = sp at the time
-                                 * 
-                                 *    -----------      
-                                 *    | local 1 |  \ 
-                                 *    -----------   \
-                                 *    |   ...   |    | space saved by callee
-                                 *    -----------   /
-                                 *    | local M |  /
-                                 *    -----------     <----- stack points here
-                                 *    
-                                 *    
-                                 *    Caller then either consumes or cleans stack
-                                 *    
-                                 *    To do return a,b,c, push values on stack, call return (which handles copies and cleaning)
-                                 *    
-                                 *    return instruction: takes N = # parameters then M = # of stack entries for locals
-                                 *    Executes:
-                                 *       n = # return entries        = cur stack - (base pointer + M)
-                                 *       s = source stack entry      = cur stack - n
-                                 *       d = dest source stack entry = base pointer - 2 - N - n
-                                 *       copy n stack entries to return variable locations
-                                 *       sp <- bp
-                                 *       bp = pop stack
-                                 *       r  = pop stack
-                                 *       pop N entries
-                                 *       return to address r. 
-                                 * 
-                                 */
+        /* Functions and call stacks
+        * 
+        * Variables passed to and from function in call/return order, i32/byte/float/bool on stack, else address
+        * 
+        * 
+        *    -----------
+        *    | param 1 |  \
+        *    -----------   \
+        *    |   ...   |    | done by caller before call
+        *    -----------   /  
+        *    | param N |  /
+        *    -----------   
+        * 
+        *    -----------  
+        *    | ret addr|  \
+        *    -----------   | done by call instruction, cleaned by ret instruction
+        *    | base ptr|  /
+        *    -----------    <--- base pointer points here = sp at the time
+        * 
+        *    -----------      
+        *    | local 1 |  \ 
+        *    -----------   \
+        *    |   ...   |    | local variable space created by callee, cleaned by ret instruction
+        *    -----------   /
+        *    | local M |  /
+        *    -----------     <----- stack points here on entry, and is stack position where callee does work
+        *    
+        *    -----------
+        *    | return 1 |   \
+        *    -----------     \
+        *    |    ...   |    | return items pushed by callee right before executing ret instruction
+        *    -----------     /  
+        *    | return n |   /
+        *    -----------      <----- stack points here right before ret instuction
+        *    
+        *    
+        *    On return, the ret instruction cleans the stack, then pushes all returned values (fully expanded) onto the stack
+        *    
+        *    Caller then either consumes or cleans stack
+        *    
+        *    To do return a,b,c, push values on stack, call return (which handles copies and cleaning)
+        *    
+        *    return instruction: takes N = # parameters then M = # of stack entries for locals
+        *    Executes:
+        *       n = # return entries        = cur stack - (base pointer + M)
+        *       s = source stack entry      = cur stack - n = base pointer + M
+        *       d = dest source stack entry = base pointer - 2 - N
+        *       sp <- bp
+        *       bp = pop stack
+        *       r  = pop stack
+        *       pop N entries
+        *       copy n return entries from s to d (not modifying stack pointer value)
+        *       sp = right after last of n entries copied = d + n
+        *       return to address r. 
+        * 
+        */
 
         // used to compute spacing later for variable access
         // symbol table addresses are based on base pointer pointing to 
@@ -640,18 +643,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         void EmitFunctionCall(FunctionCallAst node)
         {
-            // call stack: return item space, parameters, then call
+            // call stack: parameters, then call
 
             // return space
 
             var symbol = node.Symbol;
             var type = symbol.Type as FunctionType;
             if (type == null) throw new InternalFailure($"Required function type, got {symbol.Type}");
-            var retSize = type.ReturnType.Tuple.Count;
-            if (retSize < 0)
-                throw new InternalFailure($"Return size < 0 {symbol}");
-            else if (retSize > 0)
-                Emit2(Opcode.ClearStack, OperandType.None, "function return value space", retSize);
+//            var retSize = type.ReturnType.Tuple.Count;
+//            if (retSize < 0)
+//                throw new InternalFailure($"Return size < 0 {symbol}");
+//            else if (retSize > 0)
+//                Emit2(Opcode.ClearStack, OperandType.None, "function return value space", retSize);
 
             // basic types passed by value, others by address
             foreach (var child in node.Children)
