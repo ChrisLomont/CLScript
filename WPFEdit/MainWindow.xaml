@@ -51,7 +51,7 @@
         <GroupBox Header="Messages" DockPanel.Dock="Bottom">
             <ListBox 
                 FontFamily="Consolas"
-                Height="200"
+                Height="300"
                 ItemsSource="{Binding Messages}"
                 />
         </GroupBox>
