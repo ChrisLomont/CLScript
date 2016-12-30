@@ -336,93 +336,145 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             Recurse(node);
         }
 
+        // walks an expression structure, yields data about sequential items
+        class ItemStructureWalker :IEnumerable<ItemStructureWalker.ItemData>
+        {
+            ExpressionAst ast;
+            public ItemStructureWalker(ExpressionAst ast)
+            {
+                this.ast = ast;
+            }
+
+            public IEnumerator<ItemData> GetEnumerator()
+            {
+                yield return new ItemData
+                {
+                    OperandType = GetOperandType(GetSymbolType(ast)),
+                    Skip = 0,
+                    SymbolName = ast.Symbol?.Name
+                };
+            }
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            internal class ItemData
+            {
+                public OperandType OperandType = OperandType.None;
+                public int Skip = 0;
+                public bool More => Skip > 0;
+                public string SymbolName;
+            }
+        }
+
         void AssignHelper(List<Ast> items, List<Ast> exprs, TokenType assignType)
         {
-            // this was checked in SemanticAnalysis, is expensive to do, so error here removed
-            //if (items.Count != exprs.Count)
-            //    throw new InternalFailure("AssignHelper has non-equal sizes");
+            // todo.... some items put multiple on stack....
 
-            // push expr on stack in order
+            // push expr on stack in order. This expands complex types
             foreach (var expr in exprs)
                 EmitExpression(expr as ExpressionAst);
 
             // store in variables in order
+            var simpleItemsRead = 0;
             for (var i = 0; i < items.Count; ++i)
             {
                 // todo - these can be address expressions such as array, etc...
-                var item = items[i];
+                var item1 = items[i];
 
-                EmitExpression(item as ExpressionAst, true); // address of expression
+                EmitExpression(item1 as ExpressionAst, true); // address of expression
 
-                var operandType = GetOperandType(GetSymbolType(item));
-
-                // for +=, etc. read var, perform, 
-                // todo - make much shorter, table driven
-                if (assignType != TokenType.Equals)
+                foreach (var itemData in new ItemStructureWalker(item1 as ExpressionAst))
                 {
-                    EmitO(Opcode.Dup); // address already already there 
-                    var symbol = (item as ExpressionAst).Symbol;
-                    Emit2(Opcode.Read, OperandType.Global, symbol?.Name); // read it (note address already global here)
-                    EmitI(Opcode.Pick, items.Count+1 - i);
-                }
-                else
-                    EmitI(Opcode.Pick, items.Count - i);
+                    var operandType = itemData.OperandType;
 
-                // stack now (in push order): 
-                // Equals: addr, oldValue, newValue
-                // Else  : addr, newValue
+                    var depth = 0; // extra added for tuple
+                    if (itemData.More)
+                    {
+                        EmitO(Opcode.Dup); // save address - more of them needed
+                        depth = 1;
+                    }
 
-                switch (assignType)
-                {
-                    case TokenType.Equals:
-                        break;
-                    case TokenType.AddEq:
-                        EmitO(Opcode.Add);
-                        break;
-                    case TokenType.SubEq:
-                        EmitT(Opcode.Sub, operandType);
-                        break;
-                    case TokenType.MulEq:
-                        EmitT(Opcode.Mul, operandType);
-                        break;
-                    case TokenType.DivEq:
-                        EmitT(Opcode.Div, operandType);
-                        break;
-                    case TokenType.XorEq:
-                        EmitO(Opcode.Xor);
-                        break;
-                    case TokenType.AndEq:
-                        EmitO(Opcode.And);
-                        break;
-                    case TokenType.OrEq:
-                        EmitO(Opcode.Or);
-                        break;
-                    case TokenType.ModEq:
-                        EmitT(Opcode.Mod, operandType);
-                        break;
-                    case TokenType.RightShiftEq:
-                        EmitT(Opcode.RightShift, operandType);
-                        break;
-                    case TokenType.LeftShiftEq:
-                        EmitT(Opcode.LeftShift, operandType);
-                        break;
-                    case TokenType.RightRotateEq:
-                        EmitT(Opcode.RightRotate, operandType);
-                        break;
-                    case TokenType.LeftRotateEq:
-                        EmitT(Opcode.LeftRotate, operandType);
-                        break;
-                    default:
-                        throw new InternalFailure($"Unknown operation {assignType} in AssignHelper");
+                    // for +=, etc. read var, perform, 
+                    // todo - make much shorter, table driven
+                    if (assignType != TokenType.Equals)
+                    {
+                        EmitO(Opcode.Dup); // address already already there 
+                        // read it (note address already global here)
+                        Emit2(Opcode.Read, OperandType.Global, itemData.SymbolName);
+                        // get value from back on stack
+                        EmitI(Opcode.Pick, items.Count + -i + depth + 1);
+                    }
+                    else
+                        EmitI(Opcode.Pick, items.Count - i + depth);
+
+                    // stack now (in push order): 
+                    // Equals : addr, newValue
+                    // Else   : addr, oldValue, newValue
+
+                    switch (assignType)
+                    {
+                        case TokenType.Equals:
+                            break;
+                        case TokenType.AddEq:
+                            EmitT(Opcode.Add, operandType);
+                            break;
+                        case TokenType.SubEq:
+                            EmitT(Opcode.Sub, operandType);
+                            break;
+                        case TokenType.MulEq:
+                            EmitT(Opcode.Mul, operandType);
+                            break;
+                        case TokenType.DivEq:
+                            EmitT(Opcode.Div, operandType);
+                            break;
+                        case TokenType.XorEq:
+                            EmitO(Opcode.Xor);
+                            break;
+                        case TokenType.AndEq:
+                            EmitO(Opcode.And);
+                            break;
+                        case TokenType.OrEq:
+                            EmitO(Opcode.Or);
+                            break;
+                        case TokenType.ModEq:
+                            EmitT(Opcode.Mod, operandType);
+                            break;
+                        case TokenType.RightShiftEq:
+                            EmitT(Opcode.RightShift, operandType);
+                            break;
+                        case TokenType.LeftShiftEq:
+                            EmitT(Opcode.LeftShift, operandType);
+                            break;
+                        case TokenType.RightRotateEq:
+                            EmitT(Opcode.RightRotate, operandType);
+                            break;
+                        case TokenType.LeftRotateEq:
+                            EmitT(Opcode.LeftRotate, operandType);
+                            break;
+                        default:
+                            throw new InternalFailure($"Unknown operation {assignType} in AssignHelper");
+                    }
+                    // stack now (push order) addr, newValue
+                    WriteValue(operandType);
+                    simpleItemsRead++;
+
+                    if (itemData.More)
+                    {
+                        // next address
+                        EmitI(Opcode.Push, itemData.Skip);
+                        EmitT(Opcode.Add, OperandType.Int32);
+                    }
+
                 }
-                // stack now (push order) addr, newValue
-                WriteValue(operandType);
             }
             // clean values from stack
-            Emit2(Opcode.PopStack, OperandType.None, "clean assign stack", items.Count);
+            Emit2(Opcode.PopStack, OperandType.None, "clean assign stack", simpleItemsRead);
         }
 
-        #region Read/Write variable values and addresses
+#region Read/Write variable values and addresses
 
         // push address, then value, then writes value into address
         void WriteValue(OperandType operandType)
@@ -505,7 +557,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 //            return GetOperandType(t.SymbolType);
 //        }
 
-        OperandType GetOperandType(SymbolType type)
+        public static OperandType GetOperandType(SymbolType type)
         {
             // emit known value, ignore children
             switch (type)
@@ -522,7 +574,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        #endregion
+#endregion
 
         void EmitAssignStatement(AssignStatementAst node)
         {
@@ -576,7 +628,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             instructions.Add(inst);
         }
 
-        #region Function/Return
+#region Function/Return
 
         /* Functions and call stacks
         * 
@@ -735,10 +787,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             );
         }
 
-        #endregion
+#endregion
 
 
-        #region Expression
+#region Expression
 
         // process expression, leaves a value on stack, unless address asked for
         void EmitExpression(ExpressionAst node, bool leaveAddressOnly = false)
@@ -812,7 +864,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        #region Item Address
+#region Item Address
 
         // Structure:
         // 1. DotAst must have one child of type ArrayAst or TypedItemAst. 
@@ -936,7 +988,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        #endregion
+#endregion
 
         // given value on stack, and unary operation, evaluate the operation
         void EmitUnaryOp(ExpressionAst node)

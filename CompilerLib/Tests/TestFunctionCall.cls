@@ -1,3 +1,23 @@
+
+[Entry]
+export (bool,i32,i32) Test()
+   i32 a = 1
+   a += 4
+   i32 b,c=7,11
+   bool bb = a==5 && c == 11 && b == 7 
+   return bb,1,1
+
+/*
+[Entry]
+export () GetColor()
+   RGB color = 1.0,0.5,0.25 
+   
+
+type RGB
+   r32 r,g,b
+*/
+/*
+
 // test comments can be misaligned
 () err1()         
   /* comment */ 
@@ -8,6 +28,9 @@
 () err3()         
 /* comment */ 
    return
+
+type RGB
+   r32 r,g,b
 
 i32 G = 123
 
@@ -44,6 +67,7 @@ export (bool,i32,i32) func()
    f2()
    f3()
    fib(5)
+   //color()
   
    i32 c,d = f2()
   
@@ -60,3 +84,10 @@ export (bool,i32,i32) func()
    
    
    return b,1,1
+
+
+//(RGB) color()
+//   RGB color = 1.0,0.5,0.25 
+//   return color
+   
+   */

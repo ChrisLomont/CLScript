@@ -21,10 +21,10 @@ type RGB
    // return 0
    
 [Entry]
-export (i32,i32) Runme()
+export (bool,i32,i32) Runme()
    RGB c1
    Check(c1)
-   return 78,13
+   return true,78,13
 
 
 /*

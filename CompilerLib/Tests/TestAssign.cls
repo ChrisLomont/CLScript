@@ -1,20 +1,72 @@
+
+[Entry]
+export (bool,i32,i32) GetColor()
+   RGB c1 = 1.0,0.5,0.25 
+//   RGB c2
+   return c1.r==1.0 && c1.g == 0.5,1,1
+   
+
+type RGB
+   r32 r,g,b
+
+
+/*
+
 // testing mulitiple assignments, type assignments, type promotion
 
-(i32,i32) Make2()
-   return 3,5
+(i32,i32) Make2(i32 v)
+   return 3+v,5+v
    
 [Entry]
-export (i32) func()
-   i32 a,b
-   a,b = Make2()
+export (bool,i32,i32) TestAssign()
+   i32 p,t = 0,0 // passed, tried
+
+   p,t += TestSimple()
+   p,t += Test2()
    
-//   tri t
-//   t = make3()
-//   a += t.a
-//   i32 x,y,z = make3()
-//   b += z
+   return p==t,p,t
    
-   return a+b
+(i32,i32) TestSimple()
+   i32 p,t = 0,0 // passed, tried
+   
+   i32 a1,a2
+   a1 = 3
+   a2 = 5
+   if a1 == 3 && a2 == 5
+      p = p + 1
+   t = t + 1   
+      
+   a1,a2 = 4,3
+   if a1 == 4 && a2 == 3
+      p = p + 1
+   t = t + 1   
+      
+   i32 a3,a4 = Make2(3)
+   if a3 == 6 && a4 == 8
+      p = p + 1
+   t = t + 1   
+   
+   return p,t
+   
+(i32,i32) Test2()
+   i32 p,t = 0,0 // passed, tried
+   
+   i32 a1,a2
+   a1,a2 = Make2(3)
+   if a1 == 6 && a2 == 8
+      p = p + 1
+   t = t + 1
+   
+   //tri t
+   //t = make3()
+   //a += t.a
+   //i32 x,y,z = make3()
+   //b += z
+   
+   return p,t
+   
+   
+   
    
 //type tri
 //   i32 a,b,c
@@ -95,3 +147,5 @@ type t3
 (i32,r32,bool) returnC()
    return 4,5.0,false
 */    
+
+*/
