@@ -6,6 +6,35 @@ export (i32) f()
    return 1
 */
 
+// test auto inc and dec
+[Entry]
+export (bool,i32,i32) TestIncDec()
+   i32 p,t = 0,0 // passed, tested
+   i32 a = 1
+   
+   a++
+   if a==2
+      p++
+   t++
+   
+   a--
+   if a==1
+      p++
+   t++
+   
+   ++a
+   if a==2
+      p++
+   t++
+   
+   --a
+   if a==1
+      p++
+   t++
+   
+   return p==t,p,t
+   
+/*
 type RGB 
    r32 r,g,b 
    
@@ -26,6 +55,7 @@ export (bool,i32,i32) Runme()
    Check(c1)
    return true,78,13
 
+*/
 
 /*
 import "Imports.cls"

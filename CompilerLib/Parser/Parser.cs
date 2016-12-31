@@ -550,8 +550,15 @@ namespace Lomont.ClScript.CompilerLib.Parser
             "<<<="
         };
 
+        // assignment statements are of form a,b,c op x,y,z where a,b,c legal left hand expressions, x,y,z expand to 
+        // values or tuples of values
+        // also of form ++item, item++, --item, item--
+
         Ast ParseAssignStatement()
         {
+            Token prefix = null;
+            if (NextIsOneOf("++", "--"))
+                prefix = TokenStream.Consume();
             var assignItems = ParseList<HelperAst>(
                 ParseAssignItem, "Expected assign item", 1,
                 (a, n) => n.AddChild(a),
@@ -565,7 +572,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             }
             Token op = null;
             Ast exprList = null;
-            if (NextIsOneOf(assignOperators))
+            if (prefix == null && NextIsOneOf(assignOperators))
             {
                 op = TokenStream.Consume();
                 exprList = ParseExpressionList(1);
@@ -575,13 +582,18 @@ namespace Lomont.ClScript.CompilerLib.Parser
                     return null;
                 }
             }
-            else if (NextIsOneOf("++", "--"))
+            else if (prefix == null && NextIsOneOf("++", "--"))
             {
                 op = TokenStream.Consume();
             }
+            // post and pre inc/dec have same effect on an assign
+            if (prefix != null)
+                op = prefix;
 
             if (MatchOneOrMore(TokenType.EndOfLine, "Expected end of line(s)") != ParseAction.Matched)
                 return null;
+
+
 
             var h = new AssignStatementAst(op);
             h.Children.Add(new TypedItemsAst(assignItems.Children));

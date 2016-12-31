@@ -578,6 +578,22 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             // todo - check type symbols exist for user defined
             // todo - allow assigning list of items to structures...
+
+            if (node.Children.Count == 1 &&
+                (node.Token.TokenType == TokenType.Increment || node.Token.TokenType == TokenType.Decrement))
+            {
+                // inc or dec only has one child
+                node.StackCount = 1;
+                // set symbols
+                var asn = node.Children[0].Children[0] as TypedItemAst;
+                var simple = asn?.Type as SimpleType;
+                if (simple == null || simple.SymbolType != SymbolType.Int32)
+                    env.Error($"Auto increment or decrement on non-integral type {node}");
+                if (asn != null && asn.Symbol == null)
+                    asn.Symbol = mgr.Lookup(asn.Name);
+                return;
+            }
+
             if (node.Children.Count != 2)
                 throw new InternalFailure($"Expected 2 children {node}");
 

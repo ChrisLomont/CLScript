@@ -337,6 +337,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         // walks an expression structure, yields data about sequential items
+        // each item is something that can be assigned to
         class ItemStructureWalker :IEnumerable<ItemStructureWalker.ItemData>
         {
             ExpressionAst ast;
@@ -347,6 +348,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             public IEnumerator<ItemData> GetEnumerator()
             {
+                //todo - implement this
                 yield return new ItemData
                 {
                     OperandType = GetOperandType(GetSymbolType(ast)),
@@ -384,14 +386,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             // store in variables in order
             var simpleItemsRead = 0;
-            for (var i = 0; i < items.Count; ++i)
+            foreach (var item in items)
             {
-                // todo - these can be address expressions such as array, etc...
-                var item1 = items[i];
+                EmitExpression(item as ExpressionAst, true); // address of expression
 
-                EmitExpression(item1 as ExpressionAst, true); // address of expression
-
-                foreach (var itemData in new ItemStructureWalker(item1 as ExpressionAst))
+                foreach (var itemData in new ItemStructureWalker(item as ExpressionAst))
                 {
                     var operandType = itemData.OperandType;
 
@@ -589,9 +588,27 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         void EmitAssignStatement(AssignStatementAst node)
         {
-            var items = node.Children[0].Children;
-            var expr = node.Children[1].Children;
-            AssignHelper(node.StackCount,items, expr, node.Token.TokenType);
+            if (node.Token.TokenType == TokenType.Increment || node.Token.TokenType == TokenType.Decrement)
+            {
+                var child = node.Children[0].Children[0] as ExpressionAst;
+                EmitExpression(child, true); // address of expression
+                // todo - can add inc/dec instructions
+                EmitO(Opcode.Dup);
+                Emit2(Opcode.Read, OperandType.Global, child.Name); // convert address to value
+                if (node.Token.TokenType == TokenType.Increment)
+                    EmitI(Opcode.Push, 1);
+                else
+                    EmitI(Opcode.Push, -1);
+                EmitO(Opcode.Add);
+                EmitO(Opcode.Swap);
+                WriteValue(OperandType.Int32);
+            }
+            else
+            {
+                var items = node.Children[0].Children;
+                var expr = node.Children[1].Children;
+                AssignHelper(node.StackCount, items, expr, node.Token.TokenType);
+            }
         }
 
         void EmitVariableDef(VariableDefinitionAst node)
