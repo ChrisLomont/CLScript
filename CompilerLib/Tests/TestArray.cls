@@ -1,5 +1,15 @@
 // test array and '.' in func locals and global and params
 // sizes in stack slots
+
+
+(bool,i32,i32) TestArray()
+   i32 p,t = 0,0 // passed, tested
+   
+   p++
+   t++
+   
+   return p==t,p,t
+
 /*
 [Entry]
 export (i32) f()
@@ -109,7 +119,7 @@ type t1
       a[1] += c[1]
    return a[1]
 */
-
+/*
 
 type t1
    i32 x,y,z    // 3
@@ -126,7 +136,7 @@ i32 v2[2]       // address 13
 i32 v34[3][4]   // address 15, size 12
 
 i32 w = 3 + v + t13[1].z + v2[v+3] + v34[1][v+2] + t11.x + t22[1].tt[1].y // address 27
-
+*/
 /*
 [Entry]
 (i32) func1()

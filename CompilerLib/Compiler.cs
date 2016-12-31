@@ -158,14 +158,14 @@ namespace Lomont.ClScript.CompilerLib
             SyntaxTree = null;
 
             var filesToImport = new Queue<string>();
-            var filesImported = new HashSet<string>();
+            var filesEnqueued = new HashSet<string>();
             filesToImport.Enqueue(startFilename);
+            filesEnqueued.Add(startFilename);
 
             // keep replacing all import statements
             while (filesToImport.Any())
             {
                 var filename = filesToImport.Dequeue();
-                filesImported.Add(filename);
 
                 var source = fileReader(filename);
                 if (source == null)
@@ -196,8 +196,11 @@ namespace Lomont.ClScript.CompilerLib
                         {
                             var name = (ch as ImportAst).Name;
                             name = name.Trim(new char[] {'"'}); // remove quotes
-                            if (!filesImported.Contains(name))
+                            if (!filesEnqueued.Contains(name))
+                            {
                                 filesToImport.Enqueue(name);
+                                filesEnqueued.Add(name);
+                            }
                         }
                     }
                 }
