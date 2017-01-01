@@ -341,20 +341,44 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         class ItemStructureWalker :IEnumerable<ItemStructureWalker.ItemData>
         {
             ExpressionAst ast;
-            public ItemStructureWalker(ExpressionAst ast)
+            CodeGeneratorVisitor cg;
+            List<ItemData> items = new List<ItemData>();
+            public ItemStructureWalker(CodeGeneratorVisitor cg, ExpressionAst ast)
             {
+                this.cg = cg;
                 this.ast = ast;
+                Recurse(items,ast.Type);
+                items.Last().Skip = 0; // end the loop
+            }
+
+            void Recurse(List<ItemData> items, InternalType type)
+            {
+                if (type is SimpleType)
+                {
+                    var simple = (SimpleType) type;
+                    items.Add(
+                        new ItemData
+                        {
+                            OperandType = GetOperandType(simple.SymbolType),
+                            Skip = 1,
+                            SymbolName = ast.Symbol?.Name
+                        });
+                }
+                else if (type is UserType)
+                {
+                    var user = (UserType) type;
+                    var stbl = cg.mgr.GetTableWithScope(user.Name);
+                    foreach (var entry in stbl.Entries)
+                        Recurse(items,entry.Type);
+                }
+                else throw new InternalFailure($"Type not convertible yet {ast}");
+
             }
 
             public IEnumerator<ItemData> GetEnumerator()
             {
-                //todo - implement this
-                yield return new ItemData
-                {
-                    OperandType = GetOperandType(GetSymbolType(ast)),
-                    Skip = 0,
-                    SymbolName = ast.Symbol?.Name
-                };
+                foreach (var item in items)
+                    yield return item;
             }
 
             System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
@@ -390,7 +414,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 EmitExpression(item as ExpressionAst, true); // address of expression
 
-                foreach (var itemData in new ItemStructureWalker(item as ExpressionAst))
+                foreach (var itemData in new ItemStructureWalker(this, item as ExpressionAst))
                 {
                     var operandType = itemData.OperandType;
 
@@ -398,9 +422,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     var depth = 0; // extra added for tuple
                     if (itemData.More)
                     { 
-                        // EmitO(Opcode.Dup); // save address - more of them needed
-                        throw new InternalFailure("Needs special write that leaves address....");
-                        depth = 1;
+                        EmitO(Opcode.Dup); // save address - more of them needed
+                        EmitI(Opcode.Push, itemData.Skip);
+                        EmitT(Opcode.Add,OperandType.Int32);
+                        // on stack: value,addr,nextaddr
+                        EmitO(Opcode.Rot3);
+                        // on stack: addr,nextaddr,value
+                        EmitO(Opcode.Rot3);
+                        // on stack: nextaddr,value,addr
                     }
 
                     // todo - reversed - no pick
@@ -471,15 +500,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     // stack now (push order) newValue, addr
                     WriteValue(operandType);
                     simpleItemsRead++;
-
-                    if (itemData.More)
-                    {
-                        // next address
-                        EmitI(Opcode.Push, itemData.Skip);
-                        EmitT(Opcode.Add, OperandType.Int32);
-                        throw new InternalFailure("Needs special write that leaves address....");
-                    }
-
                 }
             }
         }
