@@ -79,8 +79,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (recurseChildren)
             {
                 // recurse children
-                foreach (var child in node.Children)
-                    Recurse(child);
+                // NOTE: do not use foreach here since tree may be modified
+                for (var i = 0; i < node.Children.Count; ++i)
+                    Recurse(node.Children[i]);
             }
 
             // adds type info, does type checking
@@ -621,11 +622,40 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return; // nothing to check - only names variables
             if (node.Children.Count != 2)
                 throw new InternalFailure($"Expected 2 children {node}");
-            var items = node.Children[0] as TypedItemsAst;
-            var exprs = node.Children[1] as ExpressionListAst;
-            if (items == null || exprs == null)
+
+            // apply transform to create variables on one line, then assign the next
+            // makes later expression parsing work correctly with arrays
+            var varItems = node.Children[0] as TypedItemsAst;
+            var varExprs = node.Children[1] as ExpressionListAst;
+            if (varItems == null || varExprs == null)
                 throw new InternalFailure($"Variable nodes incorrect {node}");
-            node.StackCount = CheckAssignments(node, items.Children,exprs.Children);
+
+            var assign = new AssignStatementAst(new Token(TokenType.Equals, "=", node.Token.Position, node.Token.Filename));
+            var asnItems = new TypedItemsAst();
+            assign.AddChild(asnItems);
+            assign.AddChild(varExprs);
+            node.Children.Remove(varExprs); // remove old one
+
+            // attach assignment to parent
+            node.Parent.Children.Insert(node.Parent.Children.IndexOf(node)+1,assign);
+            assign.Parent = node.Parent;
+
+            foreach (var var in varItems.Children)
+            {
+                if (!(var is TypedItemAst))
+                    throw new InternalFailure($"Expected TypedItemAst, got {var}");
+                var ch = var as TypedItemAst;
+                asnItems.AddChild(
+                    new TypedItemAst(ch.Token,ch.BaseTypeToken)
+                    {
+                        Symbol = ch.Symbol,
+                        Type = ch.Type
+                    }
+                    );
+            }
+
+
+            node.StackCount = CheckAssignments(node, asnItems.Children,varExprs.Children);
         }
 
         static Int32 ParseInt(Ast node)

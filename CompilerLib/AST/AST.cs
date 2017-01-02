@@ -25,15 +25,22 @@ namespace Lomont.ClScript.CompilerLib.AST
         /// </summary>
         public InternalType Type { get; set; }
 
-        public Ast()
+        protected Ast()
         {
             Children = new List<Ast>();
         }
 
+        /// <summary>
+        /// Add a a child - attach parent pointer
+        /// </summary>
+        /// <param name="child"></param>
         public void AddChild(Ast child)
         {
             if (child != null)
+            {
                 Children.Add(child);
+                child.Parent = this;
+            }
         }
 
         // allows derived nodes to insert some info
