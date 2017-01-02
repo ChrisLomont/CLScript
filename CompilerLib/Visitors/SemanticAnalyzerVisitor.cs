@@ -327,7 +327,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 if (node.Children[i].Type != parameterTypes[i])
                 {
-                    env.Error($"Function required type {parameterTypes[i]} in position {i+1}");
+                    env.Error($"Function {node} required type {parameterTypes[i]} in position {i+1}");
                     return null;
                 }
             }
@@ -450,7 +450,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (funcType == null)
                 throw new InternalFailure($"Expected function type {node}");
 
-            funcType.CallStackReturnSize = FlattenTypes(funcType.ReturnType.Tuple).Count;
+            funcType.CallStackReturnSize = TypeHelper.FlattenTypes(funcType.ReturnType.Tuple, env, mgr).Count;
 
             if (node.ImportToken != null)
                 return;
@@ -470,107 +470,25 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // return number of simple types in expanded left and right if equal, else -1
         int CheckAssignments(Ast node, List<Ast> left, List<Ast> right)
         {
-            return CheckAssignments(node, FlattenTypes(left), FlattenTypes(right));
+            return CheckAssignments(node, TypeHelper.FlattenTypes(left, env, mgr), TypeHelper.FlattenTypes(right, env, mgr));
         }
 
-        // check assignment statements have same number of items and types match
+        // check listf of types have same number of items and types match
         // return number of simple types in expanded left and right if equal, else -1
         int CheckAssignments(Ast node, List<InternalType> left, List<InternalType> right)
         {
-            // todo - check type symbols exist for user defined
-            // todo - allow assigning list of items to structures...
-
             if (left.Count != right.Count)
             {
-                env.Error($"Mismatched number of expressions to assignments {node}");
+                env.Error($"Mismatched number of expressions ({right.Count}) to assignments ({left.Count}): {node}");
                 return -1;
             }
             for (var i = 0; i < left.Count; ++i)
             {
                 // todo - check type exists
-                if (left[i] != right[i])
+                if (left[i] == null || left[i] != right[i])
                     env.Error($"Types at position {i + 1} mismatched in assignment {node}");
             }
             return left.Count;
-        }
-
-        InternalType BaseType(InternalType type)
-        {
-            if (type is ArrayType)
-                return ((ArrayType) type).BaseType;
-            return type;
-        }
-
-        // given a list of types, flatten to simple types
-        // cannot have unsized arrays
-        List<InternalType> FlattenTypes(List<InternalType> types)
-        {
-            var flat = new List<InternalType>();
-            foreach (var type in types)
-            {
-                if (type is ArrayType)
-                {
-                    env.Error($"Cannot flatten unsized array {type}");
-                    return null;
-                }
-                RecurseFlatten(flat, 1, type);
-            }
-            return flat;
-        }
-
-        // given a list of nodes, return a list of ordered, flattened types
-        // where flattened means down to basic types // i32,bool, r32, string, byte
-        List<InternalType> FlattenTypes(List<Ast> nodes)
-        {
-            var flat = new List<InternalType>();
-            foreach (var node in nodes)
-            {
-                if (!(node is ExpressionAst))
-                {
-                    env.Error($"Node {node} is not an Expression");
-                    return null;
-                }
-                var expr = node as ExpressionAst;
-                var symbol = expr.Symbol;
-                var baseType = BaseType(expr.Type);
-                RecurseFlatten(flat,NumItems(symbol),baseType);
-            }
-            return flat;
-        }
-
-        int NumItems(SymbolEntry s)
-        {
-            var num = 1;
-            if (s?.ArrayDimensions != null)
-                num = s.ArrayDimensions.Aggregate(1, (cur, next) => cur*next);
-            return num;
-        }
-
-        void RecurseFlatten(List<InternalType> flat, int num, InternalType type)
-        {
-            // t is simple, user, or tuple
-
-            if (type is SimpleType)
-            {
-                for (var i = 0; i < num; ++i)
-                    flat.Add(type);
-            }
-            else if (type is UserType)
-            {
-                var table = mgr.GetTableWithScope(((UserType) type).Name);
-                for (var i = 0; i < num; ++i)
-                    foreach (var s1 in table.Entries)
-                        RecurseFlatten(flat, NumItems(s1), BaseType(s1.Type));
-            }
-            else if (type is TupleType)
-            {
-                var tuple = ((TupleType) type).Tuple;
-                for (var i = 0; i < num; ++i)
-                    foreach (var tt in tuple)
-                        RecurseFlatten(flat, 1, tt);
-            }
-            else
-                throw new InternalFailure($"Unsupported type to flatten {type}");
         }
 
         // check var type exists
@@ -622,7 +540,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return; // nothing to check - only names variables
             if (node.Children.Count != 2)
                 throw new InternalFailure($"Expected 2 children {node}");
-
             // apply transform to create variables on one line, then assign the next
             // makes later expression parsing work correctly with arrays
             var varItems = node.Children[0] as TypedItemsAst;
@@ -653,9 +570,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     }
                     );
             }
-
-
-            node.StackCount = CheckAssignments(node, asnItems.Children,varExprs.Children);
+            ProcessAssignment(assign);
         }
 
         static Int32 ParseInt(Ast node)

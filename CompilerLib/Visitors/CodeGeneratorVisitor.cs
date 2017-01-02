@@ -336,64 +336,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             Recurse(node);
         }
 
-        // walks an expression structure, yields data about sequential items
-        // each item is something that can be assigned to
-        class ItemStructureWalker :IEnumerable<ItemStructureWalker.ItemData>
-        {
-            ExpressionAst ast;
-            CodeGeneratorVisitor cg;
-            List<ItemData> items = new List<ItemData>();
-            public ItemStructureWalker(CodeGeneratorVisitor cg, ExpressionAst ast)
-            {
-                this.cg = cg;
-                this.ast = ast;
-                Recurse(items,ast.Type);
-                items.Last().Skip = 0; // end the loop
-            }
-
-            void Recurse(List<ItemData> items, InternalType type)
-            {
-                if (type is SimpleType)
-                {
-                    var simple = (SimpleType) type;
-                    items.Add(
-                        new ItemData
-                        {
-                            OperandType = GetOperandType(simple.SymbolType),
-                            Skip = 1,
-                            SymbolName = ast.Symbol?.Name
-                        });
-                }
-                else if (type is UserType)
-                {
-                    var user = (UserType) type;
-                    var stbl = cg.mgr.GetTableWithScope(user.Name);
-                    foreach (var entry in stbl.Entries)
-                        Recurse(items,entry.Type);
-                }
-                else throw new InternalFailure($"Type not convertible yet {ast}");
-
-            }
-
-            public IEnumerator<ItemData> GetEnumerator()
-            {
-                foreach (var item in items)
-                    yield return item;
-            }
-
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-            {
-                return GetEnumerator();
-            }
-
-            internal class ItemData
-            {
-                public OperandType OperandType = OperandType.None;
-                public int Skip = 0;
-                public bool More => Skip > 0;
-                public string SymbolName;
-            }
-        }
 
         void AssignHelper(int stackSlots, List<Ast> items, List<Ast> exprs, TokenType assignType)
         {
@@ -414,7 +356,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 EmitExpression(item as ExpressionAst, true); // address of expression
 
-                foreach (var itemData in new ItemStructureWalker(this, item as ExpressionAst))
+                foreach (var itemData in new TypeListWalker(this.mgr, item as ExpressionAst))
                 {
                     var operandType = itemData.OperandType;
 
@@ -912,7 +854,28 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-#region Item Address
+        #region Item Address
+
+
+        /* Array structure
+         * Note an array entry may be another array - thus first data at
+         * (array address + (dim-1)*header size, where dim is the number of dimensions 1+ of the type
+         * 
+         * 
+         *  +-------+
+         *  |  S    |  Stride between entries \
+         *  +-------+                          | Header 2 entries
+         *  |  N    |  Number of entries      /
+         *  +-------+  
+         *  |       |  <---  array name points to this address
+         *  +-------+
+         *  |  ...  |   
+         *  +-------+
+         *  |       |
+         *  +-------+
+         * 
+         */
+
 
         // Structure:
         // 1. DotAst must have one child of type ArrayAst or TypedItemAst. 
