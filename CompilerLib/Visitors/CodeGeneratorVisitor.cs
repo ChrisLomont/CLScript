@@ -362,13 +362,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
                     // stack has (push order) new value, then addr on top
                     var depth = 0; // extra added for tuple
-                    if (itemData.More)
+                    if (!itemData.Last)
                     { 
                         EmitO(Opcode.Dup); // save address - more of them needed
-                        EmitI(Opcode.Push, itemData.Skip);
+                        EmitI(Opcode.Push, itemData.PreAddressIncrement);
                         EmitT(Opcode.Add,OperandType.Int32);
                         // on stack: value,addr,nextaddr
-                        EmitO(Opcode.Rot3);
+                        EmitO(Opcode.Rot3); // todo - expensive per item - add instruction later to fix
                         // on stack: addr,nextaddr,value
                         EmitO(Opcode.Rot3);
                         // on stack: nextaddr,value,addr
@@ -855,26 +855,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         }
 
         #region Item Address
-
-
-        /* Array structure
-         * Note an array entry may be another array - thus first data at
-         * (array address + (dim-1)*header size, where dim is the number of dimensions 1+ of the type
-         * 
-         * 
-         *  +-------+
-         *  |  S    |  Stride between entries \
-         *  +-------+                          | Header 2 entries
-         *  |  N    |  Number of entries      /
-         *  +-------+  
-         *  |       |  <---  array name points to this address
-         *  +-------+
-         *  |  ...  |   
-         *  +-------+
-         *  |       |
-         *  +-------+
-         * 
-         */
 
 
         // Structure:

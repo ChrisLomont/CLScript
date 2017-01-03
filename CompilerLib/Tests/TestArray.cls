@@ -2,39 +2,46 @@
 // sizes in stack slots
 
 [Entry]
+export (i32,i32,i32,i32) TestArray()
+   i32 a[2][2] = 1,2,3,4
+   
+   a= 1,2,3,4
+   
+   //a[0][0] = 5
+   //a[0][1] = 7
+   //a[1][0] = 11
+   //a[1][1] = 16
+   
+   //a[1] = 2,3
+   //a[0] = 7,8
+   //a[1] = func()
+   
+   return a[0][0],a[0][1],a[1][0],a[1][1]
+
+(i32,i32) func()
+   return 14,76
+
+/*
+[Entry]
 export (bool,i32,i32) TestArray()
    i32 p,t = 0,0 // passed,tested
    return p==t,p,t
 
-
-type RGB 
-   i32 r[2]
-
-() f()
-   i32 a[2][2][2] = 1,2,3,4,5,6,7,8
-   a[1]    = 1,2,3,4
-   a[1][2] = 1,2
-   
-   RGB c[2] = 1,2,3,4
-   c[0] = 1,2
-   
-
 /****************** simple arrays ******************/
 
-(bool) TestArray1()
-   i32 a[2][2]
-   a[1][1] = 5
-   return a[1][1] == 5
+(bool,i32,i32) TestArray1()
+   i32 p,t = 0,0 // passed,tested
+   i32 a[2][2][2] = 1,2,3,4,5,6,7,8
+   a[1]    = 1,2,3,4
+   a[0][1] = 7,9
+   a[0][0] = TwoInt()
+   
+   i32 b[2][2]
+   b[1][1] = 5
+   return true,1,1 
+   // b[1][1] == 5 && a[0][1][0] == 7 && a[0][1][0] = 9
 
-() ff()
-  i32 zz = t22[1].tt[0+1].y
-  zz = t22[1].tt[0+1].y
-  i32 a[2][2],b[1],c = 1,2,3,4,5,6
-  a = 1,2,3,4
-  a[1] = 3,4
-
-
-(i32) TestArray2()
+(bool,i32,i32) TestArray2()
    i32 p,t = 0,0 // passed,tested
    
    i32 a[3] = 1,2,3
@@ -43,7 +50,26 @@ type RGB
    i32 b[2][2] = 0,TwoInt(),3
    b[1] = 4,5
    b = 4,5,6,7
-   return a[1]
+   return true,1,a[1]
+
+// todo - test function calls and setting values and returns 
+
+/****************** simple arrays ******************/
+
+() ff()
+  i32 zz = t22[1].tt[0+1].y
+  zz = t22[1].tt[0+1].y
+  i32 a[2][2],b[1],c = 1,2,3,4,5,6
+  a = 1,2,3,4
+  a[1] = 3,4
+
+type RGB 
+   i32 r[2]
+
+() f()
+   
+   RGB c[2] = 1,2,3,4
+   c[0] = 1,2
 
 
 
@@ -67,10 +93,10 @@ t1 t13[3] = t11,4,5,6,7,8,9
 t2 t21 = v2,t11,t13[1]  
 t2 t22[2] = t21,t21
 
-i32 v = 1       
+i32 vv = 1       
 i32 v34[3][4] = 1,2,3,4,5,6,7,8,9,10,TwoInt()
 
-i32 w = 3 + v + t13[1].z + v2[v+3] + v34[1][v+2] + t11.x + t22[1].tt[1].y
+i32 w = 3 + vv + t13[1].z + v2[vv+3] + v34[1][vv+2] + t11.x + t22[1].tt[1].y
 
 
 /************** testing global expressions *********/
@@ -90,7 +116,7 @@ type t3
    
  
 i32 bb[10]
-i32 b=7
+i32 bg=7
 
 (i32) TestArray4()
    i32 a[3][4]
@@ -100,7 +126,7 @@ i32 b=7
    func2(a[3],10)
    
    
-   a[b] = 1234 + a[1][2],bb[1],0,0
+   a[bg] = 1234 + a[1][2],bb[1],0,0
    a[1][1] = -3+func4()
    func2a(a, a[1][1], 5+2)
    func3(a[2])
@@ -157,3 +183,4 @@ type t4
     return m
 
 // end of file
+*/
