@@ -16,8 +16,60 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             this.filename = filename;
         }
 
+        bool inLineContinuation = false;
+        int continuationEolCount = 0; // number of EOLs in the current line continuation
+        // handle line continuations:
+        // if backslash seen, then do not output any following whitespace and 1 EOL
+        // After that first EOL, do not process indent/undent until second EOL seen.
+        void ContinuationTracking(Token current, ref bool skipToken, ref bool skipIndents)
+        {
+            var tokenType = current.TokenType;
+
+            if (tokenType == TokenType.Backslash)
+            {   // reset continuation tracking
+                inLineContinuation = true;
+                continuationEolCount = 0;
+            }
+
+            if (inLineContinuation)
+            {
+                if (continuationEolCount == 0)
+                {
+                    inLineContinuation = true;
+                    skipToken = true;
+                    skipIndents = true;
+                    var validSkipType = tokenType == TokenType.WhiteSpace ||
+                                        tokenType == TokenType.Comment ||
+                                        tokenType == TokenType.EndOfLine ||
+                                        tokenType == TokenType.Backslash;
+                    if (skipToken && !validSkipType)
+                        throw new Exception($"Invalid token in line continuation '{current.TokenValue}'");
+                }
+                else if (continuationEolCount == 1)
+                {
+                    inLineContinuation = true;
+                    skipIndents = true;
+                }
+                else if (continuationEolCount >= 2)
+                {
+                    inLineContinuation = false;
+                    skipIndents = false;
+                }
+
+                // count EOL after the settings to make the first one skipped
+                if (tokenType == TokenType.EndOfLine)
+                    ++continuationEolCount;
+
+
+            }
+
+        }
+
         /// <summary>
-        /// 
+        /// Return a sequence of tokens.
+        /// If filtering, does some pre-processing, such as
+        /// inserting indent and un-indent tokens, removing whitespace, handling
+        /// line continuations, etc.
         /// </summary>
         /// <param name="filterTokens">Filter out uneeded tokens, simplifies stream</param>
         /// <returns></returns>
@@ -25,6 +77,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
         {
             Matchers = InitializeMatchList();
             var current = Next();
+            var skipIndents = false;
             while (current != null && current.TokenType != TokenType.EndOfFile)
             {
 
@@ -40,18 +93,21 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                         skipToken = true;
                     if (current.TokenType == TokenType.Comment)
                         skipToken = true;
-
-
                 }
+
+                ContinuationTracking(current, ref skipToken, ref skipIndents);
 
                 if (!skipToken)
                 {
-                    // process any indent/unindent
-                    var indentTokens = indenter.ProcessToken(current);
-                    foreach (var token in indentTokens)
+                    // process indent/unindent unless turned off
+                    if (!skipIndents)
                     {
-                        token.Filename = filename;
-                        yield return token;
+                        var indentTokens = indenter.ProcessToken(current);
+                        foreach (var token in indentTokens)
+                        {
+                            token.Filename = filename;
+                            yield return token;
+                        }
                     }
 
                     current.Filename = filename;
@@ -73,6 +129,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             }
 
         }
+
 
         readonly Indenter indenter = new Indenter();
 
@@ -160,6 +217,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
 
 
                 // single char
+                new MatchKeyword(TokenType.Backslash, "\\"),
                 new MatchKeyword(TokenType.LeftBracket, "["),
                 new MatchKeyword(TokenType.RightBracket, "]"),
                 new MatchKeyword(TokenType.LeftParen, "("),

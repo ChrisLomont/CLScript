@@ -1,3 +1,13 @@
+/*
+i32 va,b = \
+   1 \
+ ,\
+ 7  
+
+[Entry]
+export (i32) f ()
+   return va
+*/   
 // test array and '.' in func locals and global and params
 // sizes in stack slots
 
@@ -20,8 +30,8 @@ export (i32,i32,i32,i32,i32,i32,i32,i32,i32) TestArray()
    a[2] = 36,40,44
    //a[1] = func()
    
-   return a[0][0],a[0][1],a[0][2] \
-          a[1][0],a[1][1],a[1][2] \
+   return a[0][0],a[0][1],a[0][2], \
+          a[1][0],a[1][1],a[1][2], \
           a[2][0],a[2][1],a[2][2]
    //,cat1,cat2
 

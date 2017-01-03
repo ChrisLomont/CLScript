@@ -10,7 +10,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
     {
         protected override Token IsMatchImpl(CharacterStream characterStream)
         {
-            throw new InvalidSyntax("Unsupported syntax");
+            throw new InvalidSyntax($"Unsupported syntax character : '{characterStream.Current}'");
         }
     }
 }

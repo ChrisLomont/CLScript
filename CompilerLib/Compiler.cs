@@ -18,7 +18,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  *  3. Const implemented - values in ROM
  *  4. Remove warning when type member and global var has same name
  *  5. Output C header for link entries
- *  6. Line continues if last non-whitespace is whitespace isolated '\' char
+ * DONE 6. Line continues if last non-whitespace is whitespace isolated '\' char
  *  7. Short circuited booleans
  * DONE  8. Add RuntimeException for things that happen during runtime execution
  * DONE  9. Expression eval right to left - reverse this!

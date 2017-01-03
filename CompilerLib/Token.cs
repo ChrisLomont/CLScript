@@ -94,6 +94,7 @@ namespace Lomont.ClScript.CompilerLib
         Identifier,
 
         // single chars
+        Backslash,
         LeftBracket,
         RightBracket,
         LeftParen,
