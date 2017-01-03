@@ -148,16 +148,18 @@ namespace Lomont.ClScript.CompilerLib
             items.Last().Last = true; // stack address not needed after last item
         }
 
+        // first item has skip 0, rest have (default) skip 1, some array operations increase these
         void Recurse(List<ItemData> items, InternalType type, int skippedDimensions, SymbolEntry arraySymbol)
         {
             if (type is SimpleType)
             {
                 var simple = (SimpleType)type;
+                var skip = items.Any() ? 1 : 0;
                 items.Add(
                     new ItemData
                     {
                         OperandType = CodeGeneratorVisitor.GetOperandType(simple.SymbolType),
-                        PreAddressIncrement = 1,
+                        PreAddressIncrement = skip,
                         SymbolName = symbol.Name,
                         Last = false
                     });
@@ -174,7 +176,10 @@ namespace Lomont.ClScript.CompilerLib
                 var arr = (ArrayType)type;
                 baseType = arr.BaseType;
 
-                var counter= new ArrayTools.IndexCounter(arraySymbol.ArrayDimensions, skippedDimensions);
+                var counter = new ArrayTools.IndexCounter(arraySymbol.ArrayDimensions, skippedDimensions);
+
+                var fulldim = skippedDimensions == 0;
+                var firstPass = true;
 
                 bool more;
                 do
@@ -186,7 +191,14 @@ namespace Lomont.ClScript.CompilerLib
                     // patch increments if there was digit rollover
                     var rolled = counter.Digit;
                     if (rolled > 0)
-                        items[index].PreAddressIncrement = rolled*Runtime.ArrayHeaderSize;
+                        items[index].PreAddressIncrement = rolled*Runtime.ArrayHeaderSize; // add here in case others add too
+                    if (firstPass)
+                    {
+                        // first is offset wrong....
+                        items[index].PreAddressIncrement += Runtime.ArrayHeaderSize-1; // add here in case others add too
+                    }
+                    firstPass = false;
+
 
                 } while (more);
             }
