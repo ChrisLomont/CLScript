@@ -1,10 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Lomont.ClScript.CompilerLib.AST;
 using Lomont.ClScript.CompilerLib.Visitors;
 
 namespace Lomont.ClScript.CompilerLib
 {
+
+    // todo - merge all this into a simpler unit, use both places, and/or cache results
+    //        from semantic checking for use in the code generation section
 
     static class TypeHelper
     {
@@ -51,7 +55,9 @@ namespace Lomont.ClScript.CompilerLib
 
         // given an expression, find the symbol name, the base type, and the number of copies 
         // takes into account full or partial array declared
-        static void DecomposeExpr(ExpressionAst expr, out SymbolEntry symbol, out InternalType baseType, out int numCopies)
+        // returns # of dimensions of item already specified before this walk
+        // thus, if a is defined as i32 a[1][2][3], and a[0][0] is being walked, returns 2, the number of dimensions already used
+        static internal int DecomposeExpr(ExpressionAst expr, out SymbolEntry symbol, out InternalType baseType, out int numCopies)
         {
             var node = expr;
             var skipDimensions = 0;
@@ -64,8 +70,16 @@ namespace Lomont.ClScript.CompilerLib
 
             baseType = BaseType(expr.Type);
             numCopies = NumItems(symbol, skipDimensions);
+            return skipDimensions;
         }
 
+        /// <summary>
+        /// Get the base type of a type, which is
+        /// the type itself if not an array, else the
+        /// base type of the array
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         static InternalType BaseType(InternalType type)
         {
             if (type is ArrayType)
@@ -75,7 +89,7 @@ namespace Lomont.ClScript.CompilerLib
 
         // given a symbol, return the number of items due to array, taking into account multiple dimensions
         // skip 1 or more array dimensions if they are already specified
-        static int NumItems(SymbolEntry symbol, int skip = 0)
+        static internal int NumItems(SymbolEntry symbol, int skip = 0)
         {
             var num = 1;
             if (symbol?.ArrayDimensions != null)
@@ -120,17 +134,21 @@ namespace Lomont.ClScript.CompilerLib
     class TypeListWalker : IEnumerable<TypeListWalker.ItemData>
     {
         ExpressionAst ast;
+        SymbolEntry symbol;
+        InternalType baseType;
         SymbolTableManager mgr;
         List<ItemData> items = new List<ItemData>();
         public TypeListWalker(SymbolTableManager mgr, ExpressionAst ast)
         {
             this.mgr = mgr;
             this.ast = ast;
-            Recurse(items, ast.Type);
-            items.Last().Skip = 0; // end the loop
+            int numCopies;
+            var skippedDimensions = TypeHelper.DecomposeExpr(ast, out symbol, out baseType, out numCopies);
+            Recurse(items, ast.Type, skippedDimensions, symbol);
+            items.Last().Last = true; // stack address not needed after last item
         }
 
-        void Recurse(List<ItemData> items, InternalType type)
+        void Recurse(List<ItemData> items, InternalType type, int skippedDimensions, SymbolEntry arraySymbol)
         {
             if (type is SimpleType)
             {
@@ -139,8 +157,9 @@ namespace Lomont.ClScript.CompilerLib
                     new ItemData
                     {
                         OperandType = CodeGeneratorVisitor.GetOperandType(simple.SymbolType),
-                        Skip = 1,
-                        SymbolName = ast.Symbol?.Name
+                        PreAddressIncrement = 1,
+                        SymbolName = symbol.Name,
+                        Last = false
                     });
             }
             else if (type is UserType)
@@ -148,9 +167,31 @@ namespace Lomont.ClScript.CompilerLib
                 var user = (UserType)type;
                 var stbl = mgr.GetTableWithScope(user.Name);
                 foreach (var entry in stbl.Entries)
-                    Recurse(items, entry.Type);
+                    Recurse(items, entry.Type,0, entry);
             }
-            else throw new InternalFailure($"Type not convertible yet {ast}");
+            else if (type is ArrayType)
+            {
+                var arr = (ArrayType)type;
+                baseType = arr.BaseType;
+
+                var counter= new ArrayTools.IndexCounter(arraySymbol.ArrayDimensions, skippedDimensions);
+
+                bool more;
+                do
+                {
+                    var index = items.Count; // save the index
+                    Recurse(items, baseType, 0, null);
+                    more = counter.Next();
+
+                    // patch increments if there was digit rollover
+                    var rolled = counter.Digit;
+                    if (rolled > 0)
+                        items[index].PreAddressIncrement = rolled*Runtime.ArrayHeaderSize;
+
+                } while (more);
+            }
+            else
+                throw new InternalFailure($"Type not convertible yet {ast}");
 
         }
 
@@ -167,9 +208,12 @@ namespace Lomont.ClScript.CompilerLib
 
         internal class ItemData
         {
+            // what type of operand is this?
             public OperandType OperandType = OperandType.None;
-            public int Skip = 0;
-            public bool More => Skip > 0;
+            // address skip to do before write
+            public int PreAddressIncrement = 0;
+            // is this the last item?
+            public bool Last = false;
             public string SymbolName;
         }
     }
