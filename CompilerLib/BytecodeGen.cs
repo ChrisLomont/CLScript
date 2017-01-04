@@ -303,6 +303,12 @@ namespace Lomont.ClScript.CompilerLib
                     AddFixup((string)inst.Operands[0]);
                     break;
 
+                // unique?
+                case Opcode.Update:
+                    WriteCodeByte((byte)((int)inst.Operands[0])); // opcode
+                    WriteCodeByte((byte)((int)inst.Operands[1])); // pre-increment
+                    break;
+
                 // done above - special case
                 case Opcode.Label:  
                 case Opcode.Symbol: 

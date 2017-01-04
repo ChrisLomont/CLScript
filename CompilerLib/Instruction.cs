@@ -44,6 +44,13 @@ namespace Lomont.ClScript.CompilerLib
                             // push address, then value, then writes value into address
 
         Write,              // [BIF] push value, then address. Write stores value into addr. Note addr creates absolute addresses on stack
+
+        Update,             // [BIF] push value, then address. This is used to update a value with a supported update opcode
+                            //       Valid updates are all supported, i.e., *=, -=, etc. '=' is this opcode again
+                            //       Following instruction is a byte opcode giving the operation, then a pre-increment signed byte B in -128 to 127
+                            //       If B >= 0, add to address, leave resulting address on stack.
+                            //       If B < 0, add (-B-1) to address, do not leave resulting address on stack
+
         Addr,               // [GLC] push physical address of variable. Global/const are absolute, local computed relative to base pointer
 
         // array

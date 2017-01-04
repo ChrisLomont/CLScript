@@ -452,6 +452,26 @@ namespace Lomont.ClScript.CompilerLib
                     else
                         throw new RuntimeException($"Read optype {opType} unsupported");
                     break;
+                case Opcode.Update:
+                    // todo - clean up, perhaps reorganize to use fewer locals
+                    p1 = PopStack(); // address
+                    p2 = PopStack(); // value to apply
+                    p3 = ReadCodeItem(OperandType.Byte); // operation to perform
+                    // NOTE: following typecase causes sign to extend
+                    var p4 = (int)((sbyte)ReadCodeItem(OperandType.Byte)); // pre-increment
+                    if (p4 > 0)
+                        p1 += p4;
+                    if (p4 < 0)
+                        p1 += -p4-1;
+                    if (opType == OperandType.Int32)
+                        UpdateInt(p1,p2,(Opcode)p3);
+                    else if (opType == OperandType.Float32)
+                        UpdateFloat(p1, (Opcode)p3);
+                    else
+                        throw new RuntimeException($"Write optype {opType} unsupported");
+                    if (p4 >= 0)
+                        PushStack(p1);   // put address back
+                    break;
                 case Opcode.Write:
                     p1 = PopStack(); // address
                     p2 = PopStack(); // value
@@ -792,6 +812,61 @@ namespace Lomont.ClScript.CompilerLib
             }
             Trace(System.Environment.NewLine);
             return retval && !error && ProgramCounter != InitializerStopAddress;
+        }
+
+
+        void UpdateFloat(int address, Opcode operation)
+        {
+            // todo
+            throw new NotImplementedException("UpdateFloat not implemented");
+        }
+
+        void UpdateInt(int address, int value, Opcode operation)
+        {
+            switch (operation)
+            {
+                case Opcode.Update: // Equals
+                    break; // do nothing
+                case Opcode.Add:
+                    value = ReadRam(address, "Update") + value;
+                    break;
+                case Opcode.Sub:
+                    value = ReadRam(address, "Update") - value;
+                    break;
+                case Opcode.Mul:
+                    value = ReadRam(address, "Update") * value;
+                    break;
+                case Opcode.Div:
+                    value = ReadRam(address, "Update") / value;
+                    break;
+                case Opcode.Xor:
+                    value = ReadRam(address, "Update") ^ value;
+                    break;
+                case Opcode.And:
+                    value = ReadRam(address, "Update") & value;
+                    break;
+                case Opcode.Or:
+                    value = ReadRam(address, "Update") | value;
+                    break;
+                case Opcode.Mod:
+                    value = ReadRam(address, "Update") % value;
+                    break;
+                case Opcode.RightShift:
+                    value = ReadRam(address, "Update") >> value;
+                    break;
+                case Opcode.LeftShift:
+                    value = ReadRam(address, "Update") << value;
+                    break;
+                case Opcode.RightRotate:
+                    value = RotateRight(ReadRam(address, "Update"),value);
+                    break;
+                case Opcode.LeftRotate:
+                    value = RotateRight(ReadRam(address, "Update"), -value);
+                    break;
+                default:
+                    throw new RuntimeException($"Opcode {operation} not yet handled in UpdateInt");
+            }
+            WriteRam(address, value, "Update");
         }
 
         // execute a return statement

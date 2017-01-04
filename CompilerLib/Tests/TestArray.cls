@@ -1,15 +1,5 @@
-() func( \
-)
-    return 
-
-
 // test array and '.' in func locals and global and params
 // sizes in stack slots
-
-//(bool) Check3x3(i32 a[][], i32 p1, i32 p2, i32 p3, i32 p4, i32 p5, i32 p6, i32 p7, i32 p8, i32 p9)    
-
-
-
 
 (i32,i32) Update(bool b, i32 p1, i32 t1, i32 p, i32 t)
    return p+p1,t+t1
@@ -37,8 +27,7 @@ export (bool,i32,i32) TestArray()
    i32 p,t = 0,0 // passed,tested
    
    i32 a[2][3][2] = 1,2,3,4,5,6,7,8,9,10,11,12
-   
-   
+   // todo - all these fail - perhaps init overwriting array info  
    
    //if Check2x3x2(a,1,2,3,4,5,6,7,8,9,10,11,12)
    //   p++
@@ -402,4 +391,3 @@ type t4
 
 // end of file
 */
-

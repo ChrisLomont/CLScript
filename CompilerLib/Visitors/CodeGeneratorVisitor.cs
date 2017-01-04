@@ -336,9 +336,45 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             Recurse(node);
         }
 
+        // get an opcode matching the assign token
+        Opcode GetOpcodeForAssignType( TokenType assignType)
+        {
+            switch (assignType)
+            {
+                case TokenType.Equals:
+                    return Opcode.Update;
+                case TokenType.AddEq:
+                    return Opcode.Add;
+                case TokenType.SubEq:
+                    return Opcode.Sub;
+                case TokenType.MulEq:
+                    return Opcode.Mul;
+                case TokenType.DivEq:
+                    return Opcode.Div;
+                case TokenType.XorEq:
+                    return Opcode.Xor;
+                case TokenType.AndEq:
+                    return Opcode.And;
+                case TokenType.OrEq:
+                    return Opcode.Or;
+                case TokenType.ModEq:
+                    return Opcode.Mod;
+                case TokenType.RightShiftEq:
+                    return Opcode.RightShift;
+                case TokenType.LeftShiftEq:
+                    return Opcode.LeftShift;
+                case TokenType.RightRotateEq:
+                    return Opcode.RightRotate;
+                case TokenType.LeftRotateEq:
+                    return Opcode.LeftRotate;
+                default:
+                    throw new InternalFailure($"Unknown operation {assignType} in AssignHelper");
+            }
+        }
 
         void AssignHelper(int stackSlots, List<Ast> items, List<Ast> exprs, TokenType assignType)
         {
+            var assignOpcode = GetOpcodeForAssignType(assignType);
             if (stackSlots < 1)
                 throw new InternalFailure($"Assign requires positive stack slots, got {stackSlots}");
             // todo.... some items put multiple on stack....
@@ -351,7 +387,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 EmitI(Opcode.Reverse,stackSlots);
 
             // store in variables in order
-            var simpleItemsRead = 0;
             foreach (var item in items)
             {
                 EmitExpression(item as ExpressionAst, true); // address of expression
@@ -360,6 +395,13 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 {
                     // stack has (push order) new value, then addr on top
 
+#if true
+                    var operandType = itemData.OperandType;
+                    var preIncrement = !itemData.Last ? itemData.PreAddressIncrement : -(itemData.PreAddressIncrement+1);
+                    if (preIncrement < -128 || 127 < preIncrement )
+                        throw new InternalFailure($"Preincrement will not fit in a byte {preIncrement}");
+                    Emit2(Opcode.Update,operandType,"", assignOpcode, preIncrement);
+#else
                     if (itemData.PreAddressIncrement > 0)
                     {
                         Emit2(Opcode.Push, OperandType.None,"pre add",itemData.PreAddressIncrement);
@@ -443,7 +485,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                         // stack now (push order) addr, newValue, addr
                     }
                     WriteValue(operandType);
-                    simpleItemsRead++;
+#endif
                 }
             }
         }
@@ -856,7 +898,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-        #region Item Address
+#region Item Address
 
 
         // Structure:
