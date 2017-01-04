@@ -42,6 +42,11 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 27. assignment of "streams" to "streams" weakens typing - perhaps only allow array setting, setting complex types from same type of piece by piece...
  * 28. Redo sizing so can put bytes on stack, elsewhere (stack node size then 4 bytes, not 1 "stack item")
  * DONE 29. If first item on a line is comment, do not change Indent - indented comments break parser
+ * 30. Make assignment generated code much more efficient, especially for single items
+ * 31. Add "test" button that runs all regression tests
+ * 32. Make an 'unpack' instruction that unpacks a stream of constants from code into an array for those cases
+ * 
+ * 
  * To get usable in production:  
  * 
  */
@@ -54,6 +59,11 @@ namespace Lomont.ClScript.CompilerLib
         /// The final binary image
         /// </summary>
         public byte[] CompiledAssembly => bytecode?.CompiledAssembly;
+
+        /// <summary>
+        /// Tracks messages and info, warning, and errors
+        /// </summary>
+        public Environment env { get; private set; }
 
         /// <summary>
         /// The generated syntax tree
@@ -148,7 +158,6 @@ namespace Lomont.ClScript.CompilerLib
         readonly List<Instruction> generatedInstructions = new List<Instruction>();
         SymbolTableManager symbolTable;
         BytecodeGen bytecode;
-        readonly Environment env;
 
 
         // Generate the syntax tree

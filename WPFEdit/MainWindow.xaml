@@ -30,7 +30,8 @@
             <Button Command="{Binding SaveCommand}">Save</Button>
             <Button Command="{Binding CompileCommand}">Compile</Button>
             <Button Command="{Binding RunCommand}">Run</Button>
-            <CheckBox Margin="9,0,0,0" IsChecked="{Binding ShowCode}">Show Code</CheckBox>
+                <Button Command="{Binding RunTestsCommand}">Run tests</Button>
+                <CheckBox Margin="9,0,0,0" IsChecked="{Binding ShowCode}">Show Code</CheckBox>
             <CheckBox Margin="9,0,0,0" IsChecked="{Binding ShowAst}">Show Ast</CheckBox>
             <CheckBox Margin="9,0,0,0" IsChecked="{Binding ShowSymbols}">Show Symbols</CheckBox>
             <CheckBox Margin="9,0,0,0" IsChecked="{Binding ShowCodegen}">Show Codegen</CheckBox>

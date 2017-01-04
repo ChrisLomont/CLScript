@@ -28,6 +28,9 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
     /// </summary>
     public class MainViewModel : ViewModelBase
     {
+        // editor article at http://www.codeproject.com/Articles/42490/Using-AvalonEdit-WPF-Text-Editor
+
+
         /// <summary>
         /// Initializes a new instance of the MainViewModel class.
         /// </summary>
@@ -41,11 +44,11 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             ////{
             ////    // Code runs "for real"
             ////}
-            /// 
-            CompileCommand = new RelayCommand(Compile);
+            CompileCommand = new RelayCommand(()=>CompileAndRun(false));
+            RunCommand = new RelayCommand(() => CompileAndRun(true));
             SaveCommand = new RelayCommand(Save);
             LoadCommand = new RelayCommand(LoadFromDialog);
-            RunCommand = new RelayCommand(Run);
+            RunTestsCommand = new RelayCommand(RunTests);
             NewCommand = new RelayCommand(New);
         }
 
@@ -54,6 +57,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
         public RelayCommand NewCommand { get; private set; }
         public RelayCommand LoadCommand { get; private set; }
         public RelayCommand RunCommand { get; private set; }
+        public RelayCommand RunTestsCommand { get; private set; }
         public TextEditor CodeEditor { get; set; }
         public TextEditor TreeText { get; set; }
         public TextEditor CodegenText { get; set; }
@@ -107,46 +111,74 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             Messages.Add($"File {Filename} loaded");
         }
 
-        Compiler compiler;
-        Environment env;
+        Compiler.GetFileText PreCompile(string filename)
+        {
+            Save();
+            TreeText.Text = "";
+            CodegenText.Text = "";
+            SymbolText.Text = "";
+            TraceText.Text = "";
+            Messages.Clear();
+
+            var path = Path.GetDirectoryName(filename);
+            Compiler.GetFileText fileReader = f =>
+            {
+                var fn = Path.Combine(path, f);
+                if (File.Exists(fn))
+                    return File.ReadAllText(fn);
+                return null;
+            };
+            return fileReader;
+        }
+
+        void PostCompile(Compiler compiler, Runtime runtime = null)
+        {
+            // output messages
+            var output = compiler.env.Output;
+            var msgs = output.ToString().Split('\n');
+            foreach (var msg in msgs)
+                Messages.Add(msg.Replace("\r", "").Replace("\n", ""));
+
+            // show output
+            TreeText.Text = compiler.SyntaxTreeToText();
+            CodegenText.Text = compiler.CodegenToText();
+            SymbolText.Text = compiler.SymbolTableToText();
+            Tokens.Clear();
+            foreach (var t in compiler.GetTokens())
+                Tokens.Add(t);
+
+            // output trace if exists
+            if (runtime != null && runtime.env != null)
+                TraceText.Text = runtime.env.Output.ToString();
+        }
 
         // compile, check env after to check success
-        void Compile()
+        void CompileAndRun(bool runOnceCompiled)
         {
             try
             {
-                Save();
+                int[] parameters = null;
+                int[] returnValues = null;
 
-                var output = new StringWriter();
-                env = new Environment(output);
-                compiler = new Compiler(env);
-                
-
-                TreeText.Text = "";
-                CodegenText.Text = "";
-                SymbolText.Text = "";
-                var path = Path.GetDirectoryName(filename);
-                compiler.Compile(filename, f =>
+                if (runOnceCompiled)
                 {
-                    var fn = Path.Combine(path, f);
-                    if (File.Exists(fn))
-                        return File.ReadAllText(fn);
-                    return null;
-                });
+                    // get parameters
+                    var words = RunParameters.Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+                    parameters = new int[words.Length];
+                    for (var i = 0; i < words.Length; ++i)
+                    {
+                        int val;
+                        if (Int32.TryParse(words[i], out val))
+                            parameters[i] = val;
+                        else
+                            parameters[i] = 0;
+                    }
+                    returnValues = new int[RunReturnValues];
+                }
 
-                // output messages
-                var msgs = output.ToString().Split('\n');
-                Messages.Clear();
-                foreach (var msg in msgs)
-                    Messages.Add(msg.Replace("\r", "").Replace("\n", ""));
-
-                // some output
-                TreeText.Text = compiler.SyntaxTreeToText();
-                CodegenText.Text = compiler.CodegenToText();
-                SymbolText.Text = compiler.SymbolTableToText();
-                Tokens.Clear();
-                foreach (var t in compiler.GetTokens())
-                    Tokens.Add(t);
+                var fileReader = PreCompile(filename);
+                var pair = CompileAndRun(new StringWriter(), filename, fileReader, parameters, returnValues, RunEntryAttribute);
+                PostCompile(pair.Item1, pair.Item2);
             }
             catch (Exception ex)
             {
@@ -155,34 +187,88 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
         }
 
-        void Run()
+        // compile and run all files in directory of current filename
+        // with form "Test*.cls"
+        // Each requires entry point with attribute [Entry], no parameters, return type
+        // (bool,i32,i32)
+        void RunTests()
         {
-            TraceText.Text = "";
-            Compile();
+            var path = Path.GetDirectoryName(filename);
+            Compiler.GetFileText fileReader = f =>
+            {
+                var fn = Path.Combine(path, f);
+                if (File.Exists(fn))
+                    return File.ReadAllText(fn);
+                return null;
+            };
 
-            if (env.ErrorCount == 0)
+            var parameters = new int[0];
+            var returnValues = new int[3];
+
+            Messages.Clear();
+            Messages.Add("Running tests....");
+            foreach (var file in Directory.GetFiles(path, "Test*.cls"))
+            {
+                var pair = CompileAndRun(new StringWriter(), file, fileReader, parameters, returnValues, "Entry");
+                var compiler = pair.Item1;
+                var resultText = "";
+                var runtime = pair.Item2;
+                if (compiler.env.ErrorCount > 0)
+                    resultText = $"Compiler errors: {compiler.env.ErrorCount}";
+                else if (runtime?.env?.ErrorCount>0)
+                    resultText = $"Runtime errors: {runtime.env.ErrorCount}";
+                else
+                {
+                    var success = returnValues[0] == 1 ? "SUCCESS" : "FAILED";
+                    resultText = $"{success}: {returnValues[0]} {returnValues[1]} {returnValues[2]}";
+                }
+
+                Messages.Add($"Test: {Path.GetFileNameWithoutExtension(file),-20} => {resultText}");}
+        }
+
+
+
+        // after a compile, useful places to see output
+        // output messages: compiler.env.Output;
+        // Syntax tree: compiler.SyntaxTreeToText()
+        // Code generated: compiler.CodegenToText()
+        // Symbols: compiler.SymbolTableToText()
+        // Tokens: compiler.GetTokens()
+        // final byte code: compiler.CompiledAssembly
+        // 
+        // after a run, useful items are the Runtime trace in its environment
+        static Tuple<Compiler,Runtime> CompileAndRun(
+            TextWriter output, 
+            string filename, 
+            Compiler.GetFileText fileReader,
+            int [] parameters, 
+            int [] returnValues,
+            string runEntryAttribute
+            )
+        {
+            // compile
+            var env = new Environment(output);
+            var compiler = new Compiler(env);
+            compiler.Compile(filename, fileReader);
+
+            Runtime runtime = null;
+
+            var runResult = 
+                parameters != null && 
+                returnValues != null && 
+                !String.IsNullOrEmpty(runEntryAttribute) &&
+                compiler?.env?.ErrorCount == 0;
+
+            if (runResult)
             {
                 env.Info("Testing bytecode in runtime environment....");
 
                 var traceEnv = new Environment(new StringWriter());
-                var r = new Runtime(traceEnv);
+                runtime = new Runtime(traceEnv);
                 var importHandler = new Imports();
-                r.HandleImport = importHandler.HandleImport;
+                runtime.HandleImport = importHandler.HandleImport;
 
-                // get parameters
-                var words = RunParameters.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);
-                var parameters = new int[words.Length];
-                for (var i = 0; i < words.Length; ++i)
-                {
-                    int val;
-                    if (Int32.TryParse(words[i], out val))
-                        parameters[i] = val;
-                    else
-                        parameters[i] = 0;
-                }
-
-                var returnValues = new int[RunReturnValues];
-                var success = r.Run(compiler.CompiledAssembly, RunEntryAttribute, parameters, returnValues);
+                var success = runtime.Run(compiler.CompiledAssembly, runEntryAttribute, parameters, returnValues);
 
                 if (success)
                 {
@@ -196,22 +282,53 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 {
                     env.Info("  .... runtime failed. See Trace.");
                 }
-
-                // output trace
-                TraceText.Text = traceEnv.Output.ToString();
             }
-
-            // output messages
-            Messages.Clear();
-            var msgs = env.Output.ToString().Split('\n');
-            Messages.Clear();
-            foreach (var msg in msgs)
-                Messages.Add(msg.Replace("\r", "").Replace("\n", ""));
-
+            return new Tuple<Compiler, Runtime>(compiler,runtime);
         }
 
-        // editor article at http://www.codeproject.com/Articles/42490/Using-AvalonEdit-WPF-Text-Editor
+        public TextEditor SymbolText { get; set; }
+        public TextEditor TraceText { get; set; }
 
+
+        public void Loaded()
+        {
+            var filename = Properties.Settings.Default.LastFilename;
+            if (!String.IsNullOrEmpty(filename) && File.Exists(filename))
+                Load(filename);
+
+            RunEntryAttribute = Properties.Settings.Default.RunEntryAttribute;
+            RunReturnValues = Properties.Settings.Default.RunNumReturnValues;
+            RunParameters = Properties.Settings.Default.RunParameters;
+
+            var v = Properties.Settings.Default.OpenViews;
+            ShowCode    = (v &  1) != 0;
+            ShowAst     = (v &  2) != 0;
+            ShowSymbols = (v &  4) != 0;
+            ShowCodegen = (v &  8) != 0;
+            ShowLexer   = (v & 16) != 0;
+            ShowTrace   = (v & 32) != 0;
+        }
+
+        public void Closing()
+        {
+            Save();
+            Properties.Settings.Default.LastFilename = Filename;
+            Properties.Settings.Default.RunEntryAttribute = RunEntryAttribute;
+            Properties.Settings.Default.RunNumReturnValues = RunReturnValues;
+            Properties.Settings.Default.RunParameters = RunParameters;
+            var v =
+                (!ShowCode    ? 0 :  1) +
+                (!ShowAst     ? 0 :  2) +
+                (!ShowSymbols ? 0 :  4) +
+                (!ShowCodegen ? 0 :  8) +
+                (!ShowLexer   ? 0 : 16) + 
+                (!ShowTrace   ? 0 : 32);
+            Properties.Settings.Default.OpenViews = v;
+            Properties.Settings.Default.Save();
+        }
+
+
+        #region Properties
         string filename = "";
         public string Filename
         {
@@ -355,49 +472,9 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
         }
 
         #endregion
+        #endregion
 
 
-        public TextEditor SymbolText { get; set; }
-        public TextEditor TraceText { get; set; }
-
-
-        public void Loaded()
-        {
-            var filename = Properties.Settings.Default.LastFilename;
-            if (!String.IsNullOrEmpty(filename) && File.Exists(filename))
-                Load(filename);
-
-            RunEntryAttribute = Properties.Settings.Default.RunEntryAttribute;
-            RunReturnValues = Properties.Settings.Default.RunNumReturnValues;
-            RunParameters = Properties.Settings.Default.RunParameters;
-
-
-            var v = Properties.Settings.Default.OpenViews;
-            ShowCode    = (v &  1) != 0;
-            ShowAst     = (v &  2) != 0;
-            ShowSymbols = (v &  4) != 0;
-            ShowCodegen = (v &  8) != 0;
-            ShowLexer   = (v & 16) != 0;
-            ShowTrace   = (v & 32) != 0;
-        }
-
-        public void Closing()
-        {
-            Save();
-            Properties.Settings.Default.LastFilename = Filename;
-            Properties.Settings.Default.RunEntryAttribute = RunEntryAttribute;
-            Properties.Settings.Default.RunNumReturnValues = RunReturnValues;
-            Properties.Settings.Default.RunParameters = RunParameters;
-            var v =
-                (!ShowCode    ? 0 :  1) +
-                (!ShowAst     ? 0 :  2) +
-                (!ShowSymbols ? 0 :  4) +
-                (!ShowCodegen ? 0 :  8) +
-                (!ShowLexer   ? 0 : 16) + 
-                (!ShowTrace   ? 0 : 32);
-            Properties.Settings.Default.OpenViews = v;
-            Properties.Settings.Default.Save();
-        }
 
     }
 }

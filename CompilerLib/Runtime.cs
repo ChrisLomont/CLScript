@@ -172,7 +172,7 @@ namespace Lomont.ClScript.CompilerLib
         // all locals - minimize memory
         #region Locals
 
-        Environment env;
+        public Environment env { get; private set; }
 
         int StackPointer;
         int BasePointer;
