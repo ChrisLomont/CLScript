@@ -380,8 +380,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // todo.... some items put multiple on stack....
 
             // push expr on stack in order. This expands complex types
-            foreach (var expr in exprs)
-                EmitExpression(expr as ExpressionAst);
+            foreach (var ast in exprs)
+                ExpandItem((ExpressionAst) ast);
 
             if (stackSlots > 1)
                 EmitI(Opcode.Reverse,stackSlots);
@@ -795,6 +795,26 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 EmitReturn(node); // last was not a return. Needs one
         }
 
+        // emit the value of a simple expression
+        // if a function call, leave it as is
+        // if any other type, expand the item onto the stack
+        void ExpandItem(ExpressionAst expr)
+        {
+            EmitExpression(expr); // address or item on stack
+            if (!(expr.Type is SimpleType) && !(expr is FunctionCallAst))
+            {
+                // expand item
+                foreach (var itemData in new TypeListWalker(mgr, expr, env))
+                {
+                    // todo - simplify this with an opcode to do it
+                    Emit2(Opcode.Push, OperandType.None, "expand add", itemData.PreAddressIncrement);
+                    EmitT(Opcode.Add, OperandType.Int32);
+                    EmitO(Opcode.Dup);
+                }
+                EmitO(Opcode.Pop); // one too many
+            }
+        }
+
         // emit a return. 
         // If node is null, was added at function end, needs no parameters
         void EmitReturn(Ast node)
@@ -803,8 +823,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 // parameters on stack
                 var exprs = node.Children[0].Children;
-                foreach (var expr in exprs)
-                    EmitExpression(expr as ExpressionAst);
+                // push expr on stack in order. This expands complex types
+                foreach (var ast in exprs)
+                    ExpandItem((ExpressionAst)ast);
             }
             // find function declaration
             Ast decl = node;
