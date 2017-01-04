@@ -356,25 +356,15 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 EmitExpression(item as ExpressionAst, true); // address of expression
 
-                foreach (var itemData in new TypeListWalker(this.mgr, item as ExpressionAst))
+                foreach (var itemData in new TypeListWalker(this.mgr, item as ExpressionAst, env))
                 {
-                    var operandType = itemData.OperandType;
-
                     // stack has (push order) new value, then addr on top
-                    var depth = 0; // extra added for tuple
-                    if (!itemData.Last)
-                    { 
-                        EmitO(Opcode.Dup); // save address - more of them needed
-                        EmitI(Opcode.Push, itemData.PreAddressIncrement);
-                        EmitT(Opcode.Add,OperandType.Int32);
-                        // on stack: value,addr,nextaddr
-                        EmitO(Opcode.Rot3); // todo - expensive per item - add instruction later to fix
-                        // on stack: addr,nextaddr,value
-                        EmitO(Opcode.Rot3);
-                        // on stack: nextaddr,value,addr
-                    }
 
-                    // todo - reversed - no pick
+                    if (itemData.PreAddressIncrement > 0)
+                    {
+                        Emit2(Opcode.Push, OperandType.None,"pre add",itemData.PreAddressIncrement);
+                        EmitT(Opcode.Add, OperandType.Int32);
+                    }
 
                     // for +=, etc. read var, perform, 
                     // todo - make much shorter, table driven
@@ -392,6 +382,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     // Equals : addr, newValue
                     // Else   : addr, oldValue, newValue
 
+                    var operandType = itemData.OperandType;
                     switch (assignType)
                     {
                         case TokenType.Equals:
@@ -436,10 +427,21 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                             throw new InternalFailure($"Unknown operation {assignType} in AssignHelper");
                     }
 
+                    // correct stack order for non-equals
                     if (assignType != TokenType.Equals)
                         EmitO(Opcode.Swap);
 
                     // stack now (push order) newValue, addr
+                    if (!itemData.Last)
+                    { // todo - new inst to make all this assignment code simpler
+                        // stack now (push order) newValue, addr
+                        EmitO(Opcode.Dup);
+                        // stack now (push order) newValue, addr, addr
+                        EmitO(Opcode.Rot3);
+                        // stack now (push order) addr, addr, newValue
+                        EmitO(Opcode.Swap);
+                        // stack now (push order) addr, newValue, addr
+                    }
                     WriteValue(operandType);
                     simpleItemsRead++;
                 }
@@ -448,7 +450,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
 #region Read/Write variable values and addresses
 
-        // push value, then address, then writes value into address
+        // push value, then address. This writes value into address
         void WriteValue(OperandType operandType)
         {
             EmitT(Opcode.Write, operandType);

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Lomont.ClScript.CompilerLib.AST;
 using Lomont.ClScript.CompilerLib.Visitors;
 
@@ -137,14 +138,23 @@ namespace Lomont.ClScript.CompilerLib
         SymbolEntry symbol;
         InternalType baseType;
         SymbolTableManager mgr;
+        Environment env;
         List<ItemData> items = new List<ItemData>();
-        public TypeListWalker(SymbolTableManager mgr, ExpressionAst ast)
+        public TypeListWalker(SymbolTableManager mgr, ExpressionAst ast, Environment environment)
         {
             this.mgr = mgr;
             this.ast = ast;
+            this.env = environment;
             int numCopies;
             var skippedDimensions = TypeHelper.DecomposeExpr(ast, out symbol, out baseType, out numCopies);
             Recurse(items, ast.Type, skippedDimensions, symbol);
+            
+            // dump skips
+            // var sb = new StringBuilder();
+            // for (var i = 0; i < items.Count; ++i)
+            //     sb.Append($"{items[i].PreAddressIncrement} ");
+            // env.Info($"Walk indices {sb}");
+
             items.Last().Last = true; // stack address not needed after last item
         }
 
@@ -186,16 +196,16 @@ namespace Lomont.ClScript.CompilerLib
                 {
                     var index = items.Count; // save the index
                     Recurse(items, baseType, 0, null);
-                    more = counter.Next();
 
                     // patch increments if there was digit rollover
                     var rolled = counter.Digit;
+                    more = counter.Next();
                     if (rolled > 0)
-                        items[index].PreAddressIncrement = rolled*Runtime.ArrayHeaderSize; // add here in case others add too
-                    if (firstPass)
+                        items[index].PreAddressIncrement += rolled*Runtime.ArrayHeaderSize; // add here in case others add too
+                    if (firstPass && fulldim)
                     {
-                        // first is offset wrong....
-                        items[index].PreAddressIncrement += Runtime.ArrayHeaderSize-1; // add here in case others add too
+                        // first is offset wrong in multidim case
+                        items[index].PreAddressIncrement = 2*(arraySymbol.ArrayDimensions.Count - 1);
                     }
                     firstPass = false;
 
