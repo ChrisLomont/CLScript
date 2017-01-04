@@ -25,6 +25,13 @@
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" >
         <StackPanel Orientation="Horizontal">
+            <StackPanel.Resources>
+                        <Style TargetType="{x:Type Button}">
+                            <!--Setters-->
+                            <Setter Value="60" Property="Width"/>
+                        </Style>
+
+                </StackPanel.Resources>
             <Button Command="{Binding NewCommand}">New</Button>
             <Button Command="{Binding LoadCommand}">Load</Button>
             <Button Command="{Binding SaveCommand}">Save</Button>
