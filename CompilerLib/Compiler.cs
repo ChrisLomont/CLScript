@@ -223,7 +223,8 @@ namespace Lomont.ClScript.CompilerLib
 
         // reorder tree:
         // remove import statements - they are fulfilled by now
-        // first is imported items, then enums, then types, then globals, then functions
+        // first is enums, then types, 
+        // then imported items (they might use types), then globals, then functions
         // must track attributes
         void ReorderSyntaxTree(Ast tree)
         {
@@ -231,9 +232,9 @@ namespace Lomont.ClScript.CompilerLib
 
             tree.Children.RemoveAll(n => n is ImportAst);
 
-            var imports   = Extract(tree.Children, n=>n is FunctionDeclarationAst && (n as FunctionDeclarationAst).ImportToken != null);
             var enums     = Extract(tree.Children, n => n is EnumAst);
             var types     = Extract(tree.Children,n => n is TypeDeclarationAst);
+            var imports = Extract(tree.Children, n => n is FunctionDeclarationAst && (n as FunctionDeclarationAst).ImportToken != null);
             var globals   = Extract(tree.Children,n => n is VariableDefinitionAst);
             var functions = Extract(tree.Children,n => n is FunctionDeclarationAst && (n as FunctionDeclarationAst).ImportToken == null);
 
@@ -242,9 +243,9 @@ namespace Lomont.ClScript.CompilerLib
             else
             {
                 tree.Children.Clear();
-                tree.Children.AddRange(imports);
                 tree.Children.AddRange(enums);
                 tree.Children.AddRange(types);
+                tree.Children.AddRange(imports);
                 tree.Children.AddRange(globals);
                 tree.Children.AddRange(functions);
             }

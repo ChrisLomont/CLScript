@@ -1,7 +1,7 @@
 // example visualization                                                                         ```
 // modified to test Gold Parser, to get EOL, use ```, INDENT is ``_, DEDENT is `__               ```
                                                                                                  
-import "HypnoLight.cls"                                                                          ```
+import "HypnoLight.clsc"                                                                          ```
                                                                                                  
 // const works like a #define in C                                                               ```
 const i32 NUM_TWINKLES = 20                                                                      ```

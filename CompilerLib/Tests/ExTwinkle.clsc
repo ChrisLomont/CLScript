@@ -1,7 +1,7 @@
 // example visualization
 
-import "HypnoLight.cls"
-///// things in Hypnolight.cls - needs truly finished
+import "HypnoLight.clsc"
+///// things in Hypnolight.clsc - needs truly finished
 type Particle
    r32 x,y,z 
 

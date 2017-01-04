@@ -1,7 +1,7 @@
 // example code converted from HypnoLight visualizations
 
 // OLD HEADERS MOVED TO BOTTOM
-import "HypnoLight.cls" // CLS extensions
+import "HypnoLight.clsc" // CLSC extensions
 
 
 type MorseCodeState

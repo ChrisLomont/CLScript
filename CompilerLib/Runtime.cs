@@ -21,7 +21,7 @@ namespace Lomont.ClScript.CompilerLib
          *    
          * Structure (chunk name and data, size field implied):  
          *    Chunk "RIFF" (required by the format)
-         *        data is 4 byte: "CLS " "CLS" ASCII
+         *        data is 4 byte: "CLSC" ASCII
          *        then 2 byte version (major, then minor)
          *        
          *        Then chunks. "code" and "link" required. Others optional
@@ -87,7 +87,7 @@ namespace Lomont.ClScript.CompilerLib
                 string name;
                 int length;
                 if (!ReadChunkHeader(ref index, out name, out length) || name != "RIFF" || length != image.Length-8 ||
-                    !ReadImageString(ref index, out name, 4) || name != "CLS " || ReadImageInt(ref index, 2) != GenVersion || error)
+                    !ReadImageString(ref index, out name, 4) || name != "CLSC" || ReadImageInt(ref index, 2) != GenVersion || error)
                 {
                     env.Error($"Invalid bytecode header");
                     return false;
@@ -455,7 +455,6 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Update:
                     // todo - clean up, perhaps reorganize to use fewer locals
                     p1 = PopStack(); // address
-                    p2 = PopStack(); // value to apply
                     p3 = ReadCodeItem(OperandType.Byte); // operation to perform
                     // NOTE: following typecase causes sign to extend
                     var p4 = (int)((sbyte)ReadCodeItem(OperandType.Byte)); // pre-increment
@@ -464,9 +463,15 @@ namespace Lomont.ClScript.CompilerLib
                     if (p4 < 0)
                         p1 += -p4-1;
                     if (opType == OperandType.Int32)
-                        UpdateInt(p1,p2,(Opcode)p3);
+                    {
+                        p2 = PopStack(); // value to apply
+                        UpdateInt(p1, p2, (Opcode) p3);
+                    }
                     else if (opType == OperandType.Float32)
-                        UpdateFloat(p1, (Opcode)p3);
+                    {
+                        f2 = PopStackF(); // value to apply
+                        UpdateFloat(p1, f2, (Opcode) p3);
+                    }
                     else
                         throw new RuntimeException($"Write optype {opType} unsupported");
                     if (p4 >= 0)
@@ -815,53 +820,73 @@ namespace Lomont.ClScript.CompilerLib
         }
 
 
-        void UpdateFloat(int address, Opcode operation)
+        void UpdateFloat(int address, float value, Opcode operation)
         {
-            // todo
-            throw new NotImplementedException("UpdateFloat not implemented");
-        }
-
-        void UpdateInt(int address, int value, Opcode operation)
-        {
+            var value2 = operation != Opcode.Update ? Int32ToFloat32(ReadRam(address, "Update")) : 0.0f;
             switch (operation)
             {
                 case Opcode.Update: // Equals
                     break; // do nothing
                 case Opcode.Add:
-                    value = ReadRam(address, "Update") + value;
+                    value = value2 + value;
                     break;
                 case Opcode.Sub:
-                    value = ReadRam(address, "Update") - value;
+                    value = value2 - value;
                     break;
                 case Opcode.Mul:
-                    value = ReadRam(address, "Update") * value;
+                    value = value2 * value;
                     break;
                 case Opcode.Div:
-                    value = ReadRam(address, "Update") / value;
+                    value = value2 / value;
+                    break;
+                default:
+                    throw new RuntimeException($"Opcode {operation} not yet handled in UpdateFloat");
+            }
+            WriteRam(address, Float32ToInt32(value), "Update");
+        }
+
+        void UpdateInt(int address, int value, Opcode operation)
+        {
+            var value2 = operation != Opcode.Update ? ReadRam(address, "Update") : 0;
+            switch (operation)
+            {
+                case Opcode.Update: // Equals
+                    break; // do nothing
+                case Opcode.Add:
+                    value = value2 + value;
+                    break;
+                case Opcode.Sub:
+                    value = value2 - value;
+                    break;
+                case Opcode.Mul:
+                    value = value2 * value;
+                    break;
+                case Opcode.Div:
+                    value = value2 / value;
                     break;
                 case Opcode.Xor:
-                    value = ReadRam(address, "Update") ^ value;
+                    value = value2 ^ value;
                     break;
                 case Opcode.And:
-                    value = ReadRam(address, "Update") & value;
+                    value = value2 & value;
                     break;
                 case Opcode.Or:
-                    value = ReadRam(address, "Update") | value;
+                    value = value2 | value;
                     break;
                 case Opcode.Mod:
-                    value = ReadRam(address, "Update") % value;
+                    value = value2 % value;
                     break;
                 case Opcode.RightShift:
-                    value = ReadRam(address, "Update") >> value;
+                    value = value2 >> value;
                     break;
                 case Opcode.LeftShift:
-                    value = ReadRam(address, "Update") << value;
+                    value = value2 << value;
                     break;
                 case Opcode.RightRotate:
-                    value = RotateRight(ReadRam(address, "Update"),value);
+                    value = RotateRight(value2,value);
                     break;
                 case Opcode.LeftRotate:
-                    value = RotateRight(ReadRam(address, "Update"), -value);
+                    value = RotateRight(value2, -value);
                     break;
                 default:
                     throw new RuntimeException($"Opcode {operation} not yet handled in UpdateInt");

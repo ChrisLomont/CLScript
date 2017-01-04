@@ -1,6 +1,6 @@
 // example visualization
 
-import "HypnoLight.cls"
+import "HypnoLight.clsc"
 
 
 // const works like a #define in C	

@@ -25,7 +25,7 @@ namespace Lomont.ClScript.CompilerLib
      *    
      * Structure (chunk name and data, size field implied):  
      *    Chunk "RIFF" (required by the format)
-     *        data is 4 byte: "CLS " "CLS" ASCII
+     *        data is 4 byte: "CLSC" ASCII
      *        then 2 byte version (major, then minor)
      *        
      *        Then chunks. "code" and "link" required. Others optional
@@ -134,7 +134,7 @@ namespace Lomont.ClScript.CompilerLib
             var assembly = new List<byte>();
             WriteChunk(assembly,"RIFF");
 
-            ByteWriter.Write(assembly, "CLS ", false);
+            ByteWriter.Write(assembly, "CLSC", false);
             ByteWriter.Write(assembly,GenVersion>>8,1);
             ByteWriter.Write(assembly, GenVersion&255, 1);
 

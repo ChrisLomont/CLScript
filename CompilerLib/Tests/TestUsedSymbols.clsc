@@ -8,18 +8,19 @@ type UsedType2
    i32 a[10]
 
 [Entry]
-export (bool,UsedType1) UsedFunc1()
+export (bool,i32,i32) UsedFunc1()
    UsedType1 usedLocal0
    i32 usedLocal1   = 1
    i32 unusedlocal1 = 1
-   i32 unusedlocal2,usedLocal2 = usedLocal1,0
+   i32 unusedlocal2,usedLocal2 = usedLocal1,-1
    for usedLocal3 in 0..3
       break
    bool usedLocal4 = false
    i32 usedLocal5 = 12
    UsedFunc2(usedLocal0,usedLocal5+1)   
-   UsedFunc3()
-   return usedLocal4 && usedLocal2==UsedFunc4(),usedGlobal1
+// todo - need actual func outside   UsedFunc3()
+   //UsedFunc5()
+   return !usedLocal4 && usedLocal2==UsedFunc4(),1,1
 
 (i32) UsedFunc2(UsedType1 usedParam1, i32 unusedParam1)
    return usedParam1.r1
@@ -29,8 +30,12 @@ export (bool,UsedType1) UsedFunc1()
    
 (i32) UsedFunc4()
    return -1
+   
+(UsedType1) UsedFunc5()
+   UsedType1 usedLocal6
+   return usedLocal6
 
-import (UsedType2) UsedFunc3()
+//import (UsedType2) UsedFunc3()
 
 UsedType1 usedGlobal1
 

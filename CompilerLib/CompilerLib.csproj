@@ -35,7 +35,6 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- A reference to the entire .NET Framework is automatically included -->
-    <Folder Include="Tests\" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ArrayTools.cs" />
@@ -103,6 +102,22 @@
     <Compile Include="Visitors\PrintVisitor.cs" />
     <Compile Include="Visitors\SemanticAnalyzerVisitor.cs" />
     <Compile Include="Visitors\SymbolUsageVisitor.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Tests\Empty.clsc" />
+    <None Include="Tests\ExTwinkle.clsc" />
+    <None Include="Tests\Imports.clsc" />
+    <None Include="Tests\Playground.clsc" />
+    <None Include="Tests\RegressionTesting.clsc" />
+    <None Include="Tests\TestAll.clsc" />
+    <None Include="Tests\TestArray.clsc" />
+    <None Include="Tests\TestAssign.clsc" />
+    <None Include="Tests\TestFunctionCall.clsc" />
+    <None Include="Tests\TestGlobals.clsc" />
+    <None Include="Tests\TestInit.clsc" />
+    <None Include="Tests\TestSimple.clsc" />
+    <None Include="Tests\TestSymbolSizes.clsc" />
+    <None Include="Tests\TestUsedSymbols.clsc" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

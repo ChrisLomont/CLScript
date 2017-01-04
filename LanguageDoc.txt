@@ -13,7 +13,7 @@ i32 end
 12345 1234.56 12.0 0. .1 1_000 0x111 0b101 0X100 0B100
 
 // import brings in another file for definitions, etc.
-import "AnyExternals.cls"
+import "AnyExternals.clsc"
 
 // a module name prepends a symbol before anything exported from this file
 // useful to group items

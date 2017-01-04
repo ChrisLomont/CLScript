@@ -1,3 +1,4 @@
+/*
 bool b1,b2,b3
 //string s1 = "test"
 export byte c1,c2,c3
@@ -40,3 +41,8 @@ i32 end, val1 = 1,2
          local1 += i + bob-t       
          
    return i1+local1
+*/   
+[Entry] 
+export (bool,i32,i32) Test()
+   return true,-1,-1
+   

@@ -947,7 +947,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
          * 
          *  high to lowest
          *  
-         *               description          Associativity   In CLS
+         *               description          Associativity   In CLSC
          *  1.  ::       Scope resolution     None            No
          *  2.  ++       postfix increment    L->R            Yes
          *      --       postfix decrement

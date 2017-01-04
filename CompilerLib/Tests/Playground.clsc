@@ -1,5 +1,17 @@
 // playground for testing code
 
+[Entry]
+export (i32) Test()
+   i32 a[3] = 1,2,3
+   a[1] = 5
+   a = 1,2,3
+   i32 b[2][2] = 0,1,2,3
+   b[1] = 4,5
+   b = 4,5,6,7
+   return a[1]
+
+/*
+
 type RGB
    i32 r,g,b
    
@@ -11,11 +23,6 @@ type RGBd
    RGB2 a
    RGB  b
 
-(i32,i32) Test(i32 p, i32 t, bool b)
-   if b
-      p++
-   t++
-   return p,t
 
 [Entry]
 export (bool,i32,i32) Play()
@@ -41,4 +48,4 @@ export (bool,i32,i32) Play()
    
 (i32,i32,i32) return3()
    return -4,15,3
-   
+*/   

@@ -188,7 +188,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
         }
 
         // compile and run all files in directory of current filename
-        // with form "Test*.cls"
+        // with form "Test*.clsc"
         // Each requires entry point with attribute [Entry], no parameters, return type
         // (bool,i32,i32)
         void RunTests()
@@ -207,7 +207,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
 
             Messages.Clear();
             Messages.Add("Running tests....");
-            foreach (var file in Directory.GetFiles(path, "Test*.cls"))
+            foreach (var file in Directory.GetFiles(path, "Test*.clsc"))
             {
                 var pair = CompileAndRun(new StringWriter(), file, fileReader, parameters, returnValues, "Entry");
                 var compiler = pair.Item1;

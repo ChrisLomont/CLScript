@@ -58,7 +58,7 @@ export (bool,i32,i32) Runme()
 */
 
 /*
-import "Imports.cls"
+import "Imports.clsc"
 
 // call this, returns value on stack
 import (i32) ImportSquare(i32 value)

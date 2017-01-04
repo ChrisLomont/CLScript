@@ -1,4 +1,4 @@
-import "Imports.cls"
+import "Imports.clsc"
 
 // testing import functions
 (i32) TestImport(i32 v)

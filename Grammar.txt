@@ -102,7 +102,7 @@ Comment Line   = '//'
                    
 
 ! ===================================================================
-! import file for code and/or definitions. Prefer *.cls extension (Chris Lomont Script)
+! import file for code and/or definitions. Prefer *.clsc extension (Chris Lomont Script)
 ! ===================================================================
 <Import Declaration> ::= 'import' StringLiteral EOL
 

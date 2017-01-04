@@ -1,7 +1,9 @@
 // code to test all
 
-import "TestArray.cls"
-import "TestSimple.cls"
+import "TestArray.clsc"
+import "TestSimple.clsc"
+import "RegressionTesting.clsc"
+import "TestGlobals.clsc"
 
 [All]
 export (bool,i32,i32) TestAll()
@@ -14,5 +16,11 @@ export (bool,i32,i32) TestAll()
 
    b,p1,t1 = TestIncDec()
    p,t += p1,t1
+   
+   b,p1,t1 = RunTests()
+   p,t += p1,t1
 
+   b,p1,t1 = TestGlobals()
+   p,t += p1,t1
+   
    return p==t,p,t

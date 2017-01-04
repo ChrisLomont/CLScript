@@ -1,5 +1,9 @@
 // test initialization
 
+[Entry]
+export (bool,i32,i32) TestInit()
+   return true,1,1
+
 /*
 [Entry]
 export (bool) TestInit()
