@@ -108,7 +108,7 @@
     <None Include="Tests\ExTwinkle.clsc" />
     <None Include="Tests\Imports.clsc" />
     <None Include="Tests\Playground.clsc" />
-    <None Include="Tests\RegressionTesting.clsc" />
+    <None Include="Tests\TestBasics.clsc" />
     <None Include="Tests\TestAll.clsc" />
     <None Include="Tests\TestArray.clsc" />
     <None Include="Tests\TestAssign.clsc" />

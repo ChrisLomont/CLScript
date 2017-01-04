@@ -1,5 +1,8 @@
-import "Imports.clsc"
 
-// testing import functions
+
+import "Imports.clsc" // testing recursive imports don't break the system
+import "Imports.clsc" // or duplicates
+
+// testing imported functions
 (i32) TestImport(i32 v)
    return -v

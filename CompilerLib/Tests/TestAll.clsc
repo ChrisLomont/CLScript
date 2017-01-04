@@ -2,7 +2,7 @@
 
 import "TestArray.clsc"
 import "TestSimple.clsc"
-import "RegressionTesting.clsc"
+import "TestBasics.clsc"
 import "TestGlobals.clsc"
 
 [All]

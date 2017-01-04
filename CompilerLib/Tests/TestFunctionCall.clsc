@@ -1,25 +1,89 @@
 
 [Entry]
-export (bool,i32,i32) Test()
-//   i32 a,b,c,d = 3,4,7,-3
-//   return b== 4 && a == 3 && c == 7 && d == -3,a,b
-   r32 r = 3.0
-   i32 a = 1
-   a += 4
-   i32 b,c=7,11
-   bool bb = a==5 && c == 11 && b == 7 && r == 3.0 
-   return bb,1,1
+export (bool,i32,i32) TestCall()
+   i32 p,t = 0,0 // passed, tested
+   i32 a = addToG(2) // now 125
+   
+   if a==125 && G == 125
+      p++
+   t++
+   
+   a = a + 1
+   if a==126 && G == 125
+      p++
+   t++
+   
+   if fib(3) == 2 
+      p++
+   t++
+   
+   if fib(4) == 3 
+      p++
+   t++
+   
+   if fib(5) == 5 
+      p++
+   t++
+   
+   if fib(6) == 8 
+      p++
+   t++
+   
+   if fib(7) == 13 
+      p++
+   t++
+   
+   if fib(8) == 21 
+      p++
+   t++
+   
+   if fib(9) == 34
+      p++
+   t++
+   
+  
+   // discard - ensures stack cleaned correctly
+   f2()
+   f3()
+   fib(5)
+   //color()
+  
+   i32 c,d = f2()
+  
+   if c == 4 && d == 7
+      p++
+   t++
+   
+   
+   r32 r
+   bool b2
+   r,b2,c = f3()
+   
+   if r==5.0&&b2==false&&c==9
+      p++
+   t++
+  
+   
+   a = 1 + 2*fib(2)
+   
+   if a==3
+      p++
+   t++
+   
+   err1()
+   err2()
+   err3()
+   
+   return p==t,p,t
 
-/*
-[Entry]
+
 export () GetColor()
    RGB color = 1.0,0.5,0.25 
    
 
 type RGB
    r32 r,g,b
-*/
-/*
+
 
 // test comments can be misaligned
 () err1()         
@@ -31,9 +95,6 @@ type RGB
 () err3()         
 /* comment */ 
    return
-
-type RGB
-   r32 r,g,b
 
 i32 G = 123
 
@@ -52,45 +113,9 @@ i32 G = 123
 (r32,bool,i32) f3()
    return 5.0,false,9
 
-[Entry]
-export (bool,i32,i32) func()
-   i32 a = addToG(2) // now 125
-   bool b = a==125 && G == 125
-   a = a + 1
-   b &= a==126 && G == 125
-   b &= fib(3) == 2 
-   b &= fib(4) == 3 
-   b &= fib(5) == 5 
-   b &= fib(6) == 8 
-   b &= fib(7) == 13 
-   b &= fib(8) == 21 
-   b &= fib(9) == 34
-  
-   // discard - ensures stack cleaned correctly
-   f2()
-   f3()
-   fib(5)
-   //color()
-  
-   i32 c,d = f2()
-  
-   b &= c == 4 && d == 7
-   
-   r32 r
-   bool b2
-   r,b2,c = f3()
-   
-   b &= r==5.0&&b2==false&&c==9
-   
-   a = 1 + 2*fib(2)
-   b &= a==3
-   
-   
-   return b,1,1
 
 
 //(RGB) color()
 //   RGB color = 1.0,0.5,0.25 
 //   return color
    
-   */

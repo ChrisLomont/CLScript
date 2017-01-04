@@ -193,37 +193,52 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
         // (bool,i32,i32)
         void RunTests()
         {
-            var path = Path.GetDirectoryName(filename);
-            Compiler.GetFileText fileReader = f =>
-            {
-                var fn = Path.Combine(path, f);
-                if (File.Exists(fn))
-                    return File.ReadAllText(fn);
-                return null;
-            };
 
-            var parameters = new int[0];
-            var returnValues = new int[3];
-
-            Messages.Clear();
-            Messages.Add("Running tests....");
-            foreach (var file in Directory.GetFiles(path, "Test*.clsc"))
+            try
             {
-                var pair = CompileAndRun(new StringWriter(), file, fileReader, parameters, returnValues, "Entry");
-                var compiler = pair.Item1;
-                var resultText = "";
-                var runtime = pair.Item2;
-                if (compiler.env.ErrorCount > 0)
-                    resultText = $"Compiler errors: {compiler.env.ErrorCount}";
-                else if (runtime?.env?.ErrorCount>0)
-                    resultText = $"Runtime errors: {runtime.env.ErrorCount}";
-                else
+                if (String.IsNullOrEmpty(filename))
                 {
-                    var success = returnValues[0] == 1 ? "SUCCESS" : "FAILED";
-                    resultText = $"{success}: {returnValues[0]} {returnValues[1]} {returnValues[2]}";
+                    MessageBox.Show("Open a file to indicate which directory to run tests from");
+                    return;
                 }
+                var path = Path.GetDirectoryName(filename);
+                Compiler.GetFileText fileReader = f =>
+                {
+                    var fn = Path.Combine(path, f);
+                    if (File.Exists(fn))
+                        return File.ReadAllText(fn);
+                    return null;
+                };
 
-                Messages.Add($"Test: {Path.GetFileNameWithoutExtension(file),-20} => {resultText}");}
+                var parameters = new int[0];
+                var returnValues = new int[3];
+
+                Messages.Clear();
+                Messages.Add("Running tests....");
+                foreach (var file in Directory.GetFiles(path, "Test*.clsc"))
+                {
+                    var pair = CompileAndRun(new StringWriter(), file, fileReader, parameters, returnValues, "Entry");
+                    var compiler = pair.Item1;
+                    var resultText = "";
+                    var runtime = pair.Item2;
+                    if (compiler.env.ErrorCount > 0)
+                        resultText = $"Compiler errors: {compiler.env.ErrorCount}";
+                    else if (runtime?.env?.ErrorCount > 0)
+                        resultText = $"Runtime errors: {runtime.env.ErrorCount}";
+                    else
+                    {
+                        var success = returnValues[0] == 1 ? "SUCCESS" : "FAILED";
+                        resultText = $"{success}: {returnValues[0]} {returnValues[1]} {returnValues[2]}";
+                    }
+
+                    Messages.Add($"Test: {Path.GetFileNameWithoutExtension(file),-20} => {resultText}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Messages.Clear();
+                Messages.Add($"FATAL: run tests leaked exception {ex}");
+            }
         }
 
 

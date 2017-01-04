@@ -1,5 +1,5 @@
 
-[Entry]
+[Entr2y]
 export (bool,i32,i32) GetColor()
    RGB c1 = 1.0,0.5,0.25 
 //   RGB c2
@@ -9,8 +9,6 @@ export (bool,i32,i32) GetColor()
 type RGB
    r32 r,g,b
 
-
-/*
 
 // testing mulitiple assignments, type assignments, type promotion
 
@@ -148,4 +146,3 @@ type t3
    return 4,5.0,false
 */    
 
-*/

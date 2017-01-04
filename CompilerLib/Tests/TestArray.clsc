@@ -1,29 +1,16 @@
 // test array and '.' in func locals and global and params
 // sizes in stack slots
 
-(i32,i32) Update(bool b, i32 p1, i32 t1, i32 p, i32 t)
-   return p+p1,t+t1
-
 [Entry]
 export (bool,i32,i32) TestArray()
-   i32 p,t = 0,0 // passed,tested
-   
-   bool b
-   i32 p1,t1
-   
-   b,p1,t1 = TestSingleArray()
-   p,t = Update(b,p1,t1,p,t)
-
-   b,p1,t1 = TestDoubleArray()
-   p,t = Update(b,p1,t1,p,t)
-
-   b,p1,t1 = TestMultiArray()
-   p,t = Update(b,p1,t1,p,t)
-   
+   i32 p,t = 0,0 // passed,tested  
+   p,t += TestSingleArray()
+   p,t += TestDoubleArray()
+   p,t += TestMultiArray()   
    return p==t,p,t
 
 /****************** various arrays ******************/
-(bool,i32,i32) TestMultiArray()
+(i32,i32) TestMultiArray()
    i32 p,t = 0,0 // passed,tested
    
    i32 a[2][3][2] = 1,2,3,4,5,6,7,8,9,10,11,12
@@ -35,11 +22,11 @@ export (bool,i32,i32) TestArray()
 //   a[1]    = 1,2,3,4
 //   a[0][1] = 7,9
 //   a[0][0] = TwoInt()
-   return p==t,p,t
+   return p,t
    
 
 
-(bool,i32,i32) TestDoubleArray()
+(i32,i32) TestDoubleArray()
    i32 p,t = 0,0 // passed,tested
    
    
@@ -103,10 +90,9 @@ export (bool,i32,i32) TestArray()
       p++
    t++
    
+   return p,t
    
-   return p==t,p,t
-   
-(bool,i32,i32) TestSingleArray()
+(i32,i32) TestSingleArray()
    i32 p,t = 0,0 // passed,tested
    
    i32 a[4] = 7,6,4,9
@@ -190,7 +176,7 @@ export (bool,i32,i32) TestArray()
    // decompose structure into array
    // decompose array into ints
    
-   return p==t,p,t
+   return p,t
    
 (i32,i32) Int_5_3()
    return 5,3
