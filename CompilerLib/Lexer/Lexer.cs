@@ -48,7 +48,8 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 else if (continuationEolCount == 1)
                 {
                     inLineContinuation = true;
-                    skipIndents = true;
+                    // for indenter to work, it needs to see this EOL
+                    skipIndents = tokenType != TokenType.EndOfLine;
                 }
                 else if (continuationEolCount >= 2)
                 {

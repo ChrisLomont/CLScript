@@ -44,7 +44,7 @@ namespace Lomont.ClScript.CompilerLib
                     countRemoved++;
                 }
             }
-            env.Info($"Peephole optimizer removed {countRemoved} instructions out of {length}");
+            env.Info($"Peephole optimizer removed {countRemoved} instruction(s) out of {length}");
         }
     }
 }

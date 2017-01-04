@@ -151,6 +151,7 @@ namespace Lomont.ClScript.CompilerLib
             }
             catch (Exception ex)
             {
+                env.Error("");
                 env.Error("Exception: " + ex);
                 return false;
             }

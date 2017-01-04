@@ -67,7 +67,7 @@ namespace Lomont.ClScript.CompilerLib
                     count[Digit]++;
                     if (count[Digit] >= max[Digit])
                     {
-                        count[Digit++] = 0;
+                        count[Digit] = 0;
                         Digit++;
                     }
                     else
