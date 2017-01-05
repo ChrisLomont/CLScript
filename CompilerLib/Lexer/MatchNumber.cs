@@ -12,12 +12,16 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             if (characterStream.StartsWith("0x") || characterStream.StartsWith("0X"))
             {
                 characterStream.Consume(2);
+                while (characterStream.StartsWith("_"))
+                    characterStream.Consume();
                 GetIntegers(characterStream,"0123456789ABCDEFabcdef");
                 return new Token(TokenType.HexadecimalLiteral);
             }
             if (characterStream.StartsWith("0b") || characterStream.StartsWith("0B"))
             {
                 characterStream.Consume(2);
+                while (characterStream.StartsWith("_"))
+                    characterStream.Consume();
                 GetIntegers(characterStream,"01");
                 return new Token(TokenType.BinaryLiteral);
             }
