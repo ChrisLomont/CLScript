@@ -360,10 +360,10 @@ namespace Lomont.ClScript.CompilerLib
             if (flags.HasFlag(SymbolAttribute.Export) || flags.HasFlag(SymbolAttribute.Import))
             {
                 
-                if (flags.HasFlag( SymbolAttribute.Import))
-                    env.Info($"Importing symbol {symbol.Name}");
-                if (flags.HasFlag(SymbolAttribute.Export))
-                    env.Info($"Exporting symbol {symbol.Name}");
+                //if (flags.HasFlag( SymbolAttribute.Import))
+                //    env.Info($"Importing symbol {symbol.Name}");
+                //if (flags.HasFlag(SymbolAttribute.Export))
+                //    env.Info($"Exporting symbol {symbol.Name}");
 
                 var funcType = symbol.Type as FunctionType;
                 if (funcType == null)

@@ -126,8 +126,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     if (node.Symbol.Type is UserType)
                         mgr.Lookup((node.Symbol.Type as UserType).Name).Used = true;
                 }
-                else if (!(node.Parent is ReturnValuesAst))
-                    throw new InternalFailure($"Expected return statement {node}");
+                else if (!(node.Parent is ReturnValuesAst) && !(node.Parent is ParameterListAst))
+                    throw new InternalFailure($"Expected return statement or parameter list at {node}");
             }
             else if (node.Children.Count != 0)
                 throw new InternalFailure($"Expression must have 0 to 2 children! {node}");

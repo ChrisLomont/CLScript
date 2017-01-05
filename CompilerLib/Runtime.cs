@@ -969,6 +969,7 @@ namespace Lomont.ClScript.CompilerLib
             importParameterCount = -1;
         }
 
+        #region get/set for external interfacing
         public Int32 GetInt32Parameter()
         {
             var index = BasePointer - 1 - 1 - importParameterCount + importParameterIndex;
@@ -981,6 +982,18 @@ namespace Lomont.ClScript.CompilerLib
             PushStack(value);
         }
 
+
+        public Int32 GetInt32Address(Int32 address)
+        {
+            return ReadRam(address, "Failed to read import Int32");
+        }
+
+        public void SetInt32Address(Int32 value, Int32 address)
+        {
+            WriteRam(address, value, "Failed to write import Int32");
+        }
+
+
         public float GetFloat32Parameter()
         {
             return Int32ToFloat32(GetInt32Parameter());
@@ -990,6 +1003,8 @@ namespace Lomont.ClScript.CompilerLib
         {
             PushStackF(value);
         }
+
+        #endregion
 
         #endregion
 

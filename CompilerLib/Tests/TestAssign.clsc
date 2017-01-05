@@ -10,7 +10,7 @@ type RGB
    r32 r,g,b
 
 
-// testing mulitiple assignments, type assignments, type promotion
+// testing multiple assignments, type assignments, type promotion
 
 (i32,i32) Make2(i32 v)
    return 3+v,5+v

@@ -86,6 +86,7 @@
     <Compile Include="Lexer\CharacterStream.cs" />
     <Compile Include="Lexer\ThrowExceptionMatcher.cs" />
     <Compile Include="Instruction.cs" />
+    <Compile Include="Opcode.cs" />
     <Compile Include="Parser\Parser.cs" />
     <Compile Include="Parser\TokenStream.cs" />
     <Compile Include="PeepholeOptimizer.cs" />
@@ -114,6 +115,7 @@
     <None Include="Tests\TestAssign.clsc" />
     <None Include="Tests\TestFunctionCall.clsc" />
     <None Include="Tests\TestGlobals.clsc" />
+    <None Include="Tests\TestImports.clsc" />
     <None Include="Tests\TestInit.clsc" />
     <None Include="Tests\TestSimple.clsc" />
     <None Include="Tests\TestSymbolSizes.clsc" />

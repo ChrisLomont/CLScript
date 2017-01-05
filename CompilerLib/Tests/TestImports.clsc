@@ -1,0 +1,84 @@
+// testing importing of external functions
+
+[Entry]
+export (bool,i32,i32) TestImports()
+   i32 p,t = 0,0 // passed, succeeded
+   
+   p,t += TestSimple()  
+   p,t += TestComplex() 
+
+   return p==t,p,t
+   
+   
+/******************* simple parameter tests ************/    
+
+// return the square
+import (i32) SquareInt(i32 value)
+import (r32) SquareFloat(r32 value)
+
+// return the square root
+import (i32) SquareRootInt(i32 value)
+import (r32) SquareRootFloat(r32 value)
+
+
+(i32,i32) TestSimple()
+   i32 p,t = 0,0 // passed, succeeded
+   if SquareInt(4) == 16
+      p++
+   t++
+
+   if SquareFloat(1.5) == 2.25
+      p++
+   t++
+
+   if SquareRootInt(99) == 9
+      p++
+   t++
+
+   if SquareRootFloat(6.25) == 2.5
+      p++
+   t++
+   
+   return p,t
+   
+/******************* complex parameter tests ************/    
+type RGB
+   i32 r,g,b
+
+// pick color 0-7 as binary expansion of selector
+import (RGB) MakeColor(i32 selector)
+// modify color R->G->B->R
+import () CycleRGB(RGB color)
+
+(i32,i32) TestComplex()
+   i32 p,t = 0,0 // passed, succeeded
+   
+   RGB c1 = MakeColor(5)
+   if c1.r == 1 && c1.g == 0 && c1.b == 1
+      p++
+   t++
+   
+   c1 = MakeColor(3)
+   if c1.r == 0 && c1.g == 1 && c1.b == 1
+      p++
+   t++
+
+   c1 = MakeColor(4)
+   if c1.r == 1 && c1.g == 0 && c1.b == 0
+      p++
+   t++
+   
+   c1 = 4,5,6
+   if c1.r == 4 && c1.g == 5 && c1.b == 6
+      p++
+   t++
+   
+   CycleRGB(c1)
+   if c1.r == 6 && c1.g == 4 && c1.b == 5
+      p++
+   t++   
+   
+   return p,t
+
+
+   

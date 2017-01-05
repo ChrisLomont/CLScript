@@ -279,9 +279,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 env.Info("Testing bytecode in runtime environment....");
 
                 var traceEnv = new Environment(new StringWriter());
-                runtime = new Runtime(traceEnv);
-                var importHandler = new Imports();
-                runtime.HandleImport = importHandler.HandleImport;
+                runtime = new Runtime(traceEnv) {HandleImport = Imports.HandleImport};
 
                 var success = runtime.Run(compiler.CompiledAssembly, runEntryAttribute, parameters, returnValues);
 
