@@ -43,7 +43,11 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 33. Run code "smell" tools to check code for problems
  * 34. Command line compiler
  * 35. Nicer GUI
- * 36. Triple dimension arryas (and higher?) cannot set highest index values on any slot - crashes
+ * 36. Triple dimension arrays (and higher?) cannot set highest index values on any slot - crashes
+ * 37. More efficient 'import' so called functions are indexed, not named
+ * DONE 38. Get enums working
+ * 39. Allow code with no functions - currently exceptions due to no global section closing label
+ * 
  * To get usable in production:  
  * 
  */

@@ -113,6 +113,7 @@
     <None Include="Tests\TestAll.clsc" />
     <None Include="Tests\TestArray.clsc" />
     <None Include="Tests\TestAssign.clsc" />
+    <None Include="Tests\TestEnum.clsc" />
     <None Include="Tests\TestFunctionCall.clsc" />
     <None Include="Tests\TestGlobals.clsc" />
     <None Include="Tests\TestImports.clsc" />

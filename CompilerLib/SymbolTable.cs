@@ -338,6 +338,25 @@ namespace Lomont.ClScript.CompilerLib
             return Lookup(table.Parent, symbol);
         }
 
+        /// <summary>
+        /// Lookup value. If exists, return true. Else return false
+        /// </summary>
+        /// <param name="enumText"></param>
+        /// <param name="memberText"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public bool LookupEnumValue(string enumText, string memberText, out int value)
+        {
+            value = 0;
+            var tbl = GetTableWithScope(enumText);
+            if (tbl == null) return false;
+            var s = Lookup(tbl, memberText);
+            if (s?.Value == null) return false;
+            value = s.Value.Value;
+            return true;
+        }
+
+
         public string Scope => stack.Peek().Item1;
 
         // call when walking nodes, before child recurse

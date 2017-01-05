@@ -188,6 +188,40 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return null;
             }
             node.Symbol = symbol;
+
+            // expand enum here to i32
+            var dotType = symbol.Type as SimpleType;
+            if (dotType != null && dotType.SymbolType == SymbolType.EnumValue)
+            {
+                // replace node with literal
+                var memberText = node.Token.TokenValue;
+                var enumText = node.Children[0].Token.TokenValue;
+
+                int value;
+                if (!mgr.LookupEnumValue(enumText,memberText, out value))
+                {
+                    env.Error($"Cannot find enum value for {enumText}.{memberText}");
+                    return null;
+                }
+
+                // tag symbols as used
+                mgr.Lookup(enumText).Used = true;
+                mgr.Lookup(mgr.GetTableWithScope(enumText), memberText).Used = true;
+
+                // env.Info($"Enum: {enumText}.{memberText} has value {value}");
+
+                var literal = new LiteralAst(new Token(TokenType.DecimalLiteral,value.ToString(),null,"inserted"));
+                literal.IntValue = value;
+
+                var p = node.Parent;
+                var pos = p.Children.IndexOf(node);
+                p.Children.Remove(node);
+                p.Children.Insert(pos,literal);
+                literal.Parent = p;
+                literal.Type = mgr.TypeManager.GetType(SymbolType.Int32);
+                return literal.Type;
+
+            }
             return symbol.Type;
         }
 

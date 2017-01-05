@@ -1,5 +1,16 @@
 // playground for testing code
 
+
+(bool) True()
+   return true
+
+[Entry]
+export (bool,i32,i32) Test()
+   if True()
+      return true,1,1
+   return false,0,0
+
+/*
 [Entry]
 export (bool,i32,i32) Test()
 
@@ -20,3 +31,4 @@ export (bool,i32,i32) Test()
             a[i][j][k] = i+j+k
 */
    return true,a[0][1][2],0
+*/   
