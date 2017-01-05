@@ -1,25 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Linq;
-using System.Reflection.Emit;
-using System.ServiceModel;
 using System.Text;
 using Lomont.ClScript.CompilerLib.AST;
-using Lomont.ClScript.CompilerLib.Parser;
 using Lomont.ClScript.CompilerLib.Visitors;
 
 /* TODO
  *
- * DONE 1. Redo array syntax - only C like, not multidim
- *  2. Assignment of complex types needs done
+ * DONE  1. Redo array syntax - only C like, not multidim
+ * DONE  2. Assignment of complex types needs done
  *  3. Const implemented - values in ROM
  *  4. Remove warning when type member and global var has same name
  *  5. Output C header for link entries
- * DONE 6. Line continues if last non-whitespace is whitespace isolated '\' char
- *  7. Short circuited booleans
+ * DONE  6. Line continues if last non-whitespace is whitespace isolated '\' char
+ * DONE  7. Short circuited booleans
  * DONE  8. Add RuntimeException for things that happen during runtime execution
  * DONE  9. Expression eval right to left - reverse this!
  * DONE 10. Code must put array headers on stack
@@ -28,14 +23,14 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * DONE 13. Zero stack creating on locals?
  * DONE 14. Trace capability for runtime
  * DONE 15. Runtime: standalone function call not clearing return values from stack on return
- * 16. Get ++ and -- working
+ * 16. Get ++ and -- working (now work as standalone lines)
  * DONE 17. call imports of external functions
  * 18. string testing
  * 19. string interpolation
  * 20. string able to print to external function call
  * DONE 21. Import of files, ensure single import
- * 22. Return complex types
- * 23. Library functions: print, array size
+ * DONE 22. Return complex types
+ * 23. Library functions: print, array size, mem used, stack left, etc
  * 24. Type promotion (int=>float, byte=>int, etc, where appropriate?)
  * DONE 25. Locate unused functions, variables, and symbols everywhere
  * 26. Remove unused functions, variables, and symbols everywhere (tricky - can remove functions)
@@ -45,7 +40,7 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 30. Make assignment generated code much more efficient, especially for single items
  * 31. Add "test" button that runs all regression tests
  * 32. Make an 'unpack' instruction that unpacks a stream of constants from code into an array for those cases
- * 
+ * 33. Run code "smell" tools to check code for problems
  * 
  * To get usable in production:  
  * 

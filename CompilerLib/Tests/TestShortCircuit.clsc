@@ -1,0 +1,161 @@
+// code to test short circuited logic
+
+[Entry]
+export (bool,i32,i32) TestShortCircuit()
+   i32 p,t = 0,0 // passed, tested
+   
+   //if T() || T() && T()
+   //   p = 1
+   //if T() && T() || T()
+   //   p = 1
+   
+   p,t += TestDouble() 
+   p,t += TestTriple() 
+   
+   return p==t,p,t
+   
+(bool) T()
+   return true
+   
+/**************globals to control the checks***********************/
+
+i32 count = 0
+
+// return the given boolean, add the increment to the global count
+(bool) Test(bool ret, i32 inc)
+   count += inc
+   return ret
+        
+(i32,i32) TestDouble()
+   i32 p,t = 0,0 // passed, tested
+   bool ifTrue
+   
+   // try 4 && cases   
+   ifTrue,count = false,0
+   if Test(false,1) && Test(false,2)
+      ifTrue = true
+   if ifTrue == false && count == 1
+      p++
+   t++
+
+   ifTrue,count = false,0
+   if Test(false,1) && Test(true,2)
+      ifTrue = true
+   if ifTrue == false && count == 1
+      p++
+   t++
+
+   ifTrue,count = false,0
+   if Test(true,1) && Test(false,2)
+      ifTrue = true
+   if ifTrue == false && count == 3
+      p++
+   t++
+
+   ifTrue,count = false,0
+   if Test(true,1) && Test(true,2)
+      ifTrue = true
+   if ifTrue == true && count == 3
+      p++
+   t++   
+   
+   // try 4 || cases   
+   ifTrue,count = false,0
+   if Test(false,1) || Test(false,2)
+      ifTrue = true
+   if ifTrue == false && count == 3
+      p++
+   t++
+
+   ifTrue,count = false,0
+   if Test(false,1) || Test(true,2)
+      ifTrue = true
+   if ifTrue == true && count == 3
+      p++
+   t++
+
+   ifTrue,count = false,0
+   if Test(true,1) || Test(false,2)
+      ifTrue = true
+   if ifTrue == true && count == 1
+      p++
+   t++
+
+   ifTrue,count = false,0
+   if Test(true,1) || Test(true,2)
+      ifTrue = true
+   if ifTrue == true && count == 1
+      p++
+   t++      
+ 
+   return p,t
+   
+   
+type tblEntry
+   bool b // truth result
+   i32 c  // funcs called 1,2,4
+   
+tblEntry andTbl[8] = \ 
+   false,1, false,3, false,1, false,7, \   
+   false,1, false,3, false,1, true, 7    
+
+tblEntry orTbl[8] = \ 
+   false,7, true, 1, true, 3, true, 1, \   
+   true, 7, true, 1, true, 3, true, 1    
+
+tblEntry orAndTbl[8] = \ 
+   false,3, true, 1, false,7, true, 1, \   
+   false,3, true, 1, true, 7, true, 1    
+
+tblEntry andOrTbl[8] = \ 
+   false,1, false,7, false,1, true, 3, \   
+   false,1, true, 7, false,1, true, 3    
+
+(i32,i32) TestTriple()
+   i32 p,t = 0,0 // passed, tested
+   bool ifTrue
+   
+   for i in 0..7
+      bool b0,b1,b2 = (i&1)==1,(i&2)==2,(i&4)==4
+      
+      // test &&
+      ifTrue,count = false,0
+      if Test(b0,1) && Test(b1,2) && Test(b2,4)
+         ifTrue = true
+      
+      if ifTrue == andTbl[i].b && count == andTbl[i].c
+         p++
+      t++   
+
+      // test ||
+      ifTrue,count = false,0
+      if Test(b0,1) || Test(b1,2) || Test(b2,4)
+         ifTrue = true
+      
+      if ifTrue == orTbl[i].b && count == orTbl[i].c
+         p++
+      t++   
+
+      // test || then &&
+      ifTrue,count = false,0
+      if Test(b0,1) || Test(b1,2) && Test(b2,4)
+         ifTrue = true
+      
+      if ifTrue == orAndTbl[i].b && count == orAndTbl[i].c
+         p++
+      t++   
+
+      // todo - this fails since the parser puts || precendence over &&
+      // todo - get precedence ties L to R, then remove parens
+      // test && then ||
+      ifTrue,count = false,0
+      if Test(b0,1) && (Test(b1,2) || Test(b2,4))
+         ifTrue = true
+      
+      if ifTrue == andOrTbl[i].b && count == andOrTbl[i].c
+         p++
+      t++   
+
+   return p,t
+// end of file   
+   

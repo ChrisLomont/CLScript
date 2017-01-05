@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
+﻿
 namespace Lomont.ClScript.CompilerLib
 {
     public enum Opcode
@@ -13,7 +8,7 @@ namespace Lomont.ClScript.CompilerLib
         // stack
         Push,               // [BIF] read bytes from code, expanded to stack entry size, pushed onto stack
         Pop,                // [   ] pop entry from stack
-        Pick,               // [   ] push stack value from n back onto stack
+        //Pick,               // [   ] push stack value from n back onto stack
         Dup,                // [   ] copy top stack value
         Swap,               // [   ] swap top two stack values
         Rot3,               // [   ] rotate top 3 stack items, bottom becomes top
@@ -49,6 +44,7 @@ namespace Lomont.ClScript.CompilerLib
         // label/branch/call/ret
         Call,               // [ LC] relative call address if local, else import # if const
         Return,             // [   ] two values (parameter entries, local stack entries) for cleaning stack after call
+        BrTrue ,            // [   ] pop stack. If 1, branch to relative address
         BrFalse,            // [   ] pop stack. If 0, branch to relative address
         BrAlways,           // [   ] always branch to relative address
         ForStart,           // [   ] start, end, delta values on stack. If delta = 0, compute delta +1 or -1

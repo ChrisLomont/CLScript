@@ -387,10 +387,10 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Pop:
                     PopStack();
                     break;
-                case Opcode.Pick:
-                    p1 = Unpack();
-                    PushStack(ReadRam(StackPointer - p1 - 1,$"Pick {p1}"));
-                    break;
+                //case Opcode.Pick:
+                //    p1 = Unpack();
+                //    PushStack(ReadRam(StackPointer - p1 - 1,$"Pick {p1}"));
+                //    break;
                 case Opcode.Dup:
                     p1 = PopStack();
                     PushStack(p1);
@@ -581,6 +581,11 @@ namespace Lomont.ClScript.CompilerLib
                     ExecuteReturn(p1,p2);
                     if (ProgramCounter == returnExitAddress)
                         retval = false; // done executing entry function
+                    break;
+                case Opcode.BrTrue:
+                    p1 = ReadCodeItem(OperandType.Int32);
+                    if (PopStack() == 1)
+                        ProgramCounter += p1 - 4;
                     break;
                 case Opcode.BrFalse:
                     p1 = ReadCodeItem(OperandType.Int32);

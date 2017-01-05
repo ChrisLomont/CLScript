@@ -53,14 +53,8 @@ namespace Lomont.ClScript.CompilerLib
 
         }
 
-        public SymbolEntry AddTypeSymbol(
-            Ast node,
-            string typeName
-            )
+        void CheckDuplicate(SymbolEntry symbol, string typeName)
         {
-            var type = TypeManager.GetType(typeName);
-            var symbol = SymbolTable.AddSymbol(node, Scope, typeName, VariableUse.None, type, null);
-            symbol.Attrib = SymbolAttribute.None;
             var match = CheckDuplicate(SymbolTable, symbol);
             if (match != null)
             {
@@ -70,6 +64,18 @@ namespace Lomont.ClScript.CompilerLib
                 else
                     env.Error(msg);
             }
+
+        }
+
+        public SymbolEntry AddTypeSymbol(
+            Ast node,
+            string typeName
+            )
+        {
+            var type = TypeManager.GetType(typeName);
+            var symbol = SymbolTable.AddSymbol(node, Scope, typeName, VariableUse.None, type, null);
+            symbol.Attrib = SymbolAttribute.None;
+            CheckDuplicate(symbol,typeName);
             return symbol;
         }
 
@@ -85,15 +91,7 @@ namespace Lomont.ClScript.CompilerLib
         {
             var symbol = SymbolTable.AddSymbol(node, Scope, symbolName, usage, symbolType, dimensions);
             symbol.Attrib = attribute;
-            var match = CheckDuplicate(SymbolTable, symbol);
-            if (match != null)
-            {
-                var msg = $"Symbol {symbolName} already defined, {symbol.Node} and {match.Item1.Node}";
-                if (!ReferenceEquals(match.Item2, SymbolTable))
-                    env.Warning(msg);
-                else
-                    env.Error(msg);
-            }
+            CheckDuplicate(symbol, symbolName);
             return symbol;
         }
 
@@ -119,15 +117,7 @@ namespace Lomont.ClScript.CompilerLib
             symbol.Attrib = attrib;
             if (attrib.HasFlag(SymbolAttribute.Import) || attrib.HasFlag(SymbolAttribute.Export))
                 symbol.UniqueId = GetUniqueId();
-            var match = CheckDuplicate(SymbolTable, symbol);
-            if (match != null)
-            {
-                var msg = $"Symbol {symbolName} already defined, {symbol.Node} and {match.Item1.Node}";
-                if (!ReferenceEquals(match.Item2, SymbolTable))
-                    env.Warning(msg);
-                else
-                    env.Error(msg);
-            }
+            CheckDuplicate(symbol, symbolName);
             return symbol;
         }
 

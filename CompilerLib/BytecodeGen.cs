@@ -263,7 +263,7 @@ namespace Lomont.ClScript.CompilerLib
                 // single int32 operand follows
                 case Opcode.PopStack:
                 case Opcode.Reverse:
-                case Opcode.Pick:
+                // case Opcode.Pick:
                 case Opcode.ClearStack:
                 case Opcode.Load:
                 case Opcode.Addr:
@@ -299,6 +299,7 @@ namespace Lomont.ClScript.CompilerLib
                 // these take a label
                 case Opcode.Call:
                 case Opcode.BrFalse:
+                case Opcode.BrTrue:
                 case Opcode.BrAlways:
                     AddFixup((string)inst.Operands[0]);
                     break;

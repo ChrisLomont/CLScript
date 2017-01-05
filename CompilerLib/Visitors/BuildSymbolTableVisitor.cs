@@ -209,7 +209,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (symbolType != SymbolType.ToBeResolved)
                 baseType = mgr.TypeManager.GetType(symbolType);
             else
-                baseType = mgr.Lookup(node.BaseTypeToken.TokenValue).Type;
+            {
+                var symbol = mgr.Lookup(node.BaseTypeToken.TokenValue);
+                baseType = null;
+                if (symbol == null)
+                    env.Error($"Cannot find symbol for token {node.BaseTypeToken}");
+                else
+                    baseType = symbol.Type;
+            }
 
             if (node.Children.Any())
             {

@@ -892,9 +892,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 }
                 else if (node.Children.Count == 2)
                 {
-                    EmitExpression((ExpressionAst) node.Children[0]); // get left value
-                    EmitExpression((ExpressionAst) node.Children[1]); // get right value
-                    EmitBinaryOp(node); // do operation
+                    if (!ShortCircuited(node))
+                    {
+                        EmitExpression((ExpressionAst) node.Children[0]); // get left value
+                        EmitExpression((ExpressionAst) node.Children[1]); // get right value
+                        EmitBinaryOp(node); // do operation
+                    }
                 }
                 else if (node.Children.Count == 1)
                 {
@@ -1142,10 +1145,56 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             throw new InternalFailure($"Required simple type {node.Type}");
         }
 
+        // if node is a short circuited boolean, emit it and return true
+        // else emit nothing, and return false
+        bool ShortCircuited(ExpressionAst node)
+        {
+            var left = (ExpressionAst) node.Children[0];
+            var right = (ExpressionAst)node.Children[1];
+            var lt = left?.Type;
+            var rt = right?.Type;
+            var symbolType = left?.Type as SimpleType;
+            if (lt == null || lt != rt || symbolType == null || symbolType.SymbolType != SymbolType.Bool)
+                return false;
+
+            var tokenType = node.Token.TokenType;
+            if (tokenType == TokenType.LogicalAnd || tokenType == TokenType.LogicalOr)
+            {
+                var skipLabel = GetLabel();
+
+                // always execute the left
+                EmitExpression((ExpressionAst)node.Children[0]); // get left value
+                if (tokenType == TokenType.LogicalAnd)
+                {
+                    // and logic: if stack top already false, skip second expression
+                    EmitO(Opcode.Dup); // duplicate it
+                    EmitS(Opcode.BrFalse, skipLabel);
+                    // else do expression and operation
+                    EmitExpression((ExpressionAst)node.Children[1]); // get right value
+                    EmitBinaryOp(node); // do operation
+                }
+                else
+                {
+                    // or logic: if stack top already true, skip second expression
+                    EmitO(Opcode.Dup); // duplicate it
+                    EmitS(Opcode.BrTrue, skipLabel);
+                    // else do expression and operation
+                    EmitExpression((ExpressionAst)node.Children[1]); // get right value
+                    EmitBinaryOp(node); // do operation
+                }
+
+                EmitS(Opcode.Label, skipLabel);
+
+                return true;
+            }
+            return false;
+        }
+
         // given two values on stack, emit the binary operation on them
-        // leaves value on stack
+        // leaves one value on stack
         void EmitBinaryOp(ExpressionAst node)
         {
+            // NOTE: short circuit of boolean AND and OR done before here
             foreach (var entry in binTbl)
             {
                 var s = GetSymbolType(node.Children[0]);
