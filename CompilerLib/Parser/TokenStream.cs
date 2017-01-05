@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Parser
@@ -19,9 +17,9 @@ namespace Lomont.ClScript.CompilerLib.Parser
         {
         }
 
-        private Dictionary<int, Memo> CachedAst = new Dictionary<int, Memo>();
+        readonly Dictionary<int, Memo> cachedAst = new Dictionary<int, Memo>();
 
-        public Boolean IsMatch(TokenType type)
+        public bool IsMatch(TokenType type)
         {
             if (Current.TokenType == type)
             {
@@ -50,7 +48,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         public Ast Get(Func<Ast> getter)
         {
             Memo memo;
-            if (!CachedAst.TryGetValue(Index, out memo))
+            if (!cachedAst.TryGetValue(Index, out memo))
             {
                 return getter();
             }
@@ -72,7 +70,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 return current;
             }
 
-            throw new InvalidSyntax(String.Format("Invalid Syntax. Expecting {0} but got {1}", type, Current.TokenType));
+            throw new InvalidSyntax($"Invalid Syntax. Expecting {type} but got {Current.TokenType}");
         }
 
 
@@ -94,7 +92,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 {
                     found = true;
 
-                    CachedAst[currentIndex] = new Memo
+                    cachedAst[currentIndex] = new Memo
                     {
                         Ast = ast,
                         NextIndex = Index

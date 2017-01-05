@@ -8,8 +8,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
     // attaches types when possible to nodes
     class BuildSymbolTableVisitor
     {
-        Environment env;
-        SymbolTableManager mgr;
+        readonly Environment env;
+        readonly SymbolTableManager mgr;
 
         public BuildSymbolTableVisitor(Environment environment)
         {
@@ -71,7 +71,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is EnumValueAst)
             {
                 var type = mgr.TypeManager.GetType(SymbolType.EnumValue);
-                (node as EnumValueAst).Symbol = mgr.AddVariableSymbol(node, ((EnumValueAst) node).Name, type, VariableUse.Const);
+                ((EnumValueAst) node).Symbol = mgr.AddVariableSymbol(node, ((EnumValueAst) node).Name, type, VariableUse.Const);
             }
 
             //else if (node is TypeDeclarationAst)
@@ -85,7 +85,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             // if we added a block, see if some special variables need added
             if (node is BlockAst)
-                AddBlock(node as BlockAst);
+                AddBlock((BlockAst) node);
 
             // recurse
             foreach (var child in node.Children)
@@ -118,17 +118,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         {
             if (node.Parent is ForStatementAst)
             {
-                var forNode = node.Parent as ForStatementAst;
+                var forNode = (ForStatementAst) node.Parent;
                 var varName = forNode.Name;
                 var symbol = mgr.AddVariableSymbol(node.Parent, varName, mgr.TypeManager.GetType(SymbolType.ToBeResolved), VariableUse.ForLoop);
                 forNode.VariableSymbol = symbol;
             }
             else if (node.Parent is FunctionDeclarationAst)
             {
-                var funcAst = (node.Parent as FunctionDeclarationAst);
+                var funcAst = (FunctionDeclarationAst) node.Parent;
                 funcAst.SymbolTable = mgr.SymbolTable;
                 funcAst.Symbol = mgr.Lookup(funcAst.Name);
-                var par = (node.Parent as FunctionDeclarationAst).Children[1] as ParameterListAst;
+                var par = ((FunctionDeclarationAst) node.Parent).Children[1] as ParameterListAst;
                 if (par == null) 
                     throw new InternalFailure("Function mismatch in symbol builder AddBlock");
                 foreach (var item in par.Children)

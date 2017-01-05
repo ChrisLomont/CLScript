@@ -41,7 +41,9 @@ using Lomont.ClScript.CompilerLib.Visitors;
  * 31. Add "test" button that runs all regression tests
  * 32. Make an 'unpack' instruction that unpacks a stream of constants from code into an array for those cases
  * 33. Run code "smell" tools to check code for problems
- * 
+ * 34. Command line compiler
+ * 35. Nicer GUI
+ * 36. Triple dimension arryas (and higher?) cannot set highest index values on any slot - crashes
  * To get usable in production:  
  * 
  */
@@ -58,7 +60,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// Tracks messages and info, warning, and errors
         /// </summary>
-        public Environment env { get; private set; }
+        public Environment Env { get; }
 
         /// <summary>
         /// The generated syntax tree
@@ -67,7 +69,7 @@ namespace Lomont.ClScript.CompilerLib
 
         public Compiler(Environment environment)
         {
-            env = environment;
+            Env = environment;
         }
 
 
@@ -80,7 +82,7 @@ namespace Lomont.ClScript.CompilerLib
 
         public bool Compile(string filename, GetFileText fileReader)
         {
-            var success = false;
+            bool success;
             try
             {
                 success = 
@@ -92,17 +94,16 @@ namespace Lomont.ClScript.CompilerLib
             {
                 do
                 {
-                    env.Error($"Exception: {ex.Message}");
-                    env.Error($"Details: {ex}");
+                    Env.Error($"Exception: {ex.Message}");
+                    Env.Error($"Details: {ex}");
                     ex = ex.InnerException;
                 } while (ex != null);
                 success = false;
             }
-            env.Info($"Compile: {env.ErrorCount} errors, {env.WarningCount} warnings.");
-            if (success)
-                env.Info("Compilation is successful");
-            else
-                env.Info($"Failed: {env.ErrorCount} errors, {env.WarningCount} warnings");
+            Env.Info($"Compile: {Env.ErrorCount} errors, {Env.WarningCount} warnings.");
+            Env.Info(success
+                ? "Compilation is successful"
+                : $"Failed: {Env.ErrorCount} errors, {Env.WarningCount} warnings");
             return success;
         }
 
@@ -174,14 +175,14 @@ namespace Lomont.ClScript.CompilerLib
                 var source = fileReader(filename);
                 if (source == null)
                 {
-                    env.Error($"Cannot open file {filename}");
+                    Env.Error($"Cannot open file {filename}");
                     return false;
                 }
 
-                env.Info($"Compiling file {filename}");
+                Env.Info($"Compiling file {filename}");
 
-                lexer = new Lexer.Lexer(env, source, filename);
-                parser = new Parser.Parser(env, lexer);
+                lexer = new Lexer.Lexer(Env, source, filename);
+                parser = new Parser.Parser(Env, lexer);
                 var tree = parser.Parse();
                 if (SyntaxTree == null)
                     SyntaxTree = tree;
@@ -199,7 +200,7 @@ namespace Lomont.ClScript.CompilerLib
                         if (ch is ImportAst)
                         {
                             var name = (ch as ImportAst).Name;
-                            name = name.Trim(new char[] {'"'}); // remove quotes
+                            name = name.Trim('"'); // remove quotes
                             if (!filesEnqueued.Contains(name))
                             {
                                 filesToImport.Enqueue(name);
@@ -213,7 +214,7 @@ namespace Lomont.ClScript.CompilerLib
             // reorder tree to make later stages easier to perform
             ReorderSyntaxTree(SyntaxTree);
 
-            return SyntaxTree != null && env.ErrorCount == 0;
+            return SyntaxTree != null && Env.ErrorCount == 0;
         }
 
         // reorder tree:
@@ -229,12 +230,12 @@ namespace Lomont.ClScript.CompilerLib
 
             var enums     = Extract(tree.Children, n => n is EnumAst);
             var types     = Extract(tree.Children,n => n is TypeDeclarationAst);
-            var imports = Extract(tree.Children, n => n is FunctionDeclarationAst && (n as FunctionDeclarationAst).ImportToken != null);
+            var imports = Extract(tree.Children, n => (n as FunctionDeclarationAst)?.ImportToken != null);
             var globals   = Extract(tree.Children,n => n is VariableDefinitionAst);
-            var functions = Extract(tree.Children,n => n is FunctionDeclarationAst && (n as FunctionDeclarationAst).ImportToken == null);
+            var functions = Extract(tree.Children,n => n is FunctionDeclarationAst && ((FunctionDeclarationAst) n).ImportToken == null);
 
             if (imports.Count + enums.Count + types.Count + globals.Count + functions.Count != tree.Children.Count)
-                env.Error($"Mismatch in ast node counts when reordering syntax tree");
+                Env.Error("Mismatch in ast node counts when reordering syntax tree");
             else
             {
                 tree.Children.Clear();
@@ -267,44 +268,44 @@ namespace Lomont.ClScript.CompilerLib
         // return true on success
         bool AnalyzeSyntaxTree()
         {
-            env.Info("Building symbol table...");
-            var builder = new BuildSymbolTableVisitor(env);
+            Env.Info("Building symbol table...");
+            var builder = new BuildSymbolTableVisitor(Env);
             symbolTable = builder.BuildTable(SyntaxTree);
-            if (env.ErrorCount == 0)
+            if (Env.ErrorCount == 0)
             {
-                env.Info("Semantic Analysis...");
-                var analyzer = new SemanticAnalyzerVisitor(env);
+                Env.Info("Semantic Analysis...");
+                var analyzer = new SemanticAnalyzerVisitor(Env);
                 analyzer.Check(symbolTable, SyntaxTree);
-                if (env.ErrorCount == 0)
+                if (Env.ErrorCount == 0)
                 {
-                    var usage = new SymbolUsageVisitor(env);
+                    var usage = new SymbolUsageVisitor(Env);
                     usage.Check(symbolTable, SyntaxTree);
                 }
             }
-            return env.ErrorCount == 0;
+            return Env.ErrorCount == 0;
         }
 
         // generate code from the abstract syntax tree and symbol table
         // return true on success
         bool GenerateCode()
         {
-            var cg = new CodeGeneratorVisitor(env);
-            env.Info("Intermediate Code Generation...");
+            var cg = new CodeGeneratorVisitor(Env);
+            Env.Info("Intermediate Code Generation...");
             var code = cg.Generate(symbolTable, SyntaxTree);
-            if (env.ErrorCount > 0)
+            if (Env.ErrorCount > 0)
                 return false;
 
             generatedInstructions.Clear();
             generatedInstructions.AddRange(code);
 
-            var peep = new PeepholeOptimizer(env);
+            var peep = new PeepholeOptimizer(Env);
             peep.Optimize(generatedInstructions);
 
-            bytecode = new BytecodeGen(env);
-            env.Info("Bytecode Generation...");
-            var retval = bytecode.Generate(symbolTable, generatedInstructions);
+            bytecode = new BytecodeGen(Env);
+            Env.Info("Bytecode Generation...");
+            var retval = bytecode.Generate(generatedInstructions);
             if (retval)
-                env.Info($"  ...bytecode assembly {bytecode.CompiledAssembly.Length} bytes");
+                Env.Info($"  ...bytecode assembly {bytecode.CompiledAssembly.Length} bytes");
             return retval;
         }
 

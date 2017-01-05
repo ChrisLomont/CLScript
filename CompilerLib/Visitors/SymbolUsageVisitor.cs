@@ -1,15 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Linq;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Visitors
 {
     class SymbolUsageVisitor
     {
-        Environment env;
+        readonly Environment env;
         SymbolTableManager mgr;
 
         public SymbolUsageVisitor(Environment environment)
@@ -124,7 +120,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 { 
                     node.Symbol.Used = true;
                     if (node.Symbol.Type is UserType)
-                        mgr.Lookup((node.Symbol.Type as UserType).Name).Used = true;
+                        mgr.Lookup(((UserType) node.Symbol.Type).Name).Used = true;
                 }
                 else if (!(node.Parent is ReturnValuesAst) && !(node.Parent is ParameterListAst))
                     throw new InternalFailure($"Expected return statement or parameter list at {node}");

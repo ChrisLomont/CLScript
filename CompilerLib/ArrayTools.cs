@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace Lomont.ClScript.CompilerLib
 {
@@ -35,8 +31,8 @@ namespace Lomont.ClScript.CompilerLib
         // dimensions of an array
         internal class IndexCounter
         {
-            int[] count;
-            int [] max;
+            readonly int[] count;
+            readonly int [] max;
 
             internal IndexCounter(List<int> dimensions, int startIndex)
             {

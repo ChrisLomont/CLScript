@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:WPFEdit"
         xmlns:vm="clr-namespace:Lomont.ClScript.WPFEdit.ViewModel"
         mc:Ignorable="d"
         Height="900" Width="1200"        
@@ -85,7 +84,7 @@
                 <avalonEdit:TextEditor 
             Background="Bisque"
     xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
-    x:Name="textEditor"
+    x:Name="TextEditor"
     FontFamily="Consolas"
     SyntaxHighlighting="C#"
     FontSize="10pt"/>
@@ -98,7 +97,7 @@
                 <avalonEdit:TextEditor 
                 Background="LightCyan"
                 xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
-                x:Name="treeView"
+                x:Name="TreeView"
                 FontFamily="Consolas"
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>
@@ -110,7 +109,7 @@
                 <avalonEdit:TextEditor 
                 Background="Cornsilk"
                 xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
-                x:Name="symbolView"
+                x:Name="SymbolView"
                 FontFamily="Consolas"
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>
@@ -122,7 +121,7 @@
                 <avalonEdit:TextEditor 
                 Background="LightCyan"
                 xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
-                x:Name="codegenView"
+                x:Name="CodegenView"
                 FontFamily="Consolas"
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>
@@ -145,7 +144,7 @@
                 <avalonEdit:TextEditor 
                 Background="DarkGray"
                 xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
-                x:Name="traceView"
+                x:Name="TraceView"
                 FontFamily="Consolas"
                 SyntaxHighlighting="C#"
                 FontSize="10pt"/>

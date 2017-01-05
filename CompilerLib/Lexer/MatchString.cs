@@ -1,18 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
 
 namespace Lomont.ClScript.CompilerLib.Lexer
 {
     public class MatchString : MatchBase
     {
-        public const char QUOTE = '\"';
+        public const char Quote = '\"';
 
-        public const char TIC = '\'';
+        public const char Tic = '\'';
 
-        private char StringDelim { get; set; }
+        char StringDelim { get; }
 
         public MatchString(char delim)
         {
@@ -44,7 +40,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
 
             if (matched)
             {
-                if (StringDelim == QUOTE) // allow 0 length strings
+                if (StringDelim == Quote) // allow 0 length strings
                     return new Token(TokenType.StringLiteral, str.ToString());
                 else if (str.Length == 1)
                     return new Token(TokenType.ByteLiteral, str.ToString());

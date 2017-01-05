@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.Lexer
 {
@@ -135,13 +132,13 @@ namespace Lomont.ClScript.CompilerLib.Lexer
         readonly Indenter indenter = new Indenter();
 
         #region Implementation
-        CharacterStream CharStream { get; set; }
+        CharacterStream CharStream { get; }
         List<MatchBase> Matchers { get; set; }
         Environment env;
-        string filename;
+        readonly string filename;
 
         // is not an identifier character
-        Func<char, bool> notId = c => !Char.IsLetterOrDigit(c) && c != '_';
+        readonly Func<char, bool> notId = c => !Char.IsLetterOrDigit(c) && c != '_';
 
             // create an ordered list of items to match
         List<MatchBase> InitializeMatchList()
@@ -244,15 +241,17 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             };
 
             // assemble things to match in order
-            var matchers = new List<MatchBase>(64);
+            var matchers = new List<MatchBase>(64)
+            {
+                new MatchComment(),
+                new MatchEndOfLine(),
+                new MatchString(MatchString.Quote),
+                new MatchString(MatchString.Tic),
+                new MatchNumber()
+            };
 
-            matchers.Add(new MatchComment());
-            matchers.Add(new MatchEndOfLine());
 
-            matchers.Add(new MatchString(MatchString.QUOTE));
-            matchers.Add(new MatchString(MatchString.TIC));
             // this must come before operators to prevent '.1' being DOT ONE as opoosed to floating point 0.1
-            matchers.Add(new MatchNumber());
 
             matchers.AddRange(specialCharacters);
             matchers.AddRange(keywords);

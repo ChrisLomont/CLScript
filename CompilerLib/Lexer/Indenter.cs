@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace Lomont.ClScript.CompilerLib.Lexer
 {
@@ -13,12 +9,12 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             indentPosition.Push(1); // lowest level is line position 1
         }
 
-        List<Token> tokens = new List<Token>();
+        readonly List<Token> tokens = new List<Token>();
 
         // stack of indentation regions
-        Stack<int> indentPosition = new Stack<int>();
+        readonly Stack<int> indentPosition = new Stack<int>();
 
-        List<Token> history = new List<Token>();
+        readonly List<Token> history = new List<Token>();
         public bool Indented => indentPosition.Count > 1;
 
         // history 0 is current, 1 is 1 back, etc

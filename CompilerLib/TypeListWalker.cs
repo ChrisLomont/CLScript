@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using Lomont.ClScript.CompilerLib.AST;
 using Lomont.ClScript.CompilerLib.Visitors;
 
@@ -58,7 +56,7 @@ namespace Lomont.ClScript.CompilerLib
         // takes into account full or partial array declared
         // returns # of dimensions of item already specified before this walk
         // thus, if a is defined as i32 a[1][2][3], and a[0][0] is being walked, returns 2, the number of dimensions already used
-        static internal int DecomposeExpr(ExpressionAst expr, out SymbolEntry symbol, out InternalType baseType, out int numCopies)
+        internal static int DecomposeExpr(ExpressionAst expr, out SymbolEntry symbol, out InternalType baseType, out int numCopies)
         {
             var node = expr;
             var skipDimensions = 0;
@@ -90,7 +88,7 @@ namespace Lomont.ClScript.CompilerLib
 
         // given a symbol, return the number of items due to array, taking into account multiple dimensions
         // skip 1 or more array dimensions if they are already specified
-        static internal int NumItems(SymbolEntry symbol, int skip = 0)
+        internal static int NumItems(SymbolEntry symbol, int skip = 0)
         {
             var num = 1;
             if (symbol?.ArrayDimensions != null)
@@ -134,17 +132,15 @@ namespace Lomont.ClScript.CompilerLib
     // each item is something that can be assigned to
     class TypeListWalker : IEnumerable<TypeListWalker.ItemData>
     {
-        ExpressionAst ast;
-        SymbolEntry symbol;
+        readonly ExpressionAst ast;
+        readonly SymbolEntry symbol;
         InternalType baseType;
-        SymbolTableManager mgr;
-        Environment env;
-        List<ItemData> items = new List<ItemData>();
-        public TypeListWalker(SymbolTableManager mgr, ExpressionAst ast, Environment environment)
+        readonly SymbolTableManager mgr;
+        readonly List<ItemData> items = new List<ItemData>();
+        public TypeListWalker(SymbolTableManager mgr, ExpressionAst ast)
         {
             this.mgr = mgr;
             this.ast = ast;
-            this.env = environment;
             int numCopies;
             var skippedDimensions = TypeHelper.DecomposeExpr(ast, out symbol, out baseType, out numCopies);
             Recurse(items, ast.Type, skippedDimensions, symbol);

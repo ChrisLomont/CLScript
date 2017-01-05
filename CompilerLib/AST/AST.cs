@@ -1,15 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Lomont.ClScript.CompilerLib.Visitors;
+﻿using System.Collections.Generic;
 
 namespace Lomont.ClScript.CompilerLib.AST
 {
     public abstract class Ast
     {
-        public List<Ast> Children { get; private set; }
+        public List<Ast> Children { get; }
 
         public Token Token { get; set; }
 
@@ -48,7 +43,7 @@ namespace Lomont.ClScript.CompilerLib.AST
         {
             var typeStr = Type == null ? "" : $"<{Type}>";
 
-            return $"{this.GetType().Name.Replace("Ast", "")} :: {Token} :: {typeStr} :: {insertion}";
+            return $"{GetType().Name.Replace("Ast", "")} :: {Token} :: {typeStr} :: {insertion}";
         }
 
         public override string ToString()

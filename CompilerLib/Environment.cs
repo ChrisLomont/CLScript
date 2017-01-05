@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib
 {
@@ -16,7 +12,7 @@ namespace Lomont.ClScript.CompilerLib
         {
             Output = output;
         }
-        public TextWriter Output { get; private set; }
+        public TextWriter Output { get; }
 
         public int ErrorCount { get; private set; }
         public int WarningCount { get; private set; }
@@ -29,6 +25,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <param name="items"></param>
         public void Info(string format, params object[] items)
         {
+            ++InfoCount;
             WriteLine(String.Format(format, items));
         }
 

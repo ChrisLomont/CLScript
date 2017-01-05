@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Lomont.ClScript.CompilerLib.Lexer
+﻿namespace Lomont.ClScript.CompilerLib.Lexer
 {
     class MatchEndOfLine : MatchBase
     {
@@ -14,11 +8,11 @@ namespace Lomont.ClScript.CompilerLib.Lexer
         }
 
         // windows is '\n', Unix '\r\n', most common. 
-        static string[] endmarkers = {"\r\n","\n"};
+        static readonly string[] Endmarkers = {"\r\n","\n"};
 
         protected override Token IsMatchImpl(CharacterStream characterStream)
         {
-            foreach (var m in endmarkers)
+            foreach (var m in Endmarkers)
                 if (characterStream.StartsWith(m))
                 {
                     characterStream.Consume(m.Length);

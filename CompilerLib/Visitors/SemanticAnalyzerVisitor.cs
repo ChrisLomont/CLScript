@@ -31,10 +31,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             env = environment;
         }
 
-        Environment env;
+        readonly Environment env;
         SymbolTableManager mgr;
         // pairs of attributes and things that get them
-        List<Tuple<Ast, Ast>> attributePairs = new List<Tuple<Ast, Ast>>();
+        readonly List<Tuple<Ast, Ast>> attributePairs = new List<Tuple<Ast, Ast>>();
 
         public void Check(SymbolTableManager symbolTable, Ast ast)
         {
@@ -62,7 +62,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             // for statement loop variable needs set here, before children processed
             if (node is BlockAst && node.Parent is ForStatementAst)
-                ProcessForStatement((ForStatementAst)(node.Parent));
+                ProcessForStatement((ForStatementAst) (node.Parent));
 
             if (node is TypedItemAst && node.Children.Any())
             {
@@ -74,14 +74,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
 
             if (node is ParameterListAst || node is ReturnValuesAst)
-                recurseChildren = false; // no semantics to check - syntax was enough, and checking causes later problems
+                recurseChildren = false;
+                    // no semantics to check - syntax was enough, and checking causes later problems
 
             if (recurseChildren)
             {
                 // recurse children
                 // NOTE: do not use foreach here since tree may be modified
                 for (var i = 0; i < node.Children.Count; ++i)
-                    Recurse(node.Children[i]);
+                {
+                    var child = node.Children[i];
+                    Recurse(child);
+                }
             }
 
             // adds type info, does type checking
@@ -89,7 +93,6 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
             mgr.ExitAst(node);
         }
-
 
         // adds type info, does type checking, other work
 
@@ -113,11 +116,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 ((TypedItemAst)node).Symbol = mgr.Lookup(typeName);
             }
             else if (node is LiteralAst)
-                symbolType = ProcessLiteral(node as LiteralAst, env);
+                symbolType = ProcessLiteral((LiteralAst) node, env);
             else if (node is ArrayAst)
-                internalType = ProcessArray(node as ArrayAst);
+                internalType = ProcessArray((ArrayAst) node);
             else if (node is DotAst)
-                internalType = ProcessDot(node as DotAst);
+                internalType = ProcessDot((DotAst) node);
             else if (node is AssignStatementAst)
                 ProcessAssignment((AssignStatementAst) node);
             else if (node is VariableDefinitionAst)
@@ -131,11 +134,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else if (node is FunctionDeclarationAst)
                 ProcessFunctionDeclaration((FunctionDeclarationAst) node);
             else if (node is ExpressionAst)
-                internalType = ProcessExpression(node as ExpressionAst);
+                internalType = ProcessExpression((ExpressionAst) node);
             else if (node is EnumAst)
-                ProcessEnum(node as EnumAst);
+                ProcessEnum((EnumAst) node);
             else if (node is AttributeAst)
-                ProcessAttribute(node as AttributeAst);
+                ProcessAttribute((AttributeAst) node);
 
             if (internalType != null)
                 node.Type = internalType;
@@ -331,10 +334,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     return null;
                 }
             }
-            if (type.ReturnType.Tuple.Count == 1)
-                node.Type = type.ReturnType.Tuple[0];
-            else
-                node.Type = type.ReturnType; // function has multiple returns
+            node.Type = type.ReturnType.Tuple.Count == 1 ? type.ReturnType.Tuple[0] : type.ReturnType;
             return null;
         }
 
@@ -350,8 +350,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             { // tuple of 2 or 3 i32
                 var types = GetTypes(bounds.Children);
                 var count = types.Count;
-                var i32type = mgr.TypeManager.GetType(SymbolType.Int32);
-                var allI32 = types.All(tt => tt == i32type); // todo
+                var i32Type = mgr.TypeManager.GetType(SymbolType.Int32);
+                var allI32 = types.All(tt => tt == i32Type); // todo
                 if (count < 2 || 3 < count || !allI32)
                     env.Error($"for range not 2 or 3 i32 values {node}");
                 else
@@ -419,7 +419,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     var func = p as FunctionDeclarationAst;
                     var funcType = func?.Symbol.Type as FunctionType;
                     if (funcType == null)
-                        throw new InternalFailure($"Expected function type {funcType}");
+                        throw new InternalFailure($"Expected function type {node}");
                     if (funcType.ReturnType.Tuple.Count == 0 && node.Children.Count == 0)
                         return; // nothing to do
                     CheckAssignments(node,funcType.ReturnType.Tuple, GetTypes(node.Children[0].Children));
@@ -701,18 +701,18 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // Unary expression table: given type and op, return result or null if illegal
         class UnaryTableEntry
         {
-            public TokenType actionType;
-            public SymbolType valueType;
-            public UnaryAction action;
+            public readonly TokenType ActionType;
+            public readonly SymbolType ValueType;
+            public readonly UnaryAction Action;
             public UnaryTableEntry(TokenType actionType, SymbolType valueType, UnaryAction action)
             {
-                this.actionType = actionType;
-                this.valueType = valueType;
-                this.action = action;
+                this.ActionType = actionType;
+                this.ValueType = valueType;
+                this.Action = action;
             }
         }
 
-        static UnaryTableEntry[] unaryActionTable =
+        static readonly UnaryTableEntry[] UnaryActionTable =
         {
             // bool          : !
             new UnaryTableEntry(
@@ -767,14 +767,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (childType == null)
                 throw new InternalFailure($"Expected simple type, got {child?.Type}");
 
-            foreach (var entry in unaryActionTable)
+            foreach (var entry in UnaryActionTable)
             {
-                if (entry.actionType == node.Token.TokenType &&
-                    entry.valueType == childType.SymbolType)
+                if (entry.ActionType == node.Token.TokenType &&
+                    entry.ValueType == childType.SymbolType)
                 {
                     // matches, do action if child has a value
                     if (child.HasValue)
-                        entry.action(node, child);
+                        entry.Action(node, child);
                     node.Type = child.Type;
                     return node.Type;
                 }
@@ -793,9 +793,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // Binary expression table: given type and op, return result or null if illegal
         class BinaryTableEntry
         {
-            public TokenType actionType;
-            public SymbolType leftValueType,rightValueType, result;
-            public BinaryAction action;
+            public readonly TokenType ActionType;
+            public readonly SymbolType LeftValueType;
+            public readonly SymbolType RightValueType;
+            public readonly SymbolType Result;
+            public readonly BinaryAction Action;
             public BinaryTableEntry(
                 TokenType actionType, 
                 SymbolType leftValueType, SymbolType rightValueType,
@@ -803,16 +805,16 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 SymbolType resultType
                 )
             {
-                this.actionType = actionType;
-                this.leftValueType = leftValueType;
-                this.rightValueType = rightValueType;
-                this.action = action;
-                result = resultType;
+                this.ActionType = actionType;
+                this.LeftValueType = leftValueType;
+                this.RightValueType = rightValueType;
+                this.Action = action;
+                Result = resultType;
             }
         }
 
         // Binary operators: and types they apply to
-        static BinaryTableEntry[] binaryActionTable =
+        static readonly BinaryTableEntry[] BinaryActionTable =
         {
 
             // bool,byte,i32,r32  : !=
@@ -1195,17 +1197,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 return null;
             }
 
-            foreach (var entry in binaryActionTable)
+            foreach (var entry in BinaryActionTable)
             {
-                if (entry.actionType == node.Token.TokenType &&
-                    entry.leftValueType  == CodeGeneratorVisitor.GetSymbolType(left) &&
-                    entry.rightValueType == CodeGeneratorVisitor.GetSymbolType(right)
+                if (entry.ActionType == node.Token.TokenType &&
+                    entry.LeftValueType  == CodeGeneratorVisitor.GetSymbolType(left) &&
+                    entry.RightValueType == CodeGeneratorVisitor.GetSymbolType(right)
                     )
                 {
                     // it matches, do action if children have values
                     if (left.HasValue && right.HasValue)
-                        entry.action(node, left, right);
-                    node.Type = mgr.TypeManager.GetType(entry.result);
+                        entry.Action(node, left, right);
+                    node.Type = mgr.TypeManager.GetType(entry.Result);
                     return node.Type;
                 }
             }

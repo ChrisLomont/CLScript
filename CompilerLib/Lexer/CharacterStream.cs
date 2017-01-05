@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace Lomont.ClScript.CompilerLib.Lexer
 {
@@ -19,41 +18,41 @@ namespace Lomont.ClScript.CompilerLib.Lexer
 
         public string Text { get; }
 
-        public CharacterPosition  position = new CharacterPosition();
+        public CharacterPosition  Position = new CharacterPosition();
 
         public bool End => IsEndOfFile(0);
-        public char Current => End ? EndOfFile : Text[position.TextIndex];
+        public char Current => End ? EndOfFile : Text[Position.TextIndex];
 
         public void Consume(int count = 1)
         {
             for (var i = 0; i < count; ++i)
-                position.Advance(Text[position.TextIndex]);
+                Position.Advance(Text[Position.TextIndex]);
         }
 
         bool IsEndOfFile(int lookahead)
         {
-            return position.TextIndex + lookahead >= Text.Length;
+            return Position.TextIndex + lookahead >= Text.Length;
         }
 
         public override string ToString()
         {
-            return $"Line {position.LineNumber} Position {position.LinePosition}";
+            return $"Line {Position.LineNumber} Position {Position.LinePosition}";
         }
 
 
         public char Peek(int lookahead)
         {
-            return IsEndOfFile(lookahead) ? EndOfFile : Text[position.TextIndex + lookahead];
+            return IsEndOfFile(lookahead) ? EndOfFile : Text[Position.TextIndex + lookahead];
         }
 
         public void TakeSnapshot()
         {
-            snapshotIndexes.Push(new CharacterPosition(position));
+            snapshotIndexes.Push(new CharacterPosition(Position));
         }
 
         public void RollbackSnapshot()
         {
-            position = snapshotIndexes.Pop();
+            Position = snapshotIndexes.Pop();
         }
 
         public void CommitSnapshot()

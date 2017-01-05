@@ -57,7 +57,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
     public class Parser
     {
-        ParseableTokenStream TokenStream { get; set; }
+        ParseableTokenStream TokenStream { get; }
 
         public Parser(Environment environment, Lexer.Lexer lexer)
         {
@@ -78,7 +78,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return TokenStream.GetTokens();
         }
 
-        Environment env;
+        readonly Environment env;
 
         #region Grammar
 
@@ -344,8 +344,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             if (!Lookahead("Expected '[' for array", TokenType.LeftBracket))
                 return null;
 
-            var arrayAst = new ArrayAst();
-            arrayAst.Token = TokenStream.Consume(); // '['
+            var arrayAst = new ArrayAst {Token = TokenStream.Consume()}; // '['
 
             // parse array node, make as child
             if (requireSize)
@@ -544,7 +543,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return TokenStream.Peek(i).TokenType == TokenType.LeftParen;
         }
 
-        static string[] assignOperators =
+        static readonly string[] AssignOperators =
         {
             "=", "+=", "-=", "*=", "/=", "^=", "&=", "|=", "%=", ">>=", "<<=", ">>>=",
             "<<<="
@@ -572,7 +571,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             }
             Token op = null;
             Ast exprList = null;
-            if (prefix == null && NextIsOneOf(assignOperators))
+            if (prefix == null && NextIsOneOf(AssignOperators))
             {
                 op = TokenStream.Consume();
                 exprList = ParseExpressionList(1);
@@ -901,46 +900,46 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         readonly Prec[] precedenceTable =
         {
-            new Prec(12,Assoc.L,BU.U,TokenType.Increment),
-            new Prec(12,Assoc.L,BU.U,TokenType.Decrement),
-            new Prec(12,Assoc.L,BU.B,TokenType.LeftParen),
-            new Prec(12,Assoc.L,BU.U,TokenType.LeftBracket),
-            new Prec(12,Assoc.L,BU.U,TokenType.Dot),
+            new Prec(12,Assoc.L,Ary.U,TokenType.Increment),
+            new Prec(12,Assoc.L,Ary.U,TokenType.Decrement),
+            new Prec(12,Assoc.L,Ary.B,TokenType.LeftParen),
+            new Prec(12,Assoc.L,Ary.U,TokenType.LeftBracket),
+            new Prec(12,Assoc.L,Ary.U,TokenType.Dot),
 
-            new Prec(11,Assoc.L,BU.U,TokenType.Increment),
-            new Prec(11,Assoc.L,BU.U,TokenType.Decrement),
-            new Prec(11,Assoc.L,BU.U,TokenType.Plus),
-            new Prec(11,Assoc.L,BU.U,TokenType.Minus),
-            new Prec(11,Assoc.L,BU.U,TokenType.Exclamation),
-            new Prec(11,Assoc.L,BU.U,TokenType.Tilde),
+            new Prec(11,Assoc.L,Ary.U,TokenType.Increment),
+            new Prec(11,Assoc.L,Ary.U,TokenType.Decrement),
+            new Prec(11,Assoc.L,Ary.U,TokenType.Plus),
+            new Prec(11,Assoc.L,Ary.U,TokenType.Minus),
+            new Prec(11,Assoc.L,Ary.U,TokenType.Exclamation),
+            new Prec(11,Assoc.L,Ary.U,TokenType.Tilde),
 
-            new Prec(10,Assoc.L,BU.B,TokenType.Asterix),
-            new Prec(10,Assoc.L,BU.B,TokenType.Slash),
-            new Prec(10,Assoc.L,BU.B,TokenType.Percent),
+            new Prec(10,Assoc.L,Ary.B,TokenType.Asterix),
+            new Prec(10,Assoc.L,Ary.B,TokenType.Slash),
+            new Prec(10,Assoc.L,Ary.B,TokenType.Percent),
 
 
-            new Prec(9,Assoc.L,BU.B,TokenType.Plus),
-            new Prec(9,Assoc.L,BU.B,TokenType.Minus),
+            new Prec(9,Assoc.L,Ary.B,TokenType.Plus),
+            new Prec(9,Assoc.L,Ary.B,TokenType.Minus),
 
-            new Prec(8,Assoc.L,BU.B,TokenType.LeftShift),
-            new Prec(8,Assoc.L,BU.B,TokenType.RightShift),
+            new Prec(8,Assoc.L,Ary.B,TokenType.LeftShift),
+            new Prec(8,Assoc.L,Ary.B,TokenType.RightShift),
 
-            new Prec(7,Assoc.L,BU.B,TokenType.LeftRotate),
-            new Prec(7,Assoc.L,BU.B,TokenType.RightRotate),
+            new Prec(7,Assoc.L,Ary.B,TokenType.LeftRotate),
+            new Prec(7,Assoc.L,Ary.B,TokenType.RightRotate),
 
-            new Prec(6,Assoc.L,BU.B,TokenType.LessThan),
-            new Prec(6,Assoc.L,BU.B,TokenType.LessThanOrEqual),
-            new Prec(6,Assoc.L,BU.B,TokenType.GreaterThan),
-            new Prec(6,Assoc.L,BU.B,TokenType.GreaterThanOrEqual),
+            new Prec(6,Assoc.L,Ary.B,TokenType.LessThan),
+            new Prec(6,Assoc.L,Ary.B,TokenType.LessThanOrEqual),
+            new Prec(6,Assoc.L,Ary.B,TokenType.GreaterThan),
+            new Prec(6,Assoc.L,Ary.B,TokenType.GreaterThanOrEqual),
 
-            new Prec(5,Assoc.L,BU.B,TokenType.Compare),
-            new Prec(5,Assoc.L,BU.B,TokenType.NotEqual),
+            new Prec(5,Assoc.L,Ary.B,TokenType.Compare),
+            new Prec(5,Assoc.L,Ary.B,TokenType.NotEqual),
 
-            new Prec(4,Assoc.L,BU.B,TokenType.Ampersand),
-            new Prec(3,Assoc.L,BU.B,TokenType.Caret),
-            new Prec(2,Assoc.L,BU.B,TokenType.Pipe),
-            new Prec(1,Assoc.L,BU.B,TokenType.LogicalAnd),
-            new Prec(0,Assoc.L,BU.B,TokenType.LogicalOr)
+            new Prec(4,Assoc.L,Ary.B,TokenType.Ampersand),
+            new Prec(3,Assoc.L,Ary.B,TokenType.Caret),
+            new Prec(2,Assoc.L,Ary.B,TokenType.Pipe),
+            new Prec(1,Assoc.L,Ary.B,TokenType.LogicalAnd),
+            new Prec(0,Assoc.L,Ary.B,TokenType.LogicalOr)
         };
 
         /* Operator precedence (from C/C++)
@@ -1015,7 +1014,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             R  // right
         }
 
-        enum BU
+        enum Ary
         {
             B, // binary
             U  // unary
@@ -1024,28 +1023,28 @@ namespace Lomont.ClScript.CompilerLib.Parser
         class Prec
         {
 
-            public Prec(int precedence, Assoc assoc, BU bu, TokenType tokenType)
+            public Prec(int precedence, Assoc assoc, Ary ary, TokenType tokenType)
             {
-                this.tokenType = tokenType;
-                this.precedence = precedence;
-                this.assoc = assoc;
-                this.Bu = bu;
+                this.TokenType = tokenType;
+                this.Precedence = precedence;
+                this.Assoc = assoc;
+                Ary = ary;
             }
 
-            public TokenType tokenType;
-            public int precedence;
-            public Assoc assoc;
-            public BU Bu;
+            public readonly TokenType TokenType;
+            public readonly int Precedence;
+            public readonly Assoc Assoc;
+            public readonly Ary Ary;
         }
 
-        bool NextOp(BU bu, out Prec prec ,out Token token)
+        bool NextOp(Ary ary, out Prec prec ,out Token token)
         {
             prec = null;
             token = TokenStream.Current;
             var tt = TokenStream.Current.TokenType;
             foreach (var item in precedenceTable)
             {
-                if (item.tokenType == tt && bu == item.Bu)
+                if (item.TokenType == tt && ary == item.Ary)
                 {
                     prec = item;
                     return true;
@@ -1066,10 +1065,10 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
             Prec prec;
             Token token;
-            while (NextOp(BU.B, out prec, out token) && prec != null && prec.precedence >= p)
+            while (NextOp(Ary.B, out prec, out token) && prec != null && prec.Precedence >= p)
             {
                 TokenStream.Consume();
-                var q = prec.assoc == Assoc.R ? prec.precedence : 1+prec.precedence;
+                var q = prec.Assoc == Assoc.R ? prec.Precedence : 1+prec.Precedence;
                 var t1 = Exp(q);
                 if (t1 == null)
                 {
@@ -1086,12 +1085,12 @@ namespace Lomont.ClScript.CompilerLib.Parser
             Prec prec;
             Token token;
             Ast t;
-            NextOp(BU.U, out prec, out token);
-            if (prec != null && prec.Bu == BU.U)
+            NextOp(Ary.U, out prec, out token);
+            if (prec != null && prec.Ary == Ary.U)
             {
                 // if next is a unary operator
                 TokenStream.Consume();
-                var q = prec.precedence;
+                var q = prec.Precedence;
                 t = Exp(q);
                 if (t == null)
                 {
@@ -1283,7 +1282,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             {
                 var ast = (Ast) Activator.CreateInstance(astType);
                 if (kept.Count > 1)
-                    throw new InternalFailure($"MatchSequence Only allows 0 or 1 kept items!");
+                    throw new InternalFailure("MatchSequence Only allows 0 or 1 kept items!");
                 if (kept.Any())
                     ast.Token = kept[0];
                 return ast;
@@ -1314,7 +1313,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return ParseAction.KeepNext;
         }
 
-        Stack<bool> ignoreErrors = new Stack<bool>();
+        readonly Stack<bool> ignoreErrors = new Stack<bool>();
         // write error message out and current token (position, line)
         void ErrorMessage(string error)
         {

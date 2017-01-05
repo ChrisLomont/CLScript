@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
-using System.ServiceModel.Channels;
 using System.Text;
-using System.Threading.Tasks;
 using Lomont.ClScript.CompilerLib.Visitors;
 
 namespace Lomont.ClScript.CompilerLib
@@ -73,12 +69,11 @@ namespace Lomont.ClScript.CompilerLib
         public byte[] CompiledAssembly { get; set; }
 
         List<byte> code = new List<byte>();
-        SymbolTableManager table;
-        Environment env;
+        readonly Environment env;
         Dictionary<string, int> labelAddresses;
         
         // where import/export/attribute items are stored
-        List<LinkEntry> linkEntries = new List<LinkEntry>();
+        readonly List<LinkEntry> linkEntries = new List<LinkEntry>();
 
         public BytecodeGen(Environment environment)
         {
@@ -89,9 +84,8 @@ namespace Lomont.ClScript.CompilerLib
         List<Tuple<int,string,bool>> fixups;
 
         // generate byte code, return true on success
-        public bool Generate(SymbolTableManager symbolTable, List<Instruction> instructions)
+        public bool Generate(List<Instruction> instructions)
         {
-            table = symbolTable;
             CompiledAssembly = null;
             code = new List<byte>();
             labelAddresses = new Dictionary<string, int>();
@@ -118,8 +112,8 @@ namespace Lomont.ClScript.CompilerLib
                 }
                 else if (labelAddresses.ContainsKey(label))
                 {
-                    var address = labelAddresses[label];
-                    Fixup(address, target, isRelative);
+                    var fixAddress = labelAddresses[label];
+                    Fixup(fixAddress, target, isRelative);
                 }
                 else
                     throw new InternalFailure($"Label {label} not in labels addresses");
@@ -389,17 +383,17 @@ namespace Lomont.ClScript.CompilerLib
                 UniqueId = uniqueId;
             }
 
-            public int UniqueId { get; set; }
+            public int UniqueId { get; }
 
-            public int ReturnEntries { get; private set; }
+            public int ReturnEntries { get; }
 
-            public int ParameterEntries { get; private set; }
+            public int ParameterEntries { get; }
 
-            public SymbolAttribute Flags { get; private set; }
+            public SymbolAttribute Flags { get; }
 
-            public int Address { get; private set;  }
+            public int Address { get; }
 
-            public string Name { get; private set; }
+            public string Name { get; }
 
             public List<Attribute> Attributes { get; set; }
 
@@ -438,7 +432,7 @@ namespace Lomont.ClScript.CompilerLib
             Write((uint)i32,4);
         }
 
-        int address = 0;
+        int address;
 
         // send all byte writes through here that update address
         void WriteCodeByte(byte b)
@@ -529,7 +523,7 @@ namespace Lomont.ClScript.CompilerLib
     {
         public static void Write(List<byte> bytes, string text, bool zeroTerminated = true)
         {
-            var txt = UTF8Encoding.UTF8.GetBytes(text);
+            var txt = Encoding.UTF8.GetBytes(text);
             foreach (var b in txt)
                 bytes.Add(b);
             if (zeroTerminated)

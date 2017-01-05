@@ -184,7 +184,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// Underlying symbol type
         /// </summary>
-        public SymbolType SymbolType { get; private set; }
+        public SymbolType SymbolType { get; }
 
         public override string ToString()
         {
@@ -211,7 +211,7 @@ namespace Lomont.ClScript.CompilerLib
             ParamsType = paramsType;
         }
 
-        public string Name { get; private set; }
+        public string Name { get; }
 
         /// <summary>
         /// number of stack entries this function leaves on the call stack
@@ -221,11 +221,11 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// return types for function type
         /// </summary>
-        public TupleType ReturnType { get; private set; }
+        public TupleType ReturnType { get; }
         /// <summary>
         /// parameter types for function type
         /// </summary>
-        public TupleType ParamsType { get; private set; }
+        public TupleType ParamsType { get; }
 
         public override string ToString()
         {
@@ -255,14 +255,14 @@ namespace Lomont.ClScript.CompilerLib
         /// 1 is single array
         /// etc.
         /// </summary>
-        public int ArrayDimension { get; private set; }
+        public int ArrayDimension { get; }
 
         /// <summary>
         /// The type of the base item.
         /// If not an array, the same as self
         /// If an array, the type of the underlying item, all arrays removed
         /// </summary>
-        public InternalType BaseType { get; private set; }
+        public InternalType BaseType { get; }
 
         public override string ToString()
         {
@@ -294,7 +294,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// the types in the tuple
         /// </summary>
-        public List<InternalType> Tuple { get; private set; }
+        public List<InternalType> Tuple { get; }
 
         public override string ToString()
         {
@@ -329,7 +329,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// A user type name
         /// </summary>
-        public string Name { get; private set; }
+        public string Name { get; }
 
         public override string ToString()
         {

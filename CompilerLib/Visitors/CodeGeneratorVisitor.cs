@@ -8,14 +8,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
     class CodeGeneratorVisitor
     {
         SymbolTableManager mgr;
-        Environment env;
+        readonly Environment env;
 
         // where we store instructions as they are generated
-        List<Instruction> instructions = new List<Instruction>();
+        readonly List<Instruction> instructions = new List<Instruction>();
 
         // stack of labels for break and continue
-        Stack<string> loopBreakLabels = new Stack<string>();
-        Stack<string> loopContinueLabels = new Stack<string>();
+        readonly Stack<string> loopBreakLabels = new Stack<string>();
+        readonly Stack<string> loopContinueLabels = new Stack<string>();
 
         public CodeGeneratorVisitor(Environment environment)
         {
@@ -108,7 +108,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             else if (node is FunctionDeclarationAst)
             {
-                if ((node as FunctionDeclarationAst).ImportToken == null)
+                if (((FunctionDeclarationAst) node).ImportToken == null)
                     EmitGlobalDelimiter(false); // first non-import function declaration marks end of globals
                 EmitFunction((FunctionDeclarationAst) node);
                 return;
@@ -200,10 +200,10 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 // array form, or error 
                 // todo - array form
                 throw new InternalFailure("For loop on array not done");
-                arrayLoop = true;
-                EmitI(Opcode.Push, 0); // array start
-                EmitI(Opcode.Push, 0); // array end - 1 TODO
-                EmitI(Opcode.Push, 1); // increment
+                //arrayLoop = true;
+                //EmitI(Opcode.Push, 0); // array start
+                //EmitI(Opcode.Push, 0); // array end - 1 TODO
+                //EmitI(Opcode.Push, 1); // increment
             }
 
 
@@ -303,11 +303,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                     // make this array - do not make them for param
                     var n = type.ArrayDimension;// # of dimensions
 
-                    var operands = new List<object>();
-                    operands.Add(GetLoadAddress(entry)); // address of array to create
-                    operands.Add(n);
+                    var operands = new List<object> {GetLoadAddress(entry), n, entry.StackSize};
+                    // address of array to create
 
-                    operands.Add(entry.StackSize);
 
 #if true // testing
 //                    var size = 1; // assume basic type
@@ -391,7 +389,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             {
                 EmitExpression(item as ExpressionAst, true); // address of expression
 
-                foreach (var itemData in new TypeListWalker(this.mgr, item as ExpressionAst, env))
+                foreach (var itemData in new TypeListWalker(mgr, item as ExpressionAst))
                 {
                     // stack has (push order) new value, then addr on top
 
@@ -504,9 +502,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (symbol.VariableUse == VariableUse.Global)
                 Emit2(Opcode.Load, OperandType.Global, symbol.Name, symbol.ReferenceAddress);
             else if (symbol.VariableUse == VariableUse.Local || symbol.VariableUse == VariableUse.ForLoop)
-                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.ReferenceAddress + callStackSuffixSize);
+                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.ReferenceAddress + CallStackSuffixSize);
             else if (symbol.VariableUse == VariableUse.Param)
-                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.ReferenceAddress - callStackPrefixSize);
+                Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.ReferenceAddress - CallStackPrefixSize);
             else if (symbol.VariableUse == VariableUse.Member)
                 Emit2(Opcode.Load, OperandType.Local, symbol.Name, symbol.ReferenceAddress);
             else
@@ -518,11 +516,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (symbol.VariableUse == VariableUse.Global)
                 return symbol.ReferenceAddress;
             else if (symbol.VariableUse == VariableUse.Local)
-                return symbol.ReferenceAddress + callStackSuffixSize;
+                return symbol.ReferenceAddress + CallStackSuffixSize;
             else if (symbol.VariableUse == VariableUse.Param)
-                return symbol.LayoutAddress.Value - callStackPrefixSize;
+                return symbol.LayoutAddress.Value - CallStackPrefixSize;
             else if (symbol.VariableUse == VariableUse.ForLoop)
-                return symbol.ReferenceAddress + callStackSuffixSize;
+                return symbol.ReferenceAddress + CallStackSuffixSize;
             else if (symbol.VariableUse == VariableUse.Member)
                 return symbol.ReferenceAddress;
             else
@@ -725,7 +723,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         // symbol table addresses are based on base pointer pointing to 
         // address 0, where first local is stored, and negative is parameters
         // these are byte counts of things stored on stack before base pointer and after base pointer
-        static int callStackSuffixSize = 0, callStackPrefixSize = 2;
+        static readonly int CallStackSuffixSize = 0;
+        static readonly int CallStackPrefixSize = 2;
 
         void EmitFunctionCall(FunctionCallAst node)
         {
@@ -804,7 +803,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (!(expr.Type is SimpleType) && !(expr is FunctionCallAst))
             {
                 // expand item
-                foreach (var itemData in new TypeListWalker(mgr, expr, env))
+                foreach (var itemData in new TypeListWalker(mgr, expr))
                 {
                     // todo - simplify this with an opcode to do it
                     Emit2(Opcode.Push, OperandType.None, "expand add", itemData.PreAddressIncrement);
@@ -859,7 +858,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 // emit known value, ignore children
                 if (node.Type is SimpleType)
                 {
-                    switch ((node.Type as SimpleType).SymbolType)
+                    switch (((SimpleType) node.Type).SymbolType)
                     {
                         case SymbolType.Bool:
                             EmitI(Opcode.Push, node.BoolValue.Value ? 1 : 0);
@@ -885,7 +884,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             else
             {
                 if (node is FunctionCallAst)
-                    EmitFunctionCall(node as FunctionCallAst);
+                    EmitFunctionCall((FunctionCallAst) node);
                 else if (node is ArrayAst || node is DotAst)
                 {
                     EmitItemAddressOrValue(node, leaveAddressOnly);
@@ -994,14 +993,14 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 ++k;
 
                 // offset into array
-                var offsetNode = current.Children[0] as ExpressionAst;
+                var offsetNode = (ExpressionAst) current.Children[0];
                 EmitExpression(offsetNode);
 
                 current = current.Children[1]; // next possible array level
             }
 
             // array address
-            int n = -1; // total array dimension
+            int n=-1; // total array dimension
             if (current is TypedItemAst)
             {
                 var ti = (TypedItemAst) current;
@@ -1011,8 +1010,8 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             else if (current is DotAst)
             {
-                operandType = EmitDotAddress(current as DotAst, operandType);
                 throw new NotImplementedException("DotAst needs array size n");
+                // operandType = EmitDotAddress(current as DotAst, operandType);
             }
             else
                 throw new InternalFailure($"Array needs typed item {current.Children[1]}");
@@ -1082,9 +1081,9 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         class BinOp
         {
-            public TokenType TokenType;
-            public SymbolType [] SymbolTypes;
-            public Opcode Opcode;
+            public readonly TokenType TokenType;
+            public readonly SymbolType [] SymbolTypes;
+            public readonly Opcode Opcode;
 
             public BinOp(TokenType tokType, Opcode opcode, params SymbolType [] matchingSymbols)
             {
@@ -1095,7 +1094,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
 
         }
 
-        static BinOp [] binTbl =
+        static readonly BinOp [] BinTbl =
         {
             // !=
             new BinOp(TokenType.NotEqual,Opcode.NotEqual,SymbolType.Bool,SymbolType.Byte,SymbolType.Int32, SymbolType.Float32),
@@ -1195,7 +1194,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         void EmitBinaryOp(ExpressionAst node)
         {
             // NOTE: short circuit of boolean AND and OR done before here
-            foreach (var entry in binTbl)
+            foreach (var entry in BinTbl)
             {
                 var s = GetSymbolType(node.Children[0]);
                 if (s != GetSymbolType(node.Children[1]))

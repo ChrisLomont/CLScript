@@ -61,7 +61,7 @@ namespace Lomont.ClScript.CompilerLib
 
         public Runtime(Environment environment)
         {
-            env = environment;
+            Env = environment;
         }
 
         /// <summary>
@@ -73,13 +73,14 @@ namespace Lomont.ClScript.CompilerLib
         /// <param name="parameters"></param>
         /// <param name="returnValues"></param>
         /// <returns></returns>
-        public bool Run(byte[] image, string entryAttribute, int [] parameters, int [] returnValues)
+        public bool Run(byte[] image, string entryAttribute, int [] parameters, int [] returnValues, int [] memory)
         {
             useTracing = true;
+            ramImage = memory;
 
             error = false;
-            romImage1 = image;
-            InitializerStopAddress = -1; // marks unused
+            romImage = image;
+            initializerStopAddress = -1; // marks unused
 
             try
             {
@@ -89,7 +90,7 @@ namespace Lomont.ClScript.CompilerLib
                 if (!ReadChunkHeader(ref index, out name, out length) || name != "RIFF" || length != image.Length-8 ||
                     !ReadImageString(ref index, out name, 4) || name != "CLSC" || ReadImageInt(ref index, 2) != GenVersion || error)
                 {
-                    env.Error($"Invalid bytecode header");
+                    Env.Error("Invalid bytecode header");
                     return false;
                 }
 
@@ -98,52 +99,52 @@ namespace Lomont.ClScript.CompilerLib
                 {
                     if (!ReadChunkHeader(ref index, out name, out length))
                     {
-                        env.Error($"Invalid bytecode chunk {name}");
+                        Env.Error($"Invalid bytecode chunk {name}");
                         return false;
                     }
                     if (name == "code")
                     {
-                        CodeStartOffset = (int)index;
+                        codeStartOffset = index;
                         index += length;
                     }
                     else if (name == "link")
                     {
-                        LinkStartOffset = (int) index;
+                        linkStartOffset = index;
                         index += length;
                     }
                     else if (name == "init")
                     {
-                        InitializerStopAddress = ReadImageInt(index , 4);
-                        env.Info($"Initializer stops at 0x{InitializerStopAddress:X}");
+                        initializerStopAddress = ReadImageInt(index , 4);
+                        Env.Info($"Initializer stops at 0x{initializerStopAddress:X}");
                         index += length;
                     }
                     else
                     {
-                        env.Warning($"Unknown bytecode chunk {name}");
+                        Env.Warning($"Unknown bytecode chunk {name}");
                         index += length;
                     }
                 }
 
 
-                env.Info($"Code offset {CodeStartOffset}, link offset {LinkStartOffset}");
+                Env.Info($"Code offset {codeStartOffset}, link offset {linkStartOffset}");
 
                 // find entry point
                 int address, retCount, paramCount, uniqueId;
 
                 if (!FindAttributeAddress(entryAttribute, out address, out retCount, out paramCount, out uniqueId))
                 {
-                    env.Error($"Cannot find entry point attribute {entryAttribute}. Ensure exported.");
+                    Env.Error($"Cannot find entry point attribute {entryAttribute}. Ensure exported.");
                     return false;
                 }
 
                 if (returnValues.Length != retCount)
                 {
-                    env.Error($"Entry function has wrong number of return values");
+                    Env.Error("Entry function has wrong number of return values");
                     return false;
                 }
                 if (parameters.Length != paramCount)
                 {
-                    env.Error($"Entry function has wrong number of parameters");
+                    Env.Error("Entry function has wrong number of parameters");
                     return false;
                 }
 
@@ -151,8 +152,8 @@ namespace Lomont.ClScript.CompilerLib
             }
             catch (Exception ex)
             {
-                env.Error("");
-                env.Error("Exception: " + ex);
+                Env.Error("");
+                Env.Error("Exception: " + ex);
                 return false;
             }
         }
@@ -172,19 +173,19 @@ namespace Lomont.ClScript.CompilerLib
         // all locals - minimize memory
         #region Locals
 
-        public Environment env { get; private set; }
+        public Environment Env { get; }
 
-        int StackPointer;
-        int BasePointer;
-        int ProgramCounter;
-        int CodeStartOffset;
-        int LinkStartOffset;
-        int InitializerStopAddress;
+        int stackPointer;
+        int basePointer;
+        int programCounter;
+        int codeStartOffset;
+        int linkStartOffset;
+        int initializerStopAddress;
 
         // when true, all memory read/writes are blocked
         bool error;
-        byte[] romImage1;
-        int [] ramImage1 = new int[10000];
+        byte[] romImage;
+        int[] ramImage;
 
         // is tracing on?
         bool useTracing;
@@ -196,39 +197,39 @@ namespace Lomont.ClScript.CompilerLib
 
         byte ReadRom(int offset, string errorMessage)
         {
-            if (offset < 0 || romImage1.Length <= offset)
+            if (offset < 0 || romImage.Length <= offset)
             {
-                env.Error($"ROM out of bounds: {offset}, {errorMessage}");
+                Env.Error($"ROM out of bounds: {offset}, {errorMessage}");
                 error = true;
             }
             if (error)
                 return 0;
-            return romImage1[offset];
+            return romImage[offset];
         }
 
         int ReadRam(int offset, string errorMessage)
         {
-            if (offset < 0 || ramImage1.Length <= offset)
+            if (offset < 0 || ramImage.Length <= offset)
             {
-                env.Error($"RAM read out of bounds: {offset}, {errorMessage}");
+                Env.Error($"RAM read out of bounds: {offset}, {errorMessage}");
                 error = true;
             }
             if (error)
                 return 0;
-            Trace($" r:{ramImage1[offset]}");
-            return ramImage1[offset];
+            Trace($" r:{ramImage[offset]}");
+            return ramImage[offset];
         }
 
         bool WriteRam(int offset, int value, string errorMessage)
         {
-            if (offset < 0 || ramImage1.Length <= offset)
+            if (offset < 0 || ramImage.Length <= offset)
             {
-                env.Error($"RAM write out of bounds: {offset}, {errorMessage}");
+                Env.Error($"RAM write out of bounds: {offset}, {errorMessage}");
                 error = true;
             }
             if (error)
                 return false;
-            ramImage1[offset] = value;
+            ramImage[offset] = value;
             return true;
         }
 
@@ -242,7 +243,7 @@ namespace Lomont.ClScript.CompilerLib
         bool FindAttributeAddress(string attributeName, out int address, out int retCount, out int paramCount, out int uniqueId)
         {
             address = retCount = paramCount = uniqueId = -1;
-            var index = LinkStartOffset;
+            var index = linkStartOffset;
             var importCount = ReadImageInt(ref index, 4);
             var exportCount = ReadImageInt(ref index, 4);
             if (error) return false;
@@ -262,7 +263,7 @@ namespace Lomont.ClScript.CompilerLib
         {
             string name;
 
-            var index      = offset + LinkStartOffset;
+            var index      = offset + linkStartOffset;
             id             = ReadImageInt(ref index, 4);
             address        = ReadImageInt(ref index, 4);
             retCount       = ReadImageInt(ref index, 4);
@@ -302,17 +303,17 @@ namespace Lomont.ClScript.CompilerLib
         // and the entry point address into that
         bool Process(int startAddress, int[] parameters, int[] returnValues)
         {
-            env.Info($"Processing code, offset {CodeStartOffset}, entry address {startAddress}");
+            Env.Info($"Processing code, offset {codeStartOffset}, entry address {startAddress}");
 
-            BasePointer = -1; // out of bounds
-            StackPointer = 0; // todo - start past globals, load them as block
+            basePointer = -1; // out of bounds
+            stackPointer = 0; // todo - start past globals, load them as block
 
             Trace("TRACE: Tracing" + System.Environment.NewLine);
             Trace("TRACE: PC   Opcode   ?    Operands     SP  BP  reads (c=code,r=ram)" + System.Environment.NewLine);
 
-            if (InitializerStopAddress != -1)
+            if (initializerStopAddress != -1)
             {
-                ProgramCounter = 0;
+                programCounter = 0;
                 while (!error)
                 {
                     if (!Execute())
@@ -320,16 +321,16 @@ namespace Lomont.ClScript.CompilerLib
                 }
             }
 
-            ProgramCounter = startAddress;
+            programCounter = startAddress;
 
             // create call stack
             // 1. push parameters
             foreach (var v in parameters)
                 PushStack(v);
             // 2. push ret code (special code to exit), and base pointer, set bp
-            PushStack(returnExitAddress);
-            PushStack(BasePointer);
-            BasePointer = StackPointer; // frame start
+            PushStack(ReturnExitAddress);
+            PushStack(basePointer);
+            basePointer = stackPointer; // frame start
 
             // now entry looks like a Call instruction to the code
             while (!error)
@@ -338,20 +339,20 @@ namespace Lomont.ClScript.CompilerLib
                     break;
             }
 
-            env.Info("");
-            env.Info("Stackdump: ");
-            DumpStack(StackPointer,10);
+            Env.Info("");
+            Env.Info("Stackdump: ");
+            DumpStack(stackPointer,10);
 
             // return values
             var retCount = returnValues.Length;
             for (var i = 0; i < retCount; ++i)
-                returnValues[i] = ReadRam(StackPointer - (retCount - i),"Stack dump");
+                returnValues[i] = ReadRam(stackPointer - (retCount - i),"Stack dump");
 
             return !error;
         }
 
         // when a return jumps here, execution is done
-        const int returnExitAddress = -1; 
+        const int ReturnExitAddress = -1; 
 
         // execute the instruction at the current program counter
         // return true if not ending
@@ -362,7 +363,7 @@ namespace Lomont.ClScript.CompilerLib
             int p1, p2, p3;
             float f1, f2;
 
-            p1 = ProgramCounter; // save before reading
+            p1 = programCounter; // save before reading
             
             // read instruction
             var oldTrace = useTracing;
@@ -374,7 +375,7 @@ namespace Lomont.ClScript.CompilerLib
             useTracing = oldTrace; // restore tracing setting
 
             // trace address, instruction here
-            Trace($"TRACE: {p1:X5}: {opcode,-10} {opType,-6} SP:{StackPointer:X4} BP:{BasePointer:X4}  : ");
+            Trace($"TRACE: {p1:X5}: {opcode,-10} {opType,-6} SP:{stackPointer:X4} BP:{basePointer:X4}  : ");
 
             // handle parameters
             switch (opcode)
@@ -417,15 +418,15 @@ namespace Lomont.ClScript.CompilerLib
                     break;
                 case Opcode.PopStack:
                     p1 = Unpack();
-                    StackPointer -= p1;
+                    stackPointer -= p1;
                     break;
                 case Opcode.Reverse:
                     p1 = Unpack();
                     // reverse top p1 on stack (stack points past last)
                     for (var k = 1; k <= p1/2; ++k)
                     {
-                        var off1 = StackPointer - k;
-                        var off2 = StackPointer - p1 + k - 1;
+                        var off1 = stackPointer - k;
+                        var off2 = stackPointer - p1 + k - 1;
                         p2 = ReadRam(off1, "Illegal read in Reverse");
                         p3 = ReadRam(off2, "Illegal read in Reverse");
                         WriteRam(off1, p3, "Illegal write in Reverse");
@@ -439,7 +440,7 @@ namespace Lomont.ClScript.CompilerLib
                     if (opType == OperandType.Global)
                         PushStack(ReadRam(p1,"Load"));
                     else if (opType == OperandType.Local)
-                        PushStack(ReadRam(p1 + BasePointer, "Load"));
+                        PushStack(ReadRam(p1 + basePointer, "Load"));
                     else
                         throw new RuntimeException($"Write optype {opType} unsupported");
                     break;
@@ -448,7 +449,7 @@ namespace Lomont.ClScript.CompilerLib
                     if (opType == OperandType.Global)
                         PushStack(ReadRam(p1, "Read"));
                     else if (opType == OperandType.Local)
-                        PushStack(ReadRam(p1 + BasePointer, "Read"));
+                        PushStack(ReadRam(p1 + basePointer, "Read"));
                     else
                         throw new RuntimeException($"Read optype {opType} unsupported");
                     break;
@@ -488,7 +489,7 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Addr:
                     p1 = Unpack();
                     if (opType == OperandType.Local)
-                        PushStack(BasePointer + p1);
+                        PushStack(basePointer + p1);
                     else if (opType == OperandType.Global)
                         PushStack(p1);
                     else
@@ -498,7 +499,7 @@ namespace Lomont.ClScript.CompilerLib
                 {
                     var p = Unpack(); // address
                     if (opType == OperandType.Local)
-                        p += BasePointer;
+                        p += basePointer;
                     else if (opType != OperandType.Global)
                         throw new RuntimeException($"MakeArr optype {opType} unsupported");
                     var n = Unpack(); // dimension, dims are x1,x2,...,xn
@@ -535,7 +536,7 @@ namespace Lomont.ClScript.CompilerLib
                         var maxSize = ReadRam(addr - 1, "Error accessing array size");
                         if (bi < 0 || maxSize <= bi)
                             throw new RuntimeException(
-                                $"Array out of bounds {bi}, max {maxSize}, address {ProgramCounter}");
+                                $"Array out of bounds {bi}, max {maxSize}, address {programCounter}");
                         var nextSize = ReadRam(addr - 2, "Error accessing array stride");
                         addr += bi*nextSize;
                         if (i != n - 1) // add this, except for last possible frame
@@ -548,18 +549,18 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Call:
                     if (opType == OperandType.Local)
                     {
-                        p1 = ProgramCounter + ReadCodeItem(OperandType.Int32); // new program counter 
-                        PushStack(ProgramCounter); // return to here
-                        PushStack(BasePointer); // save this
-                        ProgramCounter = p1; // jump to here
-                        BasePointer = StackPointer; // base pointer now points here
+                        p1 = programCounter + ReadCodeItem(OperandType.Int32); // new program counter 
+                        PushStack(programCounter); // return to here
+                        PushStack(basePointer); // save this
+                        programCounter = p1; // jump to here
+                        basePointer = stackPointer; // base pointer now points here
                     }
                     else if (opType == OperandType.Const)
                     {
                         p1 = ReadCodeItem(OperandType.Int32); // import index
-                        PushStack(ProgramCounter); // return to here
-                        PushStack(BasePointer); // save this
-                        BasePointer = StackPointer; // base pointer now points here
+                        PushStack(programCounter); // return to here
+                        PushStack(basePointer); // save this
+                        basePointer = stackPointer; // base pointer now points here
 
                         var e = HandleImport;
                         if (e == null)
@@ -579,21 +580,21 @@ namespace Lomont.ClScript.CompilerLib
                     p1 = Unpack(); // number of parameters on stack
                     p2 = Unpack(); // number of locals on stack
                     ExecuteReturn(p1,p2);
-                    if (ProgramCounter == returnExitAddress)
+                    if (programCounter == ReturnExitAddress)
                         retval = false; // done executing entry function
                     break;
                 case Opcode.BrTrue:
                     p1 = ReadCodeItem(OperandType.Int32);
                     if (PopStack() == 1)
-                        ProgramCounter += p1 - 4;
+                        programCounter += p1 - 4;
                     break;
                 case Opcode.BrFalse:
                     p1 = ReadCodeItem(OperandType.Int32);
                     if (PopStack() == 0)
-                        ProgramCounter += p1-4;
+                        programCounter += p1-4;
                     break;
                 case Opcode.BrAlways:
-                    ProgramCounter += ReadCodeItem(OperandType.Int32);
+                    programCounter += ReadCodeItem(OperandType.Int32);
                     break;
 
 
@@ -603,7 +604,7 @@ namespace Lomont.ClScript.CompilerLib
                     var endIndex = PopStack();   // end
                     var startIndex = PopStack(); // start
                     if (deltaIndex== 0) deltaIndex= (startIndex< endIndex) ? 1 : -1;
-                    var forAddr = BasePointer + Unpack(); // address to for stack, local to base pointer
+                    var forAddr = basePointer + Unpack(); // address to for stack, local to base pointer
                     WriteRam(forAddr, startIndex, "FOR start"); // start address
                     WriteRam(forAddr + 1, deltaIndex, "FOR delta"); // delta
                 }
@@ -613,7 +614,7 @@ namespace Lomont.ClScript.CompilerLib
                     // [   ] update for stack frame, branch if more to do
                     //       Stack has end value, code has local offset to for frame (counter, delta), then delta address to jump on loop
                     //       pops end value after comparison
-                    var forAddr = BasePointer + Unpack(); // address to for stack, local to base pointer
+                    var forAddr = basePointer + Unpack(); // address to for stack, local to base pointer
                     var index = ReadRam(forAddr, "For loop index"); // index
                     var delta = ReadRam(forAddr+1, "For loop delta"); // delta
                     var endVal = PopStack(); // end value
@@ -622,7 +623,7 @@ namespace Lomont.ClScript.CompilerLib
                         (delta < 0 && index + delta >= endVal))
                     {
                         WriteRam(forAddr, index+delta, "For loop update"); // write index back
-                        ProgramCounter += jumpAddr-4; // todo - this -4 fixup should be cleaned at generation
+                        programCounter += jumpAddr-4; // todo - this -4 fixup should be cleaned at generation
                     }
                 }
                     break;
@@ -821,7 +822,7 @@ namespace Lomont.ClScript.CompilerLib
                     throw new RuntimeException($"Unknown opcode {opcode}");
             }
             Trace(System.Environment.NewLine);
-            return retval && !error && ProgramCounter != InitializerStopAddress;
+            return retval && !error && programCounter != initializerStopAddress;
         }
 
 
@@ -902,15 +903,15 @@ namespace Lomont.ClScript.CompilerLib
         // execute a return statement
         void ExecuteReturn(int parameterCount, int localCount)
         {
-            var returnEntryCount = StackPointer - (BasePointer + localCount);
-            var srcStackIndex = StackPointer - returnEntryCount;
-            var dstStackIndex = BasePointer - 2 - parameterCount;
-            StackPointer = BasePointer;
-            BasePointer = PopStack();
+            var returnEntryCount = stackPointer - (basePointer + localCount);
+            var srcStackIndex = stackPointer - returnEntryCount;
+            var dstStackIndex = basePointer - 2 - parameterCount;
+            stackPointer = basePointer;
+            basePointer = PopStack();
             var retAddress = PopStack();
             CopyEntries(srcStackIndex, dstStackIndex, returnEntryCount);
-            StackPointer = dstStackIndex + returnEntryCount;
-            ProgramCounter = retAddress;
+            stackPointer = dstStackIndex + returnEntryCount;
+            programCounter = retAddress;
         }
 
         /// <summary>
@@ -943,9 +944,9 @@ namespace Lomont.ClScript.CompilerLib
 
         public void GetImport(int importIndex, out string name, out int parameterCount, out int returnCount)
         {
-            var index = importIndex * 4 + LinkStartOffset + 8;
+            var index = importIndex * 4 + linkStartOffset + 8;
             var itemStart = ReadImageInt(ref index, 4);
-            index = itemStart + LinkStartOffset+4;
+            index = itemStart + linkStartOffset+4;
 
             var address = ReadImageInt(ref index, 4);
             var retCount = ReadImageInt(ref index, 4);
@@ -977,7 +978,7 @@ namespace Lomont.ClScript.CompilerLib
         #region get/set for external interfacing
         public Int32 GetInt32Parameter()
         {
-            var index = BasePointer - 1 - 1 - importParameterCount + importParameterIndex;
+            var index = basePointer - 1 - 1 - importParameterCount + importParameterIndex;
             importParameterIndex++;
             return ReadRam(index, "Failed to read import Int32");
         }
@@ -1019,7 +1020,7 @@ namespace Lomont.ClScript.CompilerLib
         void Trace(string message)
         {
             if (useTracing)
-                env.Output.Write(message);
+                Env.Output.Write(message);
         }
 
         // Read a UTF8 string from the rom image
@@ -1028,10 +1029,9 @@ namespace Lomont.ClScript.CompilerLib
         bool ReadImageString(ref int index, out string name, int numBytes = -1)
         {
             var sb = new StringBuilder();
-            int b;
             while (true)
             {
-                b = ReadRom(index++, "ReadImageString");
+                int b = ReadRom(index++, "ReadImageString");
                 if (error)
                     break;
                 if (numBytes <= 0 && b == 0)
@@ -1076,19 +1076,19 @@ namespace Lomont.ClScript.CompilerLib
 
         int ReadCodeItem(OperandType opType, bool packed = false)
         {
-            int value = 0;
+            int value;
             if (opType == OperandType.Byte)
             {
-                value = ReadImageInt(ProgramCounter + CodeStartOffset, 1);
-                ProgramCounter += 1;
+                value = ReadImageInt(programCounter + codeStartOffset, 1);
+                programCounter += 1;
             }
             else if (opType == OperandType.Int32 && packed)
                 value = Unpack();
             else if (opType == OperandType.Float32 || opType == OperandType.Int32)
             {
                 // note we can read a 32 bit float with an int, and pass it back as one
-                value = ReadImageInt(ProgramCounter + CodeStartOffset, 4);
-                ProgramCounter += 4;
+                value = ReadImageInt(programCounter + codeStartOffset, 4);
+                programCounter += 4;
             }
             else
                 throw new RuntimeException("Unknown operand type in Runtime");
@@ -1102,13 +1102,13 @@ namespace Lomont.ClScript.CompilerLib
 
         void PushStack(int value)
         {
-            WriteRam(StackPointer++,value,"Stack overflow");
+            WriteRam(stackPointer++,value,"Stack overflow");
         }
 
         int PopStack()
         {
-            StackPointer--;
-            return ReadRam(StackPointer,"Stack underflow");
+            stackPointer--;
+            return ReadRam(stackPointer,"Stack underflow");
         }
 
         void PushStackF(float value)
@@ -1133,16 +1133,16 @@ namespace Lomont.ClScript.CompilerLib
         void DumpStack(int stackTop, int count)
         {
             var oldTracing = useTracing;
-            env.Info("Stack top dump");
+            Env.Info("Stack top dump");
             for (var i = stackTop - count; i < stackTop; ++i)
             {
-                if (i < 0 || ramImage1.Length < i)
+                if (i < 0 || ramImage.Length < i)
                     continue;
                 useTracing = false; // ignore for read
                 var val = ReadRam(i, "");
                 useTracing = oldTracing;
                 var f = Int32ToFloat32(val);
-                env.Info($"{i}: {val}  ({f})");
+                Env.Info($"{i}: {val}  ({f})");
             }
         }
 

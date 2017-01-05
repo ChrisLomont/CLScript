@@ -23,12 +23,12 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// The root symbol table
         /// </summary>
-        public SymbolTable RootTable { get; private set;  }
+        public SymbolTable RootTable { get; }
 
         /// <summary>
         /// Manages types
         /// </summary>
-        public TypeManager TypeManager { get; private set; }
+        public TypeManager TypeManager { get; }
 
         public SymbolTableManager(Environment environment)
         {
@@ -439,7 +439,7 @@ namespace Lomont.ClScript.CompilerLib
 
         #endregion
 
-        Environment env;
+        readonly Environment env;
 
         void AddBasicTypes()
         {
@@ -480,7 +480,7 @@ namespace Lomont.ClScript.CompilerLib
         /// </summary>
         public int StackEntries { get; set; }
 
-        public string Scope { get; private set; }
+        public string Scope { get; }
         public List<SymbolEntry> Entries { get; } = new List<SymbolEntry>();
         public SymbolTable Parent { get;}
         public List<SymbolTable> Children { get; } = new List<SymbolTable>();
@@ -533,12 +533,12 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// Name of symbol
         /// </summary>
-        public string Name { get; private set; }
+        public string Name { get; }
 
         /// <summary>
         /// The defining node (more or less)
         /// </summary>
-        public Ast Node { get; private set; }
+        public Ast Node { get; }
 
         /// <summary>
         /// Some symbol attributes
@@ -548,7 +548,7 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// How used if a variable
         /// </summary>
-        public VariableUse VariableUse { get;  private set; }
+        public VariableUse VariableUse { get; }
 
         /// <summary>
         /// Value if the symbol has a fixed value

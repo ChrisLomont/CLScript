@@ -6,9 +6,9 @@ namespace Lomont.ClScript.CompilerLib.Lexer
     {
         public string Match { get; set; }
 
-        TokenType TokenType { get; set; }
+        TokenType TokenType { get; }
 
-        Func<char, bool> nextOk = c => true; // allows anything
+        readonly Func<char, bool> nextOk = c => true; // allows anything
 
         public MatchKeyword(TokenType type, String match, Func<char,bool> nextOk = null)
         {

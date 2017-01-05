@@ -12,12 +12,10 @@
   See http://www.galasoft.ch/mvvm
 */
 
-using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Ioc;
-using Lomont.ClScript.WPFEdit.ViewModel;
 using Microsoft.Practices.ServiceLocation;
 
-namespace WPFEdit.ViewModel
+namespace Lomont.ClScript.WPFEdit.ViewModel
 {
     /// <summary>
     /// This class contains static references to all the view models in the
@@ -46,14 +44,8 @@ namespace WPFEdit.ViewModel
             SimpleIoc.Default.Register<MainViewModel>();
         }
 
-        public MainViewModel Main
-        {
-            get
-            {
-                return ServiceLocator.Current.GetInstance<MainViewModel>();
-            }
-        }
-        
+        public MainViewModel Main => ServiceLocator.Current.GetInstance<MainViewModel>();
+
         public static void Cleanup()
         {
             // TODO Clear the ViewModels

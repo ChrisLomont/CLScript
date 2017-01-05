@@ -1,9 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib
 {
@@ -24,9 +19,9 @@ namespace Lomont.ClScript.CompilerLib
 
     public class Instruction
     {
-        public Opcode Opcode { get; private set; }
-        public object[] Operands { get; private set; }
-        public OperandType OperandType { get; private set; }
+        public Opcode Opcode { get; }
+        public object[] Operands { get; }
+        public OperandType OperandType { get; }
         public string Comment { get; set; }
         
         // address for layout, if exists

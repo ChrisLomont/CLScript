@@ -16,20 +16,26 @@ namespace Lomont.ClScript.WPFEdit
 
         void OnLoaded(object sender, RoutedEventArgs e)
         {
-            (this.DataContext as MainViewModel).CodeEditor = textEditor;
-            (this.DataContext as MainViewModel).TreeText = treeView;
-            (this.DataContext as MainViewModel).CodegenText = codegenView;
-            (this.DataContext as MainViewModel).SymbolText = symbolView;
-            (this.DataContext as MainViewModel).TraceText = traceView;
-            textEditor.ShowLineNumbers = true;
+            var mv = DataContext as MainViewModel;
+            if (mv == null)
+            {
+                MessageBox.Show("ERROR: cannot cast DataContext");
+                return;
+            }
+            mv.CodeEditor = TextEditor;
+            mv.TreeText = TreeView;
+            mv.CodegenText = CodegenView;
+            mv.SymbolText = SymbolView;
+            mv.TraceText = TraceView;
+            TextEditor.ShowLineNumbers = true;
 
-            (this.DataContext as MainViewModel).Loaded();
+            mv.Loaded();
 
         }
 
         void OnClosing(object sender, CancelEventArgs e)
         {
-            (this.DataContext as MainViewModel).Closing();
+            (DataContext as MainViewModel).Closing();
         }
     }
 }

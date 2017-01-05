@@ -8,8 +8,6 @@ using ICSharpCode.AvalonEdit;
 using Lomont.ClScript.CompilerLib;
 using Microsoft.Win32;
 using Environment = Lomont.ClScript.CompilerLib.Environment;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Lomont.ClScript.WPFEdit.ViewModel
@@ -121,6 +119,8 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             Messages.Clear();
 
             var path = Path.GetDirectoryName(filename);
+            if (path == null)
+                return null; // will not work
             Compiler.GetFileText fileReader = f =>
             {
                 var fn = Path.Combine(path, f);
@@ -134,7 +134,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
         void PostCompile(Compiler compiler, Runtime runtime = null)
         {
             // output messages
-            var output = compiler.env.Output;
+            var output = compiler.Env.Output;
             var msgs = output.ToString().Split('\n');
             foreach (var msg in msgs)
                 Messages.Add(msg.Replace("\r", "").Replace("\n", ""));
@@ -148,8 +148,8 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 Tokens.Add(t);
 
             // output trace if exists
-            if (runtime != null && runtime.env != null)
-                TraceText.Text = runtime.env.Output.ToString();
+            if (runtime?.Env != null)
+                TraceText.Text = runtime.Env.Output.ToString();
         }
 
         // compile, check env after to check success
@@ -219,12 +219,12 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 {
                     var pair = CompileAndRun(new StringWriter(), file, fileReader, parameters, returnValues, "Entry");
                     var compiler = pair.Item1;
-                    var resultText = "";
+                    string resultText;
                     var runtime = pair.Item2;
-                    if (compiler.env.ErrorCount > 0)
-                        resultText = $"Compiler errors: {compiler.env.ErrorCount}";
-                    else if (runtime?.env?.ErrorCount > 0)
-                        resultText = $"Runtime errors: {runtime.env.ErrorCount}";
+                    if (compiler.Env.ErrorCount > 0)
+                        resultText = $"Compiler errors: {compiler.Env.ErrorCount}";
+                    else if (runtime?.Env?.ErrorCount > 0)
+                        resultText = $"Runtime errors: {runtime.Env.ErrorCount}";
                     else
                     {
                         var success = returnValues[0] == 1 ? "SUCCESS" : "FAILED";
@@ -272,7 +272,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 parameters != null && 
                 returnValues != null && 
                 !String.IsNullOrEmpty(runEntryAttribute) &&
-                compiler?.env?.ErrorCount == 0;
+                compiler.Env?.ErrorCount == 0;
 
             if (runResult)
             {
@@ -281,14 +281,14 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
                 var traceEnv = new Environment(new StringWriter());
                 runtime = new Runtime(traceEnv) {HandleImport = Imports.HandleImport};
 
-                var success = runtime.Run(compiler.CompiledAssembly, runEntryAttribute, parameters, returnValues);
+                var success = runtime.Run(compiler.CompiledAssembly, runEntryAttribute, parameters, returnValues, new int[1000]);
 
                 if (success)
                 {
                     env.Info(" .... runtime successful.");
                     var sb = new StringBuilder();
-                    for (var i = 0; i < returnValues.Length; ++i)
-                        sb.Append($"{returnValues[i]} ");
+                    foreach (int returnValue in returnValues)
+                        sb.Append($"{returnValue} ");
                     env.Info($"Return values: {sb}");
                 }
                 else
@@ -351,7 +351,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set<string>(() => this.Filename, ref filename, value);
+                Set(() => Filename, ref filename, value);
             }
         }
 
@@ -364,7 +364,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set<string>(() => this.Modified, ref modified, value);
+                Set(() => Modified, ref modified, value);
             }
         }
 
@@ -379,7 +379,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set(() => this.ShowCode, ref showCode, value);
+                Set(() => ShowCode, ref showCode, value);
             }
         }
 
@@ -392,7 +392,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set(() => this.ShowAst, ref showAst, value);
+                Set(() => ShowAst, ref showAst, value);
             }
         }
         bool showSymbols = true;
@@ -404,7 +404,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set(() => this.ShowSymbols, ref showSymbols, value);
+                Set(() => ShowSymbols, ref showSymbols, value);
             }
         }
 
@@ -417,7 +417,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set(() => this.ShowCodegen, ref showCodegen, value);
+                Set(() => ShowCodegen, ref showCodegen, value);
             }
         }
         bool showLexer = true;
@@ -429,7 +429,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set(() => this.ShowLexer, ref showLexer, value);
+                Set(() => ShowLexer, ref showLexer, value);
             }
         }
         bool showtrace = true;
@@ -441,7 +441,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set(() => this.ShowTrace, ref showtrace, value);
+                Set(() => ShowTrace, ref showtrace, value);
             }
         }
 
@@ -454,7 +454,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set(() => this.RunEntryAttribute, ref runEntryAttribute, value);
+                Set(() => RunEntryAttribute, ref runEntryAttribute, value);
             }
         }
 
@@ -467,7 +467,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set(() => this.RunReturnValues, ref runReturnValues, value);
+                Set(() => RunReturnValues, ref runReturnValues, value);
             }
         }
 
@@ -480,7 +480,7 @@ namespace Lomont.ClScript.WPFEdit.ViewModel
             }
             set
             {
-                Set(() => this.RunParameters, ref runParameters, value);
+                Set(() => RunParameters, ref runParameters, value);
             }
         }
 

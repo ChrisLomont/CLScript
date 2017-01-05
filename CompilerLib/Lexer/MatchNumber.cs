@@ -1,10 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.ServiceModel.Channels;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib.Lexer
 {
@@ -39,7 +33,8 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                     if (leftOperand == null && rightOperand == null)
                         return null; // nothing here
 
-                    var exponent = GetExponent(characterStream);
+                    // var exponent = 
+                        GetExponent(characterStream);
 
                     return new Token(TokenType.FloatLiteral);
                 }

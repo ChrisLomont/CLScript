@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Lomont.ClScript.CompilerLib.AST;
 
 namespace Lomont.ClScript.CompilerLib.Visitors
@@ -14,7 +11,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
         TextWriter output;
         public PrintVisitor(TextWriter outut)
         {
-            this.output = outut;
+            output = outut;
         }
 
         public void Start(Ast ast)
@@ -41,7 +38,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             var cols = new List<int>();
             foreach (var line in lines)
             {
-                var words = line.Split(new string[] {"::"}, StringSplitOptions.None);
+                var words = line.Split(new[] {"::"}, StringSplitOptions.None);
                 while (cols.Count < words.Length)
                     cols.Add(0);
                 for (var i = 0; i < words.Length; ++i)
@@ -51,12 +48,12 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             // output
             foreach (var line in lines)
             {
-                var words = line.Split(new string[] {"::"}, StringSplitOptions.None);
+                var words = line.Split(new[] {"::"}, StringSplitOptions.None);
                 for (var i = 0; i < words.Length; ++i)
                 {
                     var w = words[i].Replace("\r", "");
                     var format = $"{{0,-{cols[i] + 2}}}";
-                    output.Write(String.Format(format,w));
+                    output.Write(format, w);
                 }
                 output.WriteLine();
             }

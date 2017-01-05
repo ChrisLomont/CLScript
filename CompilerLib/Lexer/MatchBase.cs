@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Lomont.ClScript.CompilerLib.Lexer
+﻿namespace Lomont.ClScript.CompilerLib.Lexer
 {
     public abstract class MatchBase
     {
@@ -14,7 +8,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
                 return new Token(TokenType.EndOfFile);
 
             characterStream.TakeSnapshot();
-            var pos = new CharacterPosition(characterStream.position);
+            var pos = new CharacterPosition(characterStream.Position);
 
             var match = IsMatchImpl(characterStream);
 
@@ -24,7 +18,7 @@ namespace Lomont.ClScript.CompilerLib.Lexer
             {
                 characterStream.CommitSnapshot();
                 match.Position = new CharacterPosition(pos);
-                var endIndex = characterStream.position.TextIndex;
+                var endIndex = characterStream.Position.TextIndex;
                 match.TokenValue = characterStream.Text.Substring(pos.TextIndex, endIndex - pos.TextIndex);
             }
 

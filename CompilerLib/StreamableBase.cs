@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Lomont.ClScript.CompilerLib
 {
@@ -21,13 +18,13 @@ namespace Lomont.ClScript.CompilerLib
 
         protected int Index { get; set; }
 
-        private Stack<int> SnapshotIndexes { get; set; }
+        private Stack<int> SnapshotIndexes { get; }
 
         public virtual T Current
         {
             get
             {
-                if (EOF(0))
+                if (EndOfFile(0))
                 {
                     return null;
                 }
@@ -43,7 +40,7 @@ namespace Lomont.ClScript.CompilerLib
             return a;
         }
 
-        private Boolean EOF(int lookahead)
+        bool EndOfFile(int lookahead)
         {
             if (Index + lookahead >= Items.Count)
             {
@@ -53,14 +50,14 @@ namespace Lomont.ClScript.CompilerLib
             return false;
         }
 
-        public Boolean End()
+        public bool End()
         {
-            return EOF(0);
+            return EndOfFile(0);
         }
 
         public virtual T Peek(int lookahead)
         {
-            if (EOF(lookahead))
+            if (EndOfFile(lookahead))
             {
                 return null;
             }
