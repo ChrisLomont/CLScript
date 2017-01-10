@@ -189,7 +189,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             node.Symbol = symbol;
 
-            // expand enum here to i32
+            // expand enum here to i32 if auto cast (removed - must explicitely cast enum value)
             var dotType = symbol.Type as SimpleType;
             if (dotType != null && dotType.SymbolType == SymbolType.EnumValue)
             {
@@ -801,6 +801,26 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             if (childType == null)
                 throw new InternalFailure($"Expected simple type, got {child?.Type}");
 
+            if (node is CastAst)
+            {
+                var cast = (CastAst) node;
+                var fromType = childType;
+                var toType = BuildSymbolTableVisitor.GetType(node.Token, mgr);
+                node.Type = GetCastType(fromType,toType);
+                if (node.Type == null)
+                    env.Error($"Cannot cast type {fromType} to type {toType} at {node}");
+                else
+                {
+                    SymbolType tt = SymbolType.ToBeResolved;
+                    if (toType is SimpleType)
+                        tt = ((SimpleType) toType).SymbolType;
+                    if (toType is UserType)
+                        tt = ((UserType)toType).SymbolType;
+                    cast.CastOp = CodeGeneratorVisitor.GetCastOp(fromType.SymbolType,tt);
+                }
+                return node.Type;
+            }
+
             foreach (var entry in UnaryActionTable)
             {
                 if (entry.ActionType == node.Token.TokenType &&
@@ -815,6 +835,39 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
             env.Error(
                 $"Unary operator {node.Name} cannot be applied to type {childType.SymbolType}");
+            return null;
+        }
+
+
+
+        // if fromType can be converted to toType, return toType, 
+        // else return null;
+        InternalType GetCastType(InternalType fromType, InternalType toType)
+        {
+            if (fromType == null || toType == null)
+                return null;
+            // i32->i32,f32,enum
+            // f32->i32,f32,enum
+            // enum->i32,f32,enum
+            Func<InternalType, bool> isConv = t =>
+            {
+                if (t is SimpleType)
+                {
+                    var s = (SimpleType) t;
+                    return
+                        s.SymbolType == SymbolType.Int32 ||
+                        s.SymbolType == SymbolType.Float32 ||
+                        s.SymbolType == SymbolType.EnumValue;
+                }
+                if (t is UserType)
+                {
+                    var u = (UserType) t;
+                    return u.SymbolType == SymbolType.EnumType;
+                }
+                return false;
+            };
+            if (isConv(fromType) && isConv(toType))
+                return toType;
             return null;
         }
 

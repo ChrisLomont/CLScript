@@ -2,20 +2,7 @@
 
 namespace Lomont.ClScript.CompilerLib
 {
-    public enum OperandType
-    {
-        // size/type of item/opcode
-        Int32,
-        Float32,
-        Byte,
 
-        // where item exists
-        Global, // absolute address
-        Local,  // relative to base pointer address
-        Const,   // in const memory (ROM/FLASH, etc)
-        
-        None=Int32 // duplicate default
-    }
 
     public class Instruction
     {

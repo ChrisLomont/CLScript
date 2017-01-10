@@ -1,9 +1,25 @@
 ﻿
 namespace Lomont.ClScript.CompilerLib
 {
+    public enum OperandType
+    {
+        // size/type of item/opcode
+        Int32,
+        Float32,
+        Byte,
+
+        // where item exists
+        Global, // absolute address
+        Local,  // relative to base pointer address
+        Const,   // in const memory (ROM/FLASH, etc)
+
+        None = Int32 // duplicate default
+    }
+
     public enum Opcode
     {
-        // first letter of allowed operand types
+        //
+        Nop,                // [   ] No operation
 
         // stack
         Push,               // [BIF] read bytes from code, expanded to stack entry size, pushed onto stack
@@ -54,7 +70,8 @@ namespace Lomont.ClScript.CompilerLib
         ForLoop,            // [   ] update for stack frame, branch if more to do
                             //       Stack has end value, code has local offset to for frame (counter, delta), then delta address to jump on loop
                             //       pops end value after comparison
-                            //bitwise           
+        
+        //bitwise           
         Or,                 // [   ]
         And,                // [   ]
         Xor,                // [   ]
@@ -80,11 +97,15 @@ namespace Lomont.ClScript.CompilerLib
         Div,                // [BIF]
         Mod,                // [BI ]
         // todo - add inc, dec that take an address for ++ and -- ops, and versions leaving value on stack
-        // end
+        
+        // convert
+        I2F,                // [   ] integer on stack to float
+        F2I,                // [   ] float on stack to int
 
         // pseudo-ops - take no space, merely placeholders
         Label,
-        Symbol
+        Symbol,
+        Unused
 
     }
 

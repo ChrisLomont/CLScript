@@ -1,0 +1,57 @@
+// testing cast int <-> float
+//i32 a = (i32)(1.0*1.0) 
+
+
+[Entry]
+export (bool,i32,i32) TestCast()
+    i32 p,t = 0,0 // passed,tested
+    
+    p,t += TestSimple()
+    
+    return p==t,p,t
+    
+(i32,i32) TestSimple()
+   i32 p,t = 0,0 // passed, tested
+
+   // assigns
+   i32 a = (i32)3.5
+   
+   if a == 3
+      p++
+   t++
+   
+   r32 x = (r32)5
+   if x == 5.0
+      p++
+   t++
+   
+   if a == (i32)3.0
+      p++
+   t++
+   
+   if x == (r32)5
+      p++
+   t++
+   
+   // expression
+   x = 2.5
+   a = (i32)(x*x)
+   if a == 6
+      p++
+   t++
+   
+   
+//   i32 b = (i32)Enum1.val1
+   
+//   Enum1 vv = (Enum1)4
+   
+//   if a==(i32)c && b == (i32)c
+//      p++
+//   t++
+//   
+//   if (f32)a==c && (f32)b == c
+//      p++
+//   t++
+   
+   return p,t
+  

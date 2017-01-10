@@ -580,6 +580,7 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 case SymbolType.Byte:
                     return OperandType.Int32; // todo - would like byte packing someday
                 case SymbolType.Int32:
+                case SymbolType.EnumValue:
                     return OperandType.Int32;
                 case SymbolType.Float32:
                     return OperandType.Float32;
@@ -1046,11 +1047,71 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
-#endregion
+        #endregion
+
+        public class CastOp
+        {
+            public SymbolType FromType;
+            public SymbolType ToType;
+            public Opcode Opcode;
+
+            public CastOp(SymbolType fromType, SymbolType toType, Opcode opcode)
+            {
+                this.FromType = fromType;
+                this.ToType = toType;
+                this.Opcode = opcode;
+            }
+        }
+        
+        // valid casts
+        static CastOp[] castTable =
+        {
+            new CastOp(SymbolType.Int32,SymbolType.Int32,Opcode.Nop),
+            new CastOp(SymbolType.Int32,SymbolType.Float32,Opcode.I2F),
+            new CastOp(SymbolType.Int32,SymbolType.EnumValue,Opcode.Nop),
+            new CastOp(SymbolType.Int32,SymbolType.EnumType,Opcode.Nop),
+
+            new CastOp(SymbolType.Float32,SymbolType.Int32,Opcode.F2I),
+            new CastOp(SymbolType.Float32,SymbolType.Float32,Opcode.Nop),
+            new CastOp(SymbolType.Float32,SymbolType.EnumValue,Opcode.F2I),
+            new CastOp(SymbolType.Float32,SymbolType.EnumType,Opcode.F2I),
+
+            new CastOp(SymbolType.EnumValue,SymbolType.Int32,Opcode.Nop),
+            new CastOp(SymbolType.EnumValue,SymbolType.Float32,Opcode.I2F),
+            new CastOp(SymbolType.EnumValue,SymbolType.EnumValue,Opcode.Nop),
+            new CastOp(SymbolType.EnumValue,SymbolType.EnumType,Opcode.Nop),
+
+            new CastOp(SymbolType.EnumType,SymbolType.Int32,Opcode.Nop),
+            new CastOp(SymbolType.EnumType,SymbolType.Float32,Opcode.I2F),
+            new CastOp(SymbolType.EnumType,SymbolType.EnumValue,Opcode.Nop),
+            new CastOp(SymbolType.EnumType,SymbolType.EnumType,Opcode.Nop)
+        };
+
+        // get the cast op, or return null if not legal
+        public static CastOp GetCastOp(SymbolType fromType, SymbolType toType)
+        {
+            foreach (var c in castTable)
+            {
+                if (c.FromType == fromType && c.ToType == toType)
+                    return c;
+            }
+            return null;
+        }
 
         // given value on stack, and unary operation, evaluate the operation
         void EmitUnaryOp(ExpressionAst node)
         {
+            if (node is CastAst)
+            {
+                var cast = (CastAst)node;
+                var castOp = cast.CastOp;
+                if (castOp == null)
+                    throw new InternalFailure($"Expected cast to have valid castOp {node}");
+                if (castOp.Opcode != Opcode.Nop)
+                    EmitO(castOp.Opcode);
+                return;
+            }
+
             switch (node.Token.TokenType)
             {
                 case TokenType.Exclamation:

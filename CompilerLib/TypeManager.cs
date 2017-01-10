@@ -83,14 +83,14 @@ namespace Lomont.ClScript.CompilerLib
         /// <summary>
         /// Lookup type, if not created, do so
         /// </summary>
-        public InternalType GetType(string typeName)
+        public InternalType GetType(string typeName, SymbolType symbolType)
         {
             foreach (var t in Types.OfType<UserType>())
             {
                 if (t.Name == typeName)
                     return t;
             }
-            var type = new UserType(this, Types.Count,typeName);
+            var type = new UserType(this, Types.Count,typeName, symbolType);
             Types.Add(type);
             return type;
         }
@@ -320,16 +320,23 @@ namespace Lomont.ClScript.CompilerLib
         public UserType(
             TypeManager mgr,
             int index,
-            string name
+            string name,
+            SymbolType symbolType
             ) : base (mgr,index)
         {
             Name = name;
+            SymbolType = symbolType;
         }
 
         /// <summary>
         /// A user type name
         /// </summary>
         public string Name { get; }
+
+        /// <summary>
+        /// Module, Enum, UserType
+        /// </summary>
+        public SymbolType SymbolType { get; }
 
         public override string ToString()
         {

@@ -336,6 +336,8 @@ namespace Lomont.ClScript.CompilerLib
                 case Opcode.Mul:
                 case Opcode.Div:
                 case Opcode.Mod:
+                case Opcode.F2I:
+                case Opcode.I2F:
                     if (inst.Operands != null && inst.Operands.Length > 0)
                     {
                         env.Warning($"Instruction {inst} has operands, bytecode failed to write");
@@ -458,13 +460,15 @@ namespace Lomont.ClScript.CompilerLib
             //Write((uint)opcode,1);
             //Write((uint)operandType, 1);
 
-            var v = 6*(uint) opcode + (uint) operandType;
-            Write(v, 1);
+            //var v = 6*(uint) opcode + (uint) operandType;
+            //Write(v, 1);
+            //
+            //if ((int)operandType >= 7)
+            //    throw new InternalFailure($"Opcode {operandType} must be smaller than 7, is now {(int)operandType}");
+            //if ((int)opcode*6+5 >= 255)
+            //    throw new InternalFailure($"Opcode {opcode} too large, is now {(int)opcode}.");
 
-            if ((int)operandType >= 7)
-                throw new InternalFailure($"Opcode {operandType} must be smaller than 7, is now {(int)operandType}");
-            if ((int)opcode*6+5 >= 255)
-                throw new InternalFailure($"Opcode {opcode} too large, is now {(int)opcode}.");
+            Write(OpcodeMap.GetEntry(opcode,operandType),1);
 
         }
 

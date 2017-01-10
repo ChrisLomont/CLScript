@@ -43,6 +43,7 @@
     <Compile Include="AST\Ast.cs" />
     <Compile Include="AST\AttributeAst.cs" />
     <Compile Include="AST\BlockAst.cs" />
+    <Compile Include="AST\CastAst.cs" />
     <Compile Include="AST\DeclarationsAst.cs" />
     <Compile Include="AST\DotAst.cs" />
     <Compile Include="AST\EnumAst.cs" />
@@ -87,6 +88,7 @@
     <Compile Include="Lexer\ThrowExceptionMatcher.cs" />
     <Compile Include="Instruction.cs" />
     <Compile Include="Opcode.cs" />
+    <Compile Include="OpcodeMap.cs" />
     <Compile Include="Parser\Parser.cs" />
     <Compile Include="Parser\TokenStream.cs" />
     <Compile Include="PeepholeOptimizer.cs" />
@@ -113,6 +115,7 @@
     <None Include="Tests\TestAll.clsc" />
     <None Include="Tests\TestArray.clsc" />
     <None Include="Tests\TestAssign.clsc" />
+    <None Include="Tests\TestCast.clsc" />
     <None Include="Tests\TestEnum.clsc" />
     <None Include="Tests\TestFunctionCall.clsc" />
     <None Include="Tests\TestGlobals.clsc" />

@@ -47,11 +47,11 @@ namespace Lomont.ClScript.CompilerLib.Visitors
                 if (node is FunctionDeclarationAst)
                     AddFunctionDeclSymbols((FunctionDeclarationAst)node);
                 else if (node is EnumAst)
-                    mgr.AddTypeSymbol(node, ((EnumAst) node).Name);
+                    mgr.AddTypeSymbol(node, ((EnumAst) node).Name, SymbolType.EnumType);
                 else if (node is TypeDeclarationAst)
-                    mgr.AddTypeSymbol(node, ((TypeDeclarationAst) node).Name);
+                    mgr.AddTypeSymbol(node, ((TypeDeclarationAst) node).Name, SymbolType.UserType);
                 else if (node is ModuleAst)
-                    mgr.AddTypeSymbol(node, ((ModuleAst) node).Name);
+                    mgr.AddTypeSymbol(node, ((ModuleAst) node).Name, SymbolType.Module);
             }
         }
 
@@ -197,6 +197,17 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             }
         }
 
+        public static InternalType GetType(Token token, SymbolTableManager mgr)
+        {
+            var symbolType = GetSymbolType(token.TokenType);
+            if (symbolType != SymbolType.ToBeResolved)
+                return mgr.TypeManager.GetType(symbolType);
+            else
+            {
+                var symbol = mgr.Lookup(token.TokenValue);
+                return symbol?.Type;
+            }
+        }
 
         // helper function that gets needed items to create types based on a TypedItemAst
         InternalType GetTypedItemType(TypedItemAst node, out List<int> arrayDimensions)
@@ -204,20 +215,23 @@ namespace Lomont.ClScript.CompilerLib.Visitors
             arrayDimensions = null;
 
             // typed item has variable name and type name
-            var symbolType = GetSymbolType(node.BaseTypeToken.TokenType);
-            InternalType baseType;
-            if (symbolType != SymbolType.ToBeResolved)
-                baseType = mgr.TypeManager.GetType(symbolType);
-            else
-            {
-                var symbol = mgr.Lookup(node.BaseTypeToken.TokenValue);
-                baseType = null;
-                if (symbol == null)
-                    env.Error($"Cannot find symbol for token {node.BaseTypeToken}");
-                else
-                    baseType = symbol.Type;
-            }
+            var baseType = GetType(node.BaseTypeToken, mgr);
+            if (baseType == null)
+                env.Error($"Cannot find symbol for token {node.BaseTypeToken}");
 
+//            var symbolType = GetSymbolType(node.BaseTypeToken.TokenType);
+//            if (symbolType != SymbolType.ToBeResolved)
+//                baseType = mgr.TypeManager.GetType(symbolType);
+//            else
+//            {
+//                var symbol = mgr.Lookup(node.BaseTypeToken.TokenValue);
+//                baseType = null;
+//                if (symbol == null)
+//                    env.Error($"Cannot find symbol for token {node.BaseTypeToken}");
+//                else
+//                    baseType = symbol.Type;
+//            }
+//
             if (node.Children.Any())
             {
                 Ast arrayAst = node.Children[0] as ArrayAst;

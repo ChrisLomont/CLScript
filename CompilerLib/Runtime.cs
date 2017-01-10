@@ -370,8 +370,9 @@ namespace Lomont.ClScript.CompilerLib
             useTracing = false; // do not trace these reads
             var inst = ReadCodeItem(OperandType.Byte);
 
-            Opcode opcode = (Opcode) (inst/6); //  ReadCodeItem(OperandType.Byte);
-            OperandType opType = (OperandType) (inst%6);//ReadCodeItem(OperandType.Byte);
+            var opcode = OpcodeMap.Table[inst].Opcode;
+            var opType = OpcodeMap.Table[inst].OperandType;
+           
             useTracing = oldTrace; // restore tracing setting
 
             // trace address, instruction here
@@ -380,6 +381,8 @@ namespace Lomont.ClScript.CompilerLib
             // handle parameters
             switch (opcode)
             {
+                case Opcode.Nop:
+                    break;
 
                 // stack
                 case Opcode.Push:
@@ -818,6 +821,17 @@ namespace Lomont.ClScript.CompilerLib
                     }
                     else throw new RuntimeException($"Unknown op type {opType} in {opcode}");
                     break;
+
+                // convert
+                case Opcode.I2F:
+                    p1 = PopStack();
+                    PushStackF(p1);
+                    break;
+                case Opcode.F2I:
+                    f1 = PopStackF();
+                    PushStack((int)f1);
+                    break;
+
                 default:
                     throw new RuntimeException($"Unknown opcode {opcode}");
             }

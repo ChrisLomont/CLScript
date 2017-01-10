@@ -892,7 +892,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
 
         Ast ParseExpression()
         {
-            var ast = Exp(0);
+            var ast = Expression(0);
             //if (Lookahead() not EOL or , or ) or??
             //   error?
             return ast;
@@ -902,7 +902,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
         {
             new Prec(12,Assoc.L,Ary.U,TokenType.Increment),
             new Prec(12,Assoc.L,Ary.U,TokenType.Decrement),
-            new Prec(12,Assoc.L,Ary.B,TokenType.LeftParen),
+            new Prec(12,Assoc.L,Ary.B,TokenType.LeftParen), // function call
             new Prec(12,Assoc.L,Ary.U,TokenType.LeftBracket),
             new Prec(12,Assoc.L,Ary.U,TokenType.Dot),
 
@@ -912,6 +912,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             new Prec(11,Assoc.L,Ary.U,TokenType.Minus),
             new Prec(11,Assoc.L,Ary.U,TokenType.Exclamation),
             new Prec(11,Assoc.L,Ary.U,TokenType.Tilde),
+            //new Prec(11,Assoc.R,Ary.U,TokenType.LeftParen), // typecast (type)
 
             new Prec(10,Assoc.L,Ary.B,TokenType.Asterix),
             new Prec(10,Assoc.L,Ary.B,TokenType.Slash),
@@ -1054,12 +1055,12 @@ namespace Lomont.ClScript.CompilerLib.Parser
         }
 
 
-        Ast Exp(int p)
+        Ast Expression(int p)
         {
-            var t = P();
+            var t = Parse1();
             if (t == null)
             {
-                ErrorMessage("expected expression");
+                ErrorMessage($"expected expression near {TokenStream.Current}");
                 return null;
             }
 
@@ -1069,7 +1070,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
             {
                 TokenStream.Consume();
                 var q = prec.Assoc == Assoc.R ? prec.Precedence : 1+prec.Precedence;
-                var t1 = Exp(q);
+                var t1 = Expression(q);
                 if (t1 == null)
                 {
                     ErrorMessage("expected expression");
@@ -1080,7 +1081,19 @@ namespace Lomont.ClScript.CompilerLib.Parser
             return t;
         }
 
-        Ast P()
+        // is the lookahead a cast expression?
+        bool LookaheadIsCast()
+        {
+            if (Lookahead("", TokenType.LeftParen, TokenType.Int32, TokenType.RightParen))
+                return true;
+            if (Lookahead("", TokenType.LeftParen, TokenType.Float32, TokenType.RightParen))
+                return true;
+            if (Lookahead("", TokenType.LeftParen, TokenType.Identifier, TokenType.RightParen))
+                return true;
+            return false;
+        }
+
+        Ast Parse1()
         {
             Prec prec;
             Token token;
@@ -1091,7 +1104,7 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 // if next is a unary operator
                 TokenStream.Consume();
                 var q = prec.Precedence;
-                t = Exp(q);
+                t = Expression(q);
                 if (t == null)
                 {
                     ErrorMessage("expected expression");
@@ -1099,10 +1112,28 @@ namespace Lomont.ClScript.CompilerLib.Parser
                 }
                 return new ExpressionAst {Token = token, Children = {t}};
             }
+            else if (LookaheadIsCast())
+            {
+                // is a cast or a subexpression
+                TokenStream.Consume();
+                var cast = new CastAst {Token = TokenStream.Consume()};
+                if (Match(TokenType.RightParen, "No closing ')'") != ParseAction.Matched)
+                {
+                    return null;
+                }
+                t = Expression(0);
+                if (t == null)
+                {
+                    ErrorMessage("expected expression");
+                    return null;
+                }
+                cast.AddChild(t);
+                return cast;
+            }
             else if (token.TokenType == TokenType.LeftParen)
             {
                 TokenStream.Consume();
-                t = Exp(0);
+                t = Expression(0);
                 if (t == null)
                 {
                     ErrorMessage("expected expression");
@@ -1116,13 +1147,13 @@ namespace Lomont.ClScript.CompilerLib.Parser
             }
             else if (NextTokenOneOf(LiteralTokenTypes))
                 return new LiteralAst(TokenStream.Consume());
-            else if (Lookahead("",TokenType.Identifier,TokenType.LeftParen))
+            else if (Lookahead("", TokenType.Identifier, TokenType.LeftParen))
                 return ParseFunctionCall();
             //else if (Lookahead("", TokenType.Identifier, TokenType.LeftBracket))
             //    return ParseArray(todo);
             else if (Lookahead("", TokenType.Identifier))
                 return ParseAssignItem();
-                //return new IdentifierAst(TokenStream.Consume());
+            //return new IdentifierAst(TokenStream.Consume());
             ErrorMessage("Expected expression");
             return null;
         }

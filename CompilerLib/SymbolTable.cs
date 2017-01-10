@@ -69,10 +69,11 @@ namespace Lomont.ClScript.CompilerLib
 
         public SymbolEntry AddTypeSymbol(
             Ast node,
-            string typeName
+            string typeName,
+            SymbolType symbolType
             )
         {
-            var type = TypeManager.GetType(typeName);
+            var type = TypeManager.GetType(typeName, symbolType);
             var symbol = SymbolTable.AddSymbol(node, Scope, typeName, VariableUse.None, type, null);
             symbol.Attrib = SymbolAttribute.None;
             CheckDuplicate(symbol,typeName);
@@ -692,7 +693,9 @@ namespace Lomont.ClScript.CompilerLib
         String,
         Byte,
         EnumValue,
-        UserType,  // use of a user type, type has a name
+        EnumType,  // enum type, has a name
+        UserType,  // user type, has a name
+        Module,    // module name, has a name
 
         ToBeResolved, // cannot yet be matched, like for loop variables
     }
